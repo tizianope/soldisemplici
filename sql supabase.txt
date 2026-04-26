@@ -1,0 +1,141 @@
+create table if not exists public.user_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text,
+  selected_portfolio text,
+  quiz_answers jsonb,
+  is_premium boolean default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.user_checklist (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  portfolio_key text not null,
+  item_id text not null,
+  completed boolean not null default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_id, portfolio_key, item_id)
+);
+
+create table if not exists public.user_pac_history (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  portfolio_key text not null,
+  month_key text not null,
+  completed boolean not null default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_id, portfolio_key, month_key)
+);
+
+create table if not exists public.user_holdings (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  holding_key text not null,
+  category text not null,
+  asset_name text not null,
+  isin text not null,
+  amount numeric not null default 0,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_id, holding_key)
+);
+alter table public.user_profiles enable row level security;
+alter table public.user_checklist enable row level security;
+alter table public.user_pac_history enable row level security;
+alter table public.user_holdings enable row level security;
+create policy "profiles_select_own"
+on public.user_profiles
+for select
+to authenticated
+using ((select auth.uid()) = id);
+
+create policy "profiles_insert_own"
+on public.user_profiles
+for insert
+to authenticated
+with check ((select auth.uid()) = id);
+
+create policy "profiles_update_own"
+on public.user_profiles
+for update
+to authenticated
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
+
+create policy "checklist_select_own"
+on public.user_checklist
+for select
+to authenticated
+using ((select auth.uid()) = user_id);
+
+create policy "checklist_insert_own"
+on public.user_checklist
+for insert
+to authenticated
+with check ((select auth.uid()) = user_id);
+
+create policy "checklist_update_own"
+on public.user_checklist
+for update
+to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
+create policy "checklist_delete_own"
+on public.user_checklist
+for delete
+to authenticated
+using ((select auth.uid()) = user_id);
+
+create policy "pac_select_own"
+on public.user_pac_history
+for select
+to authenticated
+using ((select auth.uid()) = user_id);
+
+create policy "pac_insert_own"
+on public.user_pac_history
+for insert
+to authenticated
+with check ((select auth.uid()) = user_id);
+
+create policy "pac_update_own"
+on public.user_pac_history
+for update
+to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
+create policy "pac_delete_own"
+on public.user_pac_history
+for delete
+to authenticated
+using ((select auth.uid()) = user_id);
+
+create policy "holdings_select_own"
+on public.user_holdings
+for select
+to authenticated
+using ((select auth.uid()) = user_id);
+
+create policy "holdings_insert_own"
+on public.user_holdings
+for insert
+to authenticated
+with check ((select auth.uid()) = user_id);
+
+create policy "holdings_update_own"
+on public.user_holdings
+for update
+to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
+create policy "holdings_delete_own"
+on public.user_holdings
+for delete
+to authenticated
+using ((select auth.uid()) = user_id);
