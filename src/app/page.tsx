@@ -190,6 +190,7 @@ type AppStep =
   | "paywall"
   | "onboarding"
   | "portfolio"
+  | "guide"
   | "strumentis"
   | "dashboard"
   | "rebalance"
@@ -1237,6 +1238,15 @@ const [authReady, setAuthReady] = useState(false);
     loadPacHistoryFromDb(user);
   }, [user, selectedPortfolio.key]);
 
+  // soldi-semplici-scroll-top-key
+  useEffect(() => {
+    if (["preview", "portfolio", "onboarding"].includes(step)) {
+      window.setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 60);
+    }
+  }, [step]);
+
   const currentQuestionData = questions[currentQuestion];
   const hasAnsweredCurrent = currentQuestion < questions.length && answers[currentQuestion] !== -1;
   const progress = Math.round((currentQuestion / questions.length) * 100);
@@ -1717,6 +1727,11 @@ const [authReady, setAuthReady] = useState(false);
       : 0;
   const setupCompleted =
     initialChecklistItems.length > 0 && completedInitialChecklist >= initialChecklistItems.length;
+
+  const nextInitialChecklistItem = initialChecklistItems.find((item) => !checklistState[item.id]) || null;
+  const nextMaintenanceChecklistItem = maintenanceChecklistItems.find((item) => !checklistState[item.id]) || null;
+  const nextGuideItem = nextInitialChecklistItem || nextMaintenanceChecklistItem;
+  const nextGuideAction = nextGuideItem ? getChecklistToolAction(nextGuideItem.id) : null;
   const currentMonthKey = getCurrentMonthKey();
   const currentMonthEntry = pacHistory.find((m) => m.month === currentMonthKey);
   const pacCompletedMonths = pacHistory.filter((m) => m.completed).length;
@@ -1961,8 +1976,8 @@ const [authReady, setAuthReady] = useState(false);
 
     if (purchase.unlocked && !fullChecklistDone) {
       reminders.push({
-        title: "Completa la checklist",
-        text: "Ti mancano ancora alcuni passaggi operativi. Chiudere la checklist rende il piano davvero eseguibile.",
+        title: "Completa la guida operativa",
+        text: "Ti mancano ancora alcuni passaggi operativi. Apri la pagina Guida per completare il percorso.",
         tone: "warning",
       });
     }
@@ -2246,7 +2261,7 @@ const [authReady, setAuthReady] = useState(false);
       .select();
 
     if (error) {
-      console.error("Errore salvataggio checklist:", error.message);
+      console.error("Errore salvataggio guida operativa:", error.message);
     }
   }
 
@@ -2258,7 +2273,7 @@ const [authReady, setAuthReady] = useState(false);
       .eq("portfolio_key", selectedPortfolio.key);
 
     if (error) {
-      console.error("Errore caricamento checklist:", error.message);
+      console.error("Errore caricamento guida operativa:", error.message);
       return;
     }
 
@@ -2672,11 +2687,11 @@ const [authReady, setAuthReady] = useState(false);
   function getChecklistToolAction(id: string): { label: string; onClick: () => void } | null {
     if (!purchase.unlocked) return null;
 
-    const actions: Record<string, { label: string; onClick: () => void }> = {
-      broker: { label: "Apri esempi strumenti", onClick: () => setStep("strumentis") },
-      strumenti: { label: "Vedi modello e strumenti", onClick: () => setStep("strumentis") },
+    const actions: Record<string, { label: string; onClick: () => void } | null> = {
+      broker: null,
+      strumenti: null,
       percentuali: { label: "Calcola quote PAC", onClick: () => goToDashboardSection("pac-mensile") },
-      pac_start: { label: "Segna PAC del mese", onClick: () => goToDashboardSection("pac-mensile") },
+      pac_start: { label: "Segna PAC del mese", onClick: () => goToDashboardSection("azione-del-mese") },
       controllo: { label: "Apri controllo mensile", onClick: () => goToDashboardSection("pac-mensile") },
       rebalance: { label: "Controlla ripartizione", onClick: () => goToDashboardSection("ripartizione-attuale") },
       aggiorna_capitale: { label: "Aggiorna capitale", onClick: () => goToDashboardSection("obiettivo") },
@@ -2923,6 +2938,7 @@ const [authReady, setAuthReady] = useState(false);
       </main>
     );
   }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
@@ -2933,6 +2949,7 @@ const [authReady, setAuthReady] = useState(false);
           userEmail={user.email || ""}
           onGoHome={() => setStep("home")}
           onGoPortfolio={() => setStep("portfolio")}
+          onGoGuide={() => setStep("guide")}
           onGoStrumentis={() => setStep("strumentis")}
           onGoDashboard={() => setStep("dashboard")}
           onGoRebalance={() => {
@@ -3042,7 +3059,7 @@ const [authReady, setAuthReady] = useState(false);
                     onClick={() => purchase.unlocked ? setStep("dashboard") : startQuizFlow()}
                     className="rounded-2xl bg-white px-6 py-4 text-base font-semibold text-slate-900 transition hover:bg-slate-100"
                   >
-                    {purchase.unlocked ? "Vai alla guida operativa" : "Inizia il percorso guidato"}
+                    {purchase.unlocked ? "Vai alla checklist" : "Inizia il percorso guidato"}
                   </button>
                 </div>
               </div>
@@ -3178,25 +3195,44 @@ const [authReady, setAuthReady] = useState(false);
             <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
               <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
                 <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Il tuo piano gratuito</p>
-                  <h2 className="mt-3 text-4xl font-bold tracking-tight">{scoreResult.portfolio.title}</h2>
-                  <p className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-                    {scoreResult.portfolio.badge}
-                  </p>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Il tuo piano gratuito</p>
+                      <h2 className="mt-3 text-4xl font-bold tracking-tight">{scoreResult.portfolio.title}</h2>
+                      <p className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                        {scoreResult.portfolio.badge}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={startFreePlan}
+                      className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 lg:mt-2"
+                    >
+                      Continua gratis e configura il PAC
+                    </button>
+                  </div>
+
                   <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">{scoreResult.portfolio.intro}</p>
                   <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">{scoreResult.portfolio.whyItFits}</p>
 
                   <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
                     <p className="text-sm font-bold text-emerald-950">Hai completato la prima parte.</p>
                     <p className="mt-2 text-sm leading-6 text-emerald-900">
-                      Ora conosci il tuo modello. Il passo successivo è trasformarlo in un metodo semplice da seguire ogni mese: sapere cosa fare, quando controllare il portafoglio e come evitare decisioni impulsive.
+                      Ora conosci il tuo modello. Il passo successivo non è guardare mille sezioni: è seguire una guida operativa semplice, mese dopo mese.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p className="text-sm font-bold text-slate-950">Il piano da solo non basta.</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Il risultato dipende da quello che fai ogni mese. Dopo l'attivazione, la guida operativa diventa il tuo punto di partenza: ti dice quale passo fare e dove trovare lo strumento giusto.
                     </p>
                   </div>
 
                   <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Gratis, prima di pagare</p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Puoi completare il questionario, vedere il modello e impostare il primo piano PAC senza pagare. Il pagamento serve dopo, per usare dashboard completa, tracking, checklist e strumenti avanzati.
+                      Puoi completare il questionario, vedere il modello e impostare il primo piano PAC senza pagare. Il pagamento serve dopo, per usare dashboard completa, tracking, guida operativa e strumenti avanzati.
                     </p>
                   </div>
                 </div>
@@ -3215,15 +3251,7 @@ const [authReady, setAuthReady] = useState(false);
                 <p className="mt-2 text-sm leading-6 text-slate-600">{LEGAL_DISCLAIMER}</p>
               </div>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <button
-                  onClick={startFreePlan}
-                  className="rounded-xl bg-slate-900 px-6 py-3 font-medium text-white transition hover:bg-slate-800"
-                >
-                  Continua gratis e configura il PAC
-                </button>
 
-              </div>
             </div>
           </section>
         )}
@@ -3333,7 +3361,7 @@ const [authReady, setAuthReady] = useState(false);
               <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <div className="rounded-2xl bg-slate-50 p-5">
                   <p className="font-bold text-slate-900">Core = segui il piano</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">Per chi vuole partire, creare abitudine e avere una guida operativa semplice ogni mese.</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Per chi vuole partire, creare abitudine e avere una checklist semplice ogni mese.</p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-5">
                   <p className="font-bold text-slate-900">Pro = ottimizzi il piano</p>
@@ -3366,11 +3394,30 @@ const [authReady, setAuthReady] = useState(false);
             <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="max-w-3xl">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Modello assegnato</p>
-                  <h2 className="mt-3 text-4xl font-bold tracking-tight">{selectedPortfolio.title}</h2>
-                  <p className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-                    {selectedPortfolio.shortTitle} - {selectedPortfolio.badge}
-                  </p>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Modello assegnato</p>
+                      <h2 className="mt-3 text-4xl font-bold tracking-tight">{selectedPortfolio.title}</h2>
+                      <p className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                        {selectedPortfolio.shortTitle} - {selectedPortfolio.badge}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        if (purchase.unlocked) {
+                          setStep("guide");
+                        } else {
+                          await trackEvent("click_paywall", { source: "portfolio_top_cta" });
+                          setStep("paywall");
+                        }
+                      }}
+                      className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 lg:mt-2"
+                    >
+                      {purchase.unlocked ? "Vai alla guida operativa" : "Accedi alle funzioni complete"}
+                    </button>
+                  </div>
+
                   <p className="mt-5 text-lg leading-8 text-slate-600">{selectedPortfolio.intro}</p>
                   <p className="mt-4 text-base leading-7 text-slate-600">{selectedPortfolio.whyItFits}</p>
                 </div>
@@ -3403,21 +3450,7 @@ const [authReady, setAuthReady] = useState(false);
                 </p>
               </div>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <button
-                  onClick={async () => {
-                    if (purchase.unlocked) {
-                      setStep("dashboard");
-                    } else {
-                      await trackEvent("click_paywall", { source: "portfolio_cta" });
-                      setStep("paywall");
-                    }
-                  }}
-                  className="rounded-xl bg-slate-900 px-6 py-3 font-medium text-white transition hover:bg-slate-800"
-                >
-                  {purchase.unlocked ? "Apri dashboard" : "Accedi alle funzioni complete"}
-                </button>
-              </div>
+
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
@@ -3496,18 +3529,116 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
-            {purchase.unlocked && (
+                        {purchase.unlocked && (
+              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Prossimo passo</p>
+                <h3 className="mt-2 text-xl font-bold text-emerald-950">Apri la guida operativa</h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
+                  Hai visto il modello. Ora segui la guida operativa per capire cosa fare, in che ordine e quali strumenti usare.
+                </p>
+                <button
+                  onClick={() => setStep("guide")}
+                  className="mt-5 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  Vai alla guida operativa
+                </button>
+              </div>
+            )}
+
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-xl font-semibold">Checklist operativa guidata</h3>
+              <h3 className="text-xl font-semibold">Proiezione esempio: 200 EUR al mese</h3>
               <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-                Ogni voce ti dice cosa fare e ti porta allo strumento giusto. Puoi segnare una voce come completata solo quando l'hai davvero fatta.
+                Simulazione indicativa basata su rendimento medio annuo coerente con questo modello.
+                Questi numeri aiutano a capire il ruolo del tempo negli investimenti.
+              </p>
+              <p className="mt-2 text-xs text-slate-500">
+                Rendimento medio stimato: {Math.round(portfolioRate * 100)}% annuo
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <MetricCard label="20 anni" value={selectedPortfolio.growthProjection.twenty} />
+                <MetricCard label="25 anni" value={selectedPortfolio.growthProjection.twentyFive} />
+                <MetricCard label="30 anni" value={selectedPortfolio.growthProjection.thirty} />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {step === "guide" && (
+          <section className="space-y-6">
+            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-sm">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Guida operativa</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Il percorso operativo del tuo PAC</h2>
+              <p className="mt-4 max-w-3xl text-base leading-7 text-slate-700">
+                Prima scegli la cifra mensile, poi apri questa guida, poi guarda gli strumenti. Così non devi cercare le funzioni: segui il percorso.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  onClick={() => setStep("portfolio")}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Torna al modello
+                </button>
+                <button
+                  onClick={() => setStep("strumentis")}
+                  className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Vai agli strumenti
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border-2 border-emerald-300 bg-emerald-50 p-7 shadow-sm">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Prossimo passo consigliato</p>
+              {nextGuideItem ? (
+                <div className="mt-3">
+                  <h3 className="text-2xl font-bold tracking-tight text-emerald-950">{nextGuideItem.title}</h3>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">{nextGuideItem.description}</p>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    {nextGuideAction && (
+                      <button
+                        onClick={nextGuideAction.onClick}
+                        className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      >
+                        {nextGuideAction.label}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => toggleChecklist(nextGuideItem.id)}
+                      className="rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                    >
+                      Segna come completato
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <h3 className="text-2xl font-bold tracking-tight text-emerald-950">Guida completata</h3>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
+                    Hai completato i passaggi principali. Ora puoi usare dashboard, strumenti e PAC mensile per mantenere il piano nel tempo.
+                  </p>
+                  <button
+                    onClick={() => setStep("dashboard")}
+                    className="mt-5 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                  >
+                    Vai alla dashboard
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Guida operativa</p>
+              <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Cosa fare, in che ordine e dove cliccare</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
+                Questa è la guida che prima trovavi in basso nel modello. Ora è una pagina dedicata: usala come percorso principale dopo aver scelto la cifra mensile e prima di guardare gli strumenti.
               </p>
 
               <div className="mt-5 rounded-2xl bg-slate-50 p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium text-slate-700">
-                      Setup iniziale: {completedInitialChecklist}/{initialChecklistItems.length}
+                      Guida iniziale: {completedInitialChecklist}/{initialChecklistItems.length}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
                       Completa questi passaggi una sola volta. Poi il sistema lavorera per te.
@@ -3535,6 +3666,7 @@ const [authReady, setAuthReady] = useState(false);
                   state={checklistState}
                   onToggle={toggleChecklist}
                   getToolAction={getChecklistToolAction}
+                  nextItemId={nextGuideItem?.id}
                 />
                 <ChecklistGroup
                   title="Mantenimento nel tempo"
@@ -3543,6 +3675,7 @@ const [authReady, setAuthReady] = useState(false);
                   state={checklistState}
                   onToggle={toggleChecklist}
                   getToolAction={getChecklistToolAction}
+                  nextItemId={nextGuideItem?.id}
                 />
               </div>
 
@@ -3550,24 +3683,6 @@ const [authReady, setAuthReady] = useState(false);
                 <p className="text-sm text-emerald-900">
                   Non devi fare tutto perfettamente al primo giorno. Devi solo impostare un sistema semplice che riesci a mantenere nel tempo.
                 </p>
-              </div>
-            </div>
-            )}
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-xl font-semibold">Proiezione esempio: 200 EUR al mese</h3>
-              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-                Simulazione indicativa basata su rendimento medio annuo coerente con questo modello.
-                Questi numeri aiutano a capire il ruolo del tempo negli investimenti.
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Rendimento medio stimato: {Math.round(portfolioRate * 100)}% annuo
-              </p>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <MetricCard label="20 anni" value={selectedPortfolio.growthProjection.twenty} />
-                <MetricCard label="25 anni" value={selectedPortfolio.growthProjection.twentyFive} />
-                <MetricCard label="30 anni" value={selectedPortfolio.growthProjection.thirty} />
               </div>
             </div>
           </section>
@@ -3582,10 +3697,10 @@ const [authReady, setAuthReady] = useState(false);
                 Puoi usare anche strumenti diversi da quelli riportati qui, ma devi assicurarti che la tipologia resti la stessa.
               </p>
               <button
-                onClick={() => goToDashboardSection("prima-volta-qui")}
+                onClick={() => setStep("guide")}
                 className="mt-6 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Torna alla guida iniziale
+                Torna alla guida operativa
               </button>
             </div>
 
@@ -3620,11 +3735,15 @@ const [authReady, setAuthReady] = useState(false);
         {step === "onboarding" && (
           <section className="mx-auto max-w-5xl space-y-6">
             <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Configura il tuo piano</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Rendiamo questa dashboard davvero tua</h2>
-              <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-                Tre passaggi rapidi: obiettivo, PAC mensile e anno finale. Dopo arrivi alla dashboard gia impostata.
-              </p>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Configura il tuo piano</p>
+                  <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Rendiamo questa dashboard davvero tua</h2>
+                  <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
+                    Tre passaggi rapidi: obiettivo, PAC mensile e anno finale. Dopo arrivi alla guida operativa con il piano gia impostato.
+                  </p>
+                </div>
+              </div>
 
               <div className="mt-6 h-2 overflow-hidden rounded-full bg-slate-200">
                 <div
@@ -3752,7 +3871,7 @@ const [authReady, setAuthReady] = useState(false);
                   }}
                   className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  {onboardingStep < 2 ? "Continua" : "Vai alla dashboard"}
+                  {onboardingStep < 2 ? "Continua" : "Vai alla guida operativa"}
                 </button>
               </div>
             </div>
@@ -3794,14 +3913,14 @@ const [authReady, setAuthReady] = useState(false);
             <div id="prima-volta-qui" className="scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Prima volta qui?</p>
-                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Segui questi 5 passi, uno alla volta</h3>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Checklist</p>
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">La tua checklist: segui questi passi, uno alla volta</h3>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    Tutti gli strumenti sono gia disponibili. Questa guida ti dice solo dove andare e in che ordine usarli.
+                    Tutti gli strumenti sono gia disponibili. Questa è la sezione più importante dopo il piano: ti dice cosa fare, in che ordine e dove cliccare.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
-                  Setup iniziale: {completedInitialChecklist}/{initialChecklistItems.length}
+                  Guida iniziale: {completedInitialChecklist}/{initialChecklistItems.length}
                 </div>
               </div>
 
@@ -3824,6 +3943,14 @@ const [authReady, setAuthReady] = useState(false);
                 />
                 <GuidedStepCard
                   number="3"
+                  title="Vai alla guida operativa"
+                  text="Prima degli strumenti, segui la guida per capire cosa fare e in che ordine."
+                  action="Apri guida"
+                  done={setupCompleted}
+                  onClick={() => setStep("guide")}
+                />
+                <GuidedStepCard
+                  number="4"
                   title="Guarda gli strumenti"
                   text="Vedi categorie ed esempi con ISIN, senza perderti tra troppe scelte."
                   action="Apri strumenti"
@@ -3834,7 +3961,7 @@ const [authReady, setAuthReady] = useState(false);
                   }}
                 />
                 <GuidedStepCard
-                  number="4"
+                  number="5"
                   title="Registra il primo PAC"
                   text="Inserisci il primo investimento per rendere il piano concreto."
                   action="Aggiungi investimento"
@@ -3842,7 +3969,7 @@ const [authReady, setAuthReady] = useState(false);
                   onClick={() => goToDashboardSection("aggiungi-investimento")}
                 />
                 <GuidedStepCard
-                  number="5"
+                  number="6"
                   title="Chiudi il mese"
                   text="Controlla la ripartizione e segna il PAC del mese come completato."
                   action="Vai al PAC mensile"
@@ -4685,7 +4812,7 @@ const [authReady, setAuthReady] = useState(false);
                   <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">Checklist operativa del mese</p>
+                        <p className="text-sm font-semibold text-slate-900">Guida operativa del mese</p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                           Spunta ogni quota dopo averla eseguita. Serve come guida pratica, non come registrazione contabile.
                         </p>
@@ -5497,6 +5624,7 @@ function TopBar({
   userEmail,
   onGoHome,
   onGoPortfolio,
+  onGoGuide,
   onGoStrumentis,
   onGoDashboard,
   onGoRebalance,
@@ -5511,6 +5639,7 @@ function TopBar({
   userEmail: string;
   onGoHome: () => void;
   onGoPortfolio: () => void;
+  onGoGuide: () => void;
   onGoStrumentis: () => void;
   onGoDashboard: () => void;
   onGoRebalance: () => void;
@@ -5531,6 +5660,7 @@ function TopBar({
         {unlocked && (
           <>
             <NavButton active={step === "portfolio"} onClick={onGoPortfolio}>Modello</NavButton>
+            <NavButton active={step === "guide"} onClick={onGoGuide}>Guida</NavButton>
             <NavButton active={step === "strumentis"} onClick={onGoStrumentis}>Strumenti</NavButton>
             <NavButton active={step === "dashboard"} onClick={onGoDashboard}>Dashboard</NavButton>
             <NavButton active={step === "rebalance"} onClick={onGoRebalance}>Ribilanciamento</NavButton>
@@ -5773,6 +5903,7 @@ function ChecklistGroup({
   state,
   onToggle,
   getToolAction,
+  nextItemId,
 }: {
   title: string;
   subtitle?: string;
@@ -5780,51 +5911,72 @@ function ChecklistGroup({
   state: Record<string, boolean>;
   onToggle: (id: string) => void;
   getToolAction?: (id: string) => { label: string; onClick: () => void } | null;
+  nextItemId?: string | null;
 }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
       <h4 className="text-lg font-semibold">{title}</h4>
-      {subtitle && <p className="mt-1 text-sm leading-6 text-slate-600">{subtitle}</p>}
+      {subtitle ? <p className="mt-1 text-sm leading-6 text-slate-600">{subtitle}</p> : null}
+
       <div className="mt-4 space-y-3">
         {items.map((item) => {
-          const checked = !!state[item.id];
+          const checked = Boolean(state[item.id]);
+          const isNext = !checked && item.id === nextItemId;
           const toolAction = getToolAction ? getToolAction(item.id) : null;
+
           return (
-            <button
+            <div
               key={item.id}
-              type="button"
-              onClick={() => onToggle(item.id)}
               className={`w-full rounded-2xl border p-4 text-left transition ${
                 checked
                   ? "border-emerald-300 bg-emerald-50"
-                  : "border-slate-200 bg-white hover:bg-slate-50"
+                  : isNext
+                    ? "border-emerald-300 bg-emerald-50 shadow-sm"
+                    : "border-slate-200 bg-white"
               }`}
             >
-              <div className="flex items-start gap-3">
-                <div
-                  className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+              <button
+                type="button"
+                onClick={() => onToggle(item.id)}
+                className="flex w-full items-start gap-3 text-left"
+              >
+                <span
+                  className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                     checked ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-700"
                   }`}
                 >
                   {checked ? "✓" : ""}
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-slate-900">{item.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">{item.description}</p>
-                  {toolAction && (
-                    <span
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        toolAction.onClick();
-                      }}
-                      className="mt-3 inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100"
-                    >
-                      {toolAction.label}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </button>
+                </span>
+
+                <span className="flex-1">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-slate-900">{item.title}</span>
+                    {isNext ? (
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                        Prossimo step
+                      </span>
+                    ) : null}
+                  </span>
+
+                  <span className="mt-1 block text-sm leading-6 text-slate-600">
+                    {item.description}
+                  </span>
+                </span>
+              </button>
+
+              {toolAction ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toolAction.onClick();
+                  }}
+                  className="mt-3 inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100"
+                >
+                  {toolAction.label}
+                </button>
+              ) : null}
+            </div>
           );
         })}
       </div>
