@@ -670,11 +670,11 @@ const checklistItems: ChecklistItem[] = [
       "Imposta un bonifico automatico mensile verso il conto investimenti. Scegli una data subito dopo l'accredito dello stipendio, cosi non devi pensarci ogni mese.",
   },
   {
-    id: "auto_invest",
+    id: "percentuali",
     group: "inizio",
-    title: "Attiva l'investimento automatico",
+    title: "Controlla le quote del PAC",
     description:
-      "Configura un piano di accumulo automatico sulla tua piattaforma. Imposta prima il bonifico automatico e poi il PAC, cosi riduci il rischio di saldo insufficiente. Su Trade Republic: vai in Piani di accumulo, scegli gli strumenti e attiva il PAC. Nota: Trade Republic consente l'acquisto automatico a inizio mese o a meta mese; il giorno effettivo puo variare se ci sono festivita o la borsa e chiusa.",
+      "Usa il piano PAC mensile per capire quanto destinare a ogni area del modello. Non devi fare calcoli: devi solo eseguire il piano.",
   },
   {
     id: "strumenti",
@@ -684,11 +684,11 @@ const checklistItems: ChecklistItem[] = [
       "Usa il modello assegnato in base al tuo profilo. Non serve modificarlo: il valore sta nel seguirlo con costanza nel tempo.",
   },
   {
-    id: "percentuali",
+    id: "auto_invest",
     group: "inizio",
-    title: "Controlla le quote del PAC",
+    title: "Attiva l'investimento automatico",
     description:
-      "Usa il piano PAC mensile per capire quanto destinare a ogni area del modello. Non devi fare calcoli: devi solo eseguire il piano.",
+      "Configura un piano di accumulo automatico sulla tua piattaforma. Imposta prima il bonifico automatico e poi il PAC, cosi riduci il rischio di saldo insufficiente. Su Trade Republic: vai in Piani di accumulo, scegli gli strumenti e attiva il PAC. Nota: Trade Republic consente l'acquisto automatico a inizio mese o a meta mese; il giorno effettivo puo variare se ci sono festivita o la borsa e chiusa.",
   },
   {
     id: "pac_start",
@@ -733,7 +733,6 @@ const checklistItems: ChecklistItem[] = [
       "Aggiorna il valore totale del capitale quando cambia in modo rilevante. Serve per mantenere consapevolezza, non per reagire al mercato.",
   },
 ];
-
 
 function formatEuro(value: number): string {
   return new Intl.NumberFormat("it-IT", {
@@ -968,6 +967,15 @@ function clearSupabaseAuthStorage() {
   });
 }
 
+
+async function safeLocalSignOut() {
+  try {
+    await safeLocalSignOut();
+  } catch (error) {
+    console.warn("Logout locale Supabase ignorato:", error);
+  }
+}
+
 export default function Home() {
   
   useEffect(() => {
@@ -1064,12 +1072,11 @@ const [authReady, setAuthReady] = useState(false);
 
     async function initAuth() {
       try {
-        const { data, error } = await supabase.auth.getUser();
+        const { data, error } = await supabase.auth.getSession();
 
         if (error) {
           console.warn("Sessione Supabase non valida, pulizia locale:", error.message);
           clearSupabaseAuthStorage();
-          await supabase.auth.signOut({ scope: "local" });
           if (!mounted) return;
           setUser(null);
           setAuthMessage("Sessione scaduta o non valida. Effettua di nuovo l'accesso.");
@@ -1078,7 +1085,7 @@ const [authReady, setAuthReady] = useState(false);
         }
 
         if (!mounted) return;
-        setUser(data.user ?? null);
+        setUser(data.session?.user ?? null);
         setAuthReady(true);
       } catch (error) {
         console.warn("Errore inizializzazione auth:", error);
@@ -2095,7 +2102,7 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut({ scope: "local" });
+    await safeLocalSignOut();
     clearSupabaseAuthStorage();
     setUser(null);
     setStep("home");
@@ -2105,7 +2112,7 @@ const [authReady, setAuthReady] = useState(false);
 
   async function clearBrokenSession() {
     clearSupabaseAuthStorage();
-    await supabase.auth.signOut({ scope: "local" });
+    await safeLocalSignOut();
     setUser(null);
     setAuthMessage("Sessione locale pulita. Ora puoi accedere di nuovo.");
     setAuthReady(true);
