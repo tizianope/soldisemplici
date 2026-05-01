@@ -2065,14 +2065,20 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     if (authMode === "register") {
+      const emailRedirectTo =
+        typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+
       const { error } = await supabase.auth.signUp({
         email: authEmail,
         password: authPassword,
+        options: {
+          emailRedirectTo,
+        },
       });
 
       if (error) setAuthMessage(error.message);
       else {
-        setAuthMessage("Registrazione inviata. Controlla la tua email e conferma l'account.");
+        setAuthMessage("Registrazione inviata. Controlla la tua email: dopo la conferma tornerai su una pagina dedicata di Soldi Semplici.");
         setAuthMode("login");
       }
     } else {
