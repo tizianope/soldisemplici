@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient, User } from "@supabase/supabase-js";
 
 
@@ -74,8 +74,20 @@ async function trackEvent(eventName: TrackingEventName, payload: Record<string, 
   // Questo ritorna una Promise: negli eventi importanti lo usiamo con await,
   // così l'ordine resta pulito: finish_test -> view_plan -> click_paywall -> buy.
   try {
-    const { data } = await supabase.auth.getUser();
-    const userId = data?.user?.id ?? null;
+    let userId: string | null = null;
+
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.warn("Sessione tracking non valida:", error.message);
+        clearSupabaseAuthStorage();
+      } else {
+        userId = data.session?.user?.id ?? null;
+      }
+    } catch (sessionError) {
+      console.warn("Sessione tracking non leggibile:", sessionError);
+      clearSupabaseAuthStorage();
+    }
 
     const { error } = await supabase.from("app_events").insert({
       user_id: userId,
@@ -137,6 +149,49 @@ type StrumentiRow = {
   isin: string;
 };
 
+type InstrumentSource = "program" | "custom";
+
+type InstrumentOption = StrumentiRow & {
+  source: InstrumentSource;
+  id?: string;
+  note?: string;
+};
+
+type CustomInstrument = {
+  id: string;
+  category: StrumentiCategory;
+  name: string;
+  isin: string;
+  note?: string;
+};
+
+type ShoppingCategory =
+  | "Frutta e verdura"
+  | "Pasta, riso e pane"
+  | "Proteine"
+  | "Latte e derivati"
+  | "Casa e pulizia"
+  | "Igiene personale"
+  | "Extra e sfizi"
+  | "Altro";
+
+type ShoppingItem = {
+  id: string;
+  name: string;
+  category: ShoppingCategory;
+  estimatedPrice: number;
+  isExtra: boolean;
+  isChecked: boolean;
+  isCustom: boolean;
+};
+
+type ShoppingPreset = {
+  name: string;
+  category: ShoppingCategory;
+  estimatedPrice: number;
+  isExtra?: boolean;
+};
+
 type PortfolioTemplate = {
   key: FinalPortfolioKey;
   title: string;
@@ -191,6 +246,7 @@ type AppStep =
   | "onboarding"
   | "portfolio"
   | "guide"
+  | "awareness"
   | "strumentis"
   | "dashboard"
   | "rebalance"
@@ -213,6 +269,33 @@ type Badge = {
   title: string;
   description: string;
   unlocked: boolean;
+  tier: "inizio" | "consapevolezza" | "costanza" | "capitale" | "identita";
+  icon: string;
+  progress: number;
+  target: number;
+  progressLabel: string;
+  lockedHint: string;
+};
+
+type InvestorTitle = {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  progress: number;
+  target: number;
+  progressLabel: string;
+  nextHint: string;
+};
+
+type CelebrationEvent = {
+  kind: "badge" | "title" | "goal";
+  icon: string;
+  title: string;
+  subtitle: string;
+  dismissedKey?: string;
 };
 
 type GoalChangeReason = "investimento" | "prelievo" | "mercato" | "stabile";
@@ -734,6 +817,521 @@ const checklistItems: ChecklistItem[] = [
   },
 ];
 
+type AwarenessTab = "risparmio" | "auto" | "mutuo" | "truffe";
+
+type AwarenessAction = {
+  id: string;
+  title: string;
+  category: "Risparmio" | "Auto" | "Mutuo" | "Anti-truffe";
+  area: "Cibo" | "Energia" | "Abbonamenti" | "Casa" | "Acquisti" | "Banca" | "Auto" | "Entrate";
+  estimatedSavingMonthly: number;
+  estimatedSavingYearly: number;
+  difficulty: 1 | 2 | 3 | 4 | 5;
+  sacrifice: 1 | 2 | 3 | 4 | 5;
+  minutes: number;
+  why: string;
+  steps: string[];
+};
+
+
+type ScamScenario = {
+  id: string;
+  category: string;
+  situation: string;
+  isRisky: boolean;
+  redFlags: string[];
+  explanation: string;
+  safeAction: string;
+  difficulty?: "facile" | "media" | "difficile";
+};
+
+const scamScenarioPool: ScamScenario[] = [
+  { id: "bank_sms_blocked", category: "Banca e pagamenti", situation: "Ricevi un SMS: 'Il tuo conto e stato bloccato. Clicca qui entro 24 ore per riattivarlo'.", isRisky: true, redFlags: ["Urgenza", "Link sospetto", "Paura"], explanation: "E un classico schema di phishing: usa paura e fretta per spingerti a cliccare senza verificare.", safeAction: "Non cliccare. Apri l'app ufficiale della banca o chiama il numero indicato sul sito ufficiale." },
+  { id: "bank_real_alert_app", category: "Banca e pagamenti", situation: "L'app ufficiale della tua banca, gia installata sul telefono, ti chiede di confermare un pagamento che riconosci.", isRisky: false, redFlags: ["Canale ufficiale"], explanation: "Il canale e quello ufficiale e il pagamento e riconosciuto. Resta comunque attento se non sei tu ad aver avviato l'operazione.", safeAction: "Controlla importo e beneficiario, poi conferma solo se tutto torna." },
+  { id: "otp_phone_bank", category: "Telefonate", situation: "Una persona che dice di essere della banca ti chiama e chiede il codice OTP appena ricevuto per 'bloccare una frode'.", isRisky: true, redFlags: ["Richiesta codici", "Autorita falsa", "Pressione"], explanation: "Banche e operatori seri non chiedono mai OTP, PIN o password al telefono. Il codice serve a autorizzare operazioni.", safeAction: "Chiudi la chiamata e contatta la banca dal numero ufficiale." },
+  { id: "marketplace_shipping_link", category: "Marketplace", situation: "Stai vendendo un oggetto. L'acquirente ti manda un link per 'ricevere il pagamento' e ti chiede i dati della carta.", isRisky: true, redFlags: ["Link pagamento", "Canale esterno", "Richiesta carta"], explanation: "Nei marketplace seri non devi inserire i dati carta per ricevere denaro. Spesso questi link rubano dati o autorizzano pagamenti.", safeAction: "Usa solo il sistema di pagamento interno alla piattaforma." },
+  { id: "marketplace_cash_pickup", category: "Marketplace", situation: "L'acquirente vuole vedere l'oggetto di persona e pagare in contanti al momento del ritiro.", isRisky: false, redFlags: ["Verifica dal vivo"], explanation: "Non e automaticamente una truffa. Serve comunque prudenza su luogo, banconote e sicurezza personale.", safeAction: "Incontrati in un luogo pubblico e controlla il pagamento prima di consegnare." },
+  { id: "crypto_guaranteed", category: "Investimenti", situation: "Un gruppo Telegram promette rendimento garantito del 10% al mese con crypto e ti chiede un bonifico immediato.", isRisky: true, redFlags: ["Guadagno garantito", "Urgenza", "Canale informale"], explanation: "Negli investimenti il rendimento garantito alto e un segnale molto forte di rischio. Spesso sono schemi fraudolenti.", safeAction: "Non inviare denaro. Verifica autorizzazioni e soggetti su canali ufficiali." },
+  { id: "friend_hot_tip", category: "Investimenti", situation: "Un conoscente ti dice che ha un investimento 'sicuro' e che devi entrare oggi per non perdere l'occasione.", isRisky: true, redFlags: ["Pressione", "Occasione irripetibile", "Fiducia personale"], explanation: "Le truffe sfruttano spesso fiducia e fretta. Un investimento serio non richiede decisioni immediate senza documenti chiari.", safeAction: "Fermati, chiedi documentazione e verifica chi propone il prodotto." },
+  { id: "broker_authorized_docs", category: "Investimenti", situation: "Un intermediario autorizzato ti invia documenti ufficiali, costi chiari e ti invita a prenderti tempo prima di decidere.", isRisky: false, redFlags: ["Trasparenza", "Nessuna fretta"], explanation: "Trasparenza, tempi di valutazione e documenti controllabili sono segnali piu sani. Non significa che sia adatto a te, ma non e un comportamento tipico da truffa.", safeAction: "Leggi costi e rischi, poi verifica l'intermediario su registri ufficiali." },
+  { id: "package_customs", category: "SMS / email", situation: "Ricevi una email del corriere: 'Pacco fermo in dogana, paga 1,99 euro cliccando qui'. Non aspettavi pacchi.", isRisky: true, redFlags: ["Link sospetto", "Importo piccolo", "Mittente dubbio"], explanation: "Importi piccoli abbassano le difese. Il link puo rubare dati carta o installare malware.", safeAction: "Controlla solo dal sito ufficiale del corriere usando il codice tracking, se lo hai." },
+  { id: "package_tracking_expected", category: "SMS / email", situation: "Aspetti un pacco e ricevi una notifica dall'app ufficiale del corriere gia installata con il tracking corretto.", isRisky: false, redFlags: ["Canale ufficiale"], explanation: "Il canale ufficiale e il tracking atteso riducono il rischio. Resta attento a richieste di pagamento inattese.", safeAction: "Controlla i dettagli nell'app o sul sito ufficiale." },
+  { id: "family_emergency_whatsapp", category: "Familiari", situation: "Ricevi un messaggio: 'Mamma, ho cambiato numero, ho un problema, mandami subito 900 euro'.", isRisky: true, redFlags: ["Emergenza", "Nuovo numero", "Richiesta denaro"], explanation: "E una truffa molto diffusa: sfrutta ansia e legami familiari per farti pagare in fretta.", safeAction: "Chiama il vecchio numero o un familiare, non inviare denaro via chat." },
+  { id: "relative_calls_from_known_number", category: "Familiari", situation: "Tuo figlio ti chiama dal suo numero abituale e ti chiede di anticipare una spesa, spiegandoti con calma il motivo.", isRisky: false, redFlags: ["Numero conosciuto", "Tempo per verificare"], explanation: "Non e automaticamente rischioso, ma i pagamenti vanno sempre verificati, soprattutto se insoliti.", safeAction: "Richiama il numero conosciuto e controlla il beneficiario prima di pagare." },
+  { id: "door_utility_contract", category: "Di persona", situation: "Un venditore porta a porta dice che devi firmare subito un nuovo contratto luce per evitare una penale.", isRisky: true, redFlags: ["Pressione", "Firma immediata", "Minaccia penale"], explanation: "Le vendite aggressive usano urgenza e paura. Un contratto serio puo essere letto con calma.", safeAction: "Non firmare sul momento. Chiedi documenti e confronta l'offerta da casa." },
+  { id: "fake_technician_home", category: "Di persona", situation: "Una persona si presenta come tecnico del gas senza appuntamento e chiede di entrare in casa per un controllo urgente.", isRisky: true, redFlags: ["Accesso a casa", "Nessun appuntamento", "Urgenza"], explanation: "I falsi tecnici possono puntare a furti, firme o dati personali. L'urgenza non verificata e un segnale forte.", safeAction: "Non far entrare. Chiama l'azienda dal numero ufficiale." },
+  { id: "planned_technician", category: "Di persona", situation: "Hai fissato tu un appuntamento con il tecnico, arriva nell'orario previsto e mostra tesserino e riferimento pratica.", isRisky: false, redFlags: ["Appuntamento atteso", "Identificazione"], explanation: "Un appuntamento atteso e verificabile e meno rischioso. Si puo comunque controllare l'identita.", safeAction: "Verifica tesserino e, se hai dubbi, chiama l'azienda." },
+  { id: "charity_no_docs", category: "Di persona", situation: "Fuori dal supermercato una persona chiede donazioni in contanti per una causa urgente ma non mostra documenti chiari.", isRisky: true, redFlags: ["Contanti", "Nessuna documentazione", "Pressione emotiva"], explanation: "La beneficenza vera e trasparente deve permetterti di verificare ente, finalita e ricevute.", safeAction: "Dona solo tramite canali ufficiali dell'ente." },
+  { id: "charity_official_stand", category: "Di persona", situation: "Un'associazione riconosciuta ha uno stand ufficiale, materiale informativo e ti permette di donare dal sito ufficiale.", isRisky: false, redFlags: ["Verificabile", "Canale ufficiale"], explanation: "La presenza di informazioni verificabili e la possibilita di donare tramite canale ufficiale sono segnali positivi.", safeAction: "Controlla il sito dell'associazione e dona solo da li." },
+  { id: "rental_deposit_before_visit", category: "Affitti e casa", situation: "Un annuncio di affitto molto conveniente chiede caparra prima di vedere casa per 'bloccare l'occasione'.", isRisky: true, redFlags: ["Prezzo troppo basso", "Caparra anticipata", "Nessuna visita"], explanation: "Le truffe sugli affitti puntano su prezzo attraente e fretta. Pagare prima di vedere e verificare e pericoloso.", safeAction: "Visita l'immobile, verifica identita e contratto prima di pagare." },
+  { id: "rental_agency_visit_contract", category: "Affitti e casa", situation: "Visiti la casa con agenzia, ricevi contratto e dati verificabili prima di versare importi.", isRisky: false, redFlags: ["Visita", "Contratto", "Tracciabilita"], explanation: "La tracciabilita riduce il rischio. Controlla comunque intestatari e condizioni.", safeAction: "Paga solo con metodi tracciabili dopo aver letto il contratto." },
+  { id: "job_pay_for_training", category: "Lavoro", situation: "Un annuncio di lavoro ti chiede 180 euro per iniziare un corso obbligatorio prima dell'assunzione.", isRisky: true, redFlags: ["Pagamento anticipato", "Promessa lavoro", "Pressione"], explanation: "Molte truffe lavorative chiedono soldi prima di offrire un lavoro reale.", safeAction: "Verifica azienda, contratto e condizioni. Non pagare per essere assunto." },
+  { id: "job_normal_selection", category: "Lavoro", situation: "Un'azienda ti invita a colloquio, ti manda una email da dominio aziendale e non chiede soldi o documenti sensibili prima della selezione.", isRisky: false, redFlags: ["Nessun pagamento", "Dominio verificabile"], explanation: "Il processo e piu normale. Resta prudente con dati personali e contratti.", safeAction: "Verifica sito aziendale e posizione, poi procedi." },
+  { id: "used_car_advance", category: "Auto usata", situation: "Un venditore propone un'auto a prezzo molto basso e chiede anticipo per spedirla, senza farla vedere.", isRisky: true, redFlags: ["Prezzo troppo basso", "Anticipo", "Nessuna visione"], explanation: "Auto inesistenti o non disponibili sono una truffa frequente. L'anticipo serve a farti perdere denaro.", safeAction: "Vedi l'auto, verifica documenti e paga con metodi tracciabili." },
+  { id: "used_car_seen_docs", category: "Auto usata", situation: "Vedi l'auto di persona, controlli libretto, proprietario e fai una visura prima di pagare.", isRisky: false, redFlags: ["Verifica documenti", "Visione dal vivo"], explanation: "Questo e un comportamento prudente. Non elimina ogni rischio, ma riduce molto le truffe comuni.", safeAction: "Completa il passaggio con documenti e pagamenti tracciabili." },
+  { id: "fake_refund_trading", category: "Investimenti", situation: "Dopo aver perso soldi in trading, qualcuno ti contatta dicendo di poterli recuperare pagando una commissione iniziale.", isRisky: true, redFlags: ["Recupero soldi", "Commissione anticipata", "Vittima gia colpita"], explanation: "E una truffa di recupero: colpisce persone gia danneggiate promettendo recuperi improbabili.", safeAction: "Non pagare. Rivolgiti a canali legali o autorita competenti." },
+  { id: "invoice_iban_changed", category: "Banca e pagamenti", situation: "Ricevi una email da un fornitore: 'Abbiamo cambiato IBAN, paga la fattura su questo nuovo conto'.", isRisky: true, redFlags: ["Cambio IBAN", "Email", "Pagamento"], explanation: "La frode del cambio IBAN e comune. Una email puo essere falsificata o l'account compromesso.", safeAction: "Verifica il cambio IBAN con una telefonata a un numero gia conosciuto." },
+  { id: "known_supplier_call", category: "Banca e pagamenti", situation: "Un fornitore ti comunica un cambio IBAN durante una chiamata che hai fatto tu al numero ufficiale e ti invia documenti coerenti.", isRisky: false, redFlags: ["Verifica attiva", "Numero ufficiale"], explanation: "La verifica da un canale noto rende la situazione piu sicura, anche se va documentata.", safeAction: "Conserva conferma scritta e verifica intestatario del conto." },
+  { id: "romance_investment", category: "Relazioni", situation: "Una persona conosciuta online crea confidenza e poi ti propone una piattaforma di investimento 'usata anche da lei'.", isRisky: true, redFlags: ["Fiducia emotiva", "Piattaforma sconosciuta", "Investimento"], explanation: "Le truffe romantiche spesso portano gradualmente a richieste di denaro o investimenti falsi.", safeAction: "Non inviare soldi. Verifica piattaforma e interrompi se aumenta la pressione." },
+  { id: "qr_parking", category: "Pagamenti quotidiani", situation: "In un parcheggio trovi un QR code incollato sopra quello ufficiale per pagare la sosta.", isRisky: true, redFlags: ["QR non verificato", "Pagamento", "Possibile sostituzione"], explanation: "QR falsi possono portare a siti clone e rubare dati di pagamento.", safeAction: "Usa l'app ufficiale del parcheggio o il sito indicato sui cartelli ufficiali." },
+  { id: "qr_restaurant_menu", category: "Pagamenti quotidiani", situation: "Al ristorante il QR code e sul menu ufficiale e porta solo alla lista dei piatti, senza chiedere dati o pagamenti.", isRisky: false, redFlags: ["Nessun pagamento", "Contesto coerente"], explanation: "Un QR per consultare un menu e meno rischioso. Il rischio cresce quando chiede dati o pagamenti.", safeAction: "Aprilo con prudenza e non inserire dati se non serve." },
+  { id: "prize_fee", category: "Premi e concorsi", situation: "Ricevi un messaggio: 'Hai vinto uno smartphone, paga 2 euro di spedizione'.", isRisky: true, redFlags: ["Premio inatteso", "Pagamento piccolo", "Link"], explanation: "I falsi premi usano importi piccoli per rubare dati della carta.", safeAction: "Ignora il link. Verifica eventuali concorsi solo dal sito ufficiale." },
+  { id: "official_lottery_ticket", category: "Premi e concorsi", situation: "Hai comprato un biglietto ufficiale e controlli la vincita sul sito ufficiale, senza ricevere link esterni.", isRisky: false, redFlags: ["Canale ufficiale"], explanation: "Il controllo da canale ufficiale e coerente. Non pagare commissioni per ricevere premi non verificati.", safeAction: "Segui solo le istruzioni ufficiali." },
+  { id: "insurance_accident_call", category: "Telefonate", situation: "Un presunto avvocato chiama: 'Tuo figlio ha causato un incidente, servono contanti subito per evitar guai'.", isRisky: true, redFlags: ["Emergenza", "Contanti", "Paura"], explanation: "E una truffa che sfrutta panico e autorita falsa. Nessuna procedura seria funziona cosi.", safeAction: "Chiama direttamente tuo figlio o le forze dell'ordine da numeri ufficiali." },
+  { id: "police_never_asks_money", category: "Di persona", situation: "Una persona in divisa chiede soldi in contanti per chiudere una pratica urgente.", isRisky: true, redFlags: ["Contanti", "Autorita falsa", "Urgenza"], explanation: "Autorita e uffici pubblici non chiedono contanti per risolvere pratiche sul momento.", safeAction: "Non pagare. Verifica con l'ufficio o chiama il numero ufficiale." },
+  { id: "public_office_payment_notice", category: "Pagamenti", situation: "Ricevi un avviso pagoPA con codice verificabile e lo paghi tramite app della banca o canale ufficiale.", isRisky: false, redFlags: ["Canale tracciabile", "Codice verificabile"], explanation: "Un pagamento su canale ufficiale e verificabile e piu sicuro. Controlla sempre beneficiario e importo.", safeAction: "Paga solo da app o sito ufficiale, non da link sospetti." },
+  { id: "investment_seminar_free_lunch", category: "Investimenti", situation: "Ti invitano a una cena gratuita per presentare un investimento con rendimenti alti e posti limitati.", isRisky: true, redFlags: ["Vendita aggressiva", "Posti limitati", "Rendimenti alti"], explanation: "Eventi commerciali possono usare pressione sociale e scarsita per vendere prodotti non adatti o rischiosi.", safeAction: "Non firmare nulla sul posto. Porta i documenti a casa e verifica costi e rischi." },
+  { id: "utility_bill_review", category: "Casa e utenze", situation: "Un consulente ti propone di confrontare le bollette, ti lascia l'offerta scritta e non chiede firma immediata.", isRisky: false, redFlags: ["Documento scritto", "Nessuna urgenza"], explanation: "Confrontare puo essere utile se hai tempo per leggere. Attento comunque a deleghe e contratti non richiesti.", safeAction: "Leggi condizioni, durata, penali e prezzo prima di firmare." },
+  { id: "fake_parcel_home", category: "Di persona", situation: "Un corriere sconosciuto dice che devi pagare in contanti una tassa per un pacco che non aspettavi.", isRisky: true, redFlags: ["Contanti", "Pacco inatteso", "Pressione"], explanation: "Richieste di pagamento impreviste alla porta sono rischiose, soprattutto se non puoi verificare il tracking.", safeAction: "Non pagare. Verifica sul sito ufficiale del corriere." },
+  { id: "atm_help", category: "Di persona", situation: "Una persona vicino al bancomat si offre di aiutarti e ti dice di reinserire il PIN per sbloccare la carta.", isRisky: true, redFlags: ["PIN", "Bancomat", "Aiuto non richiesto"], explanation: "Mai mostrare PIN o accettare aiuto da sconosciuti allo sportello. Potrebbe essere un tentativo di furto.", safeAction: "Annulla, copri la tastiera e chiedi aiuto solo dentro la filiale." },
+  { id: "atm_bank_staff_inside", category: "Di persona", situation: "Hai un problema al bancomat e chiedi aiuto allo sportello interno della filiale.", isRisky: false, redFlags: ["Filiale", "Personale verificabile"], explanation: "Chiedere aiuto al personale della filiale e piu sicuro. Nessuno deve comunque vedere il PIN.", safeAction: "Non comunicare il PIN e segui procedure ufficiali." },
+  { id: "subscription_trial", category: "Abbonamenti", situation: "Un sito offre prova gratuita ma chiede carta e scrive in piccolo che dopo 7 giorni partono 49 euro al mese.", isRisky: true, redFlags: ["Costo nascosto", "Termini piccoli", "Carta"], explanation: "Non sempre e una truffa illegale, ma puo diventare una trappola di spesa se le condizioni sono poco chiare.", safeAction: "Leggi rinnovo, disdetta e imposta un promemoria prima di inserire la carta." },
+  { id: "normal_subscription_clear", category: "Abbonamenti", situation: "Un servizio mostra chiaramente prezzo, rinnovo, data di addebito e pulsante di cancellazione.", isRisky: false, redFlags: ["Prezzo chiaro", "Disdetta visibile"], explanation: "La trasparenza riduce il rischio. Devi comunque valutare se ti serve davvero.", safeAction: "Salva la data di rinnovo e controlla l'utilizzo." },
+  { id: "loan_upfront_fee", category: "Prestiti", situation: "Una societa online promette prestito immediato ma chiede 250 euro di spese prima di erogarlo.", isRisky: true, redFlags: ["Commissione anticipata", "Prestito facile", "Urgenza"], explanation: "I prestiti con costi anticipati e promesse facili sono spesso rischiosi o fraudolenti.", safeAction: "Verifica autorizzazioni e condizioni. Non pagare anticipi a soggetti non verificati." },
+  { id: "bank_loan_branch", category: "Prestiti", situation: "La tua banca ti propone un prestito con documento informativo, TAEG e piano rate chiari prima della firma.", isRisky: false, redFlags: ["TAEG chiaro", "Documenti"], explanation: "La presenza di documenti e costi chiari e un buon segnale, anche se devi valutare sostenibilita e convenienza.", safeAction: "Confronta TAEG e rata con altre offerte prima di firmare." },
+  { id: "social_fake_shop", category: "Acquisti", situation: "Vedi su social un negozio con sconti enormi, nessun indirizzo chiaro e pagamento solo bonifico.", isRisky: true, redFlags: ["Sconto enorme", "Dati societari assenti", "Bonifico"], explanation: "Negozi clone o falsi usano sconti estremi e metodi di pagamento poco reversibili.", safeAction: "Cerca recensioni indipendenti, partita IVA e paga solo con metodi protetti." },
+  { id: "known_store_card", category: "Acquisti", situation: "Acquisti da un negozio conosciuto, URL corretto, pagamento con carta protetta e conferma ordine.", isRisky: false, redFlags: ["URL corretto", "Pagamento protetto"], explanation: "E una situazione piu sicura. Controlla sempre URL e condizioni di reso.", safeAction: "Usa metodi tracciabili e salva la conferma ordine." },
+  { id: "document_photo_request", category: "Documenti", situation: "Uno sconosciuto in chat ti chiede foto di carta d'identita e codice fiscale per 'verificare il profilo'.", isRisky: true, redFlags: ["Documenti", "Chat", "Identita"], explanation: "I documenti possono essere usati per furti d'identita, SIM swap o contratti falsi.", safeAction: "Invia documenti solo a soggetti verificati e su canali ufficiali." },
+  { id: "official_kyc", category: "Documenti", situation: "Una piattaforma finanziaria regolamentata chiede identificazione tramite procedura KYC nel sito ufficiale prima di aprire il conto.", isRisky: false, redFlags: ["Procedura ufficiale", "Soggetto verificabile"], explanation: "La verifica identita e normale in contesti regolamentati, se il soggetto e verificabile e il canale e ufficiale.", safeAction: "Controlla URL, autorizzazioni e privacy prima di caricare documenti." },
+  { id: "sim_swap", category: "Telefonia", situation: "Un operatore telefonico ti chiama e chiede codice ricevuto via SMS per 'aggiornare la SIM'.", isRisky: true, redFlags: ["Codice SMS", "SIM", "Telefonata inattesa"], explanation: "Quel codice puo autorizzare operazioni sulla tua SIM o sui tuoi account.", safeAction: "Non comunicare codici. Contatta l'operatore da canale ufficiale." },
+  { id: "bank_card_pickup", category: "Banca e pagamenti", situation: "Un finto addetto dice che la tua carta e compromessa e manda un corriere a ritirarla a casa.", isRisky: true, redFlags: ["Carta fisica", "Corriere", "Paura"], explanation: "Banche e circuiti non mandano corrieri a ritirare carte per sicurezza.", safeAction: "Blocca la carta dall'app o dal numero ufficiale e non consegnarla." },
+  { id: "restaurant_bill_split", category: "Pagamenti quotidiani", situation: "Un amico ti manda una richiesta di pagamento riconoscibile per dividere una cena appena fatta insieme.", isRisky: false, redFlags: ["Contesto riconosciuto", "Importo coerente"], explanation: "Il contesto e coerente. Verifica comunque importo e destinatario.", safeAction: "Paga solo se riconosci richiesta e importo." },
+  { id: "fake_survey", category: "Dati personali", situation: "Un sondaggio online promette buono spesa da 500 euro e chiede dati, carta e telefono.", isRisky: true, redFlags: ["Premio alto", "Dati sensibili", "Carta"], explanation: "Spesso questi sondaggi raccolgono dati o attivano abbonamenti indesiderati.", safeAction: "Non inserire dati sensibili per premi non verificati." },
+  { id: "cash_change_trick", category: "Di persona", situation: "Un passante ti chiede di cambiare una banconota e cerca di confonderti con conti e resto.", isRisky: true, redFlags: ["Confusione", "Contanti", "Fretta"], explanation: "Le truffe del resto sfruttano confusione e rapidita per farti consegnare piu soldi.", safeAction: "Non cambiare denaro a sconosciuti se non sei tranquillo." },
+  { id: "parking_attendant_official", category: "Di persona", situation: "Un parcheggiatore autorizzato ha badge, tariffario esposto e ricevuta fiscale.", isRisky: false, redFlags: ["Ricevuta", "Tariffario"], explanation: "La presenza di tariffario e ricevuta riduce il rischio, pur richiedendo sempre attenzione.", safeAction: "Paga solo quanto indicato e conserva ricevuta." },
+  { id: "medical_quick_cure", category: "Salute e benessere", situation: "Una pubblicita promette integratore miracoloso che fa guadagnare energia e dimagrire senza prove, solo oggi sconto 80%.", isRisky: true, redFlags: ["Miracolo", "Sconto aggressivo", "Promesse eccessive"], explanation: "Promesse estreme e urgenza commerciale sono segnali di rischio economico e personale.", safeAction: "Non acquistare d'impulso. Verifica fonti affidabili e professionisti competenti." },
+  { id: "official_notice_logged_in", category: "Account online", situation: "Accedi tu al sito ufficiale di un servizio e trovi una notifica interna che ti chiede di aggiornare un dato non sensibile.", isRisky: false, redFlags: ["Accesso iniziato da te", "Canale ufficiale"], explanation: "Quando sei tu ad accedere dal sito ufficiale, il rischio e piu basso. Attenzione se vengono chiesti codici o pagamenti strani.", safeAction: "Aggiorna solo cio che capisci e verifica eventuali richieste insolite." },
+  { id: "investment_cash_only", category: "Investimenti", situation: "Una persona ti propone un investimento in contanti per evitare tasse e dice di non parlarne con nessuno.", isRisky: true, redFlags: ["Contanti", "Segretezza", "Evasione"], explanation: "Segretezza, contanti e promesse fiscali sono segnali molto forti di rischio e possibile illegalita.", safeAction: "Non partecipare. Investi solo con intermediari autorizzati e tracciabilita." },
+  { id: "fake_ticket", category: "Eventi", situation: "Una persona vende biglietti sold out a meta prezzo e chiede pagamento immediato con ricarica prepagata.", isRisky: true, redFlags: ["Prezzo troppo basso", "Ricarica", "Urgenza"], explanation: "Biglietti falsi o duplicati sono comuni. Le ricariche sono difficili da recuperare.", safeAction: "Usa piattaforme ufficiali o sistemi con protezione acquisto." },
+  { id: "ticket_official_resale", category: "Eventi", situation: "Compri un biglietto da rivendita ufficiale con nominativo, commissioni chiare e pagamento protetto.", isRisky: false, redFlags: ["Canale ufficiale", "Pagamento protetto"], explanation: "La rivendita ufficiale riduce il rischio di biglietti falsi.", safeAction: "Controlla nominativo, condizioni di accesso e ricevuta." },
+  { id: "tax_refund_link", category: "Pubblica amministrazione", situation: "Ricevi una email: 'Rimborso fiscale disponibile, inserisci dati carta qui entro oggi'.", isRisky: true, redFlags: ["Rimborso inatteso", "Dati carta", "Urgenza"], explanation: "Enti pubblici non chiedono dati carta via link per rimborsi improvvisi.", safeAction: "Accedi solo da portali ufficiali digitando l'indirizzo o usando SPID/CIE." },
+  { id: "app_store_download", category: "App e software", situation: "Scarichi un'app finanziaria dallo store ufficiale, controllando sviluppatore, recensioni e sito collegato.", isRisky: false, redFlags: ["Store ufficiale", "Sviluppatore verificabile"], explanation: "E piu sicuro rispetto a link casuali. Non basta da solo: controlla permessi e reputazione.", safeAction: "Installa solo da store ufficiali e limita i permessi." },
+
+  { id: "deepfake_ceo_voice", category: "Lavoro", situation: "Ricevi una chiamata con voce molto simile al tuo capo: ti chiede di fare subito un bonifico urgente a un nuovo fornitore.", isRisky: true, difficulty: "difficile", redFlags: ["Voce imitata", "Bonifico urgente", "Nuovo beneficiario"], explanation: "Le imitazioni vocali e i deepfake possono sembrare credibili. La richiesta di pagamento urgente verso un nuovo beneficiario va sempre verificata con un secondo canale.", safeAction: "Richiama il capo al numero gia conosciuto o usa una procedura interna prima di pagare." },
+  { id: "invoice_changed_iban", category: "Lavoro", situation: "Un fornitore abituale invia una fattura quasi identica alle precedenti, ma con IBAN cambiato e una nota: 'aggiornamento bancario'.", isRisky: true, difficulty: "difficile", redFlags: ["IBAN cambiato", "Fornitore abituale", "Email possibile clone"], explanation: "Le truffe su fatture reali sono difficili perche usano rapporti esistenti. Il cambio IBAN deve sempre essere verificato fuori dalla email.", safeAction: "Chiama il referente del fornitore usando un numero gia noto, non quello scritto nella nuova email." },
+  { id: "qr_parking_fake", category: "Pagamenti quotidiani", situation: "In un parcheggio trovi un QR code incollato sopra il cartello del pagamento. Il sito sembra simile a quello ufficiale.", isRisky: true, difficulty: "difficile", redFlags: ["QR sovrapposto", "Sito simile", "Pagamento carta"], explanation: "I QR falsi portano a pagine clone dove puoi pagare un truffatore o inserire dati carta. Il segnale e sottile: il QR puo sembrare normale.", safeAction: "Usa l'app ufficiale del parcheggio o digita il sito ufficiale invece di fidarti del QR incollato." },
+  { id: "rental_owner_documents", category: "Affitti e casa", situation: "Un presunto proprietario ti manda documento, visura e contratto, ma non puo farti vedere casa e chiede caparra per bloccarla.", isRisky: true, difficulty: "difficile", redFlags: ["Documenti non bastano", "Nessuna visita", "Caparra anticipata"], explanation: "Anche documenti apparentemente reali possono essere rubati o falsificati. Senza visita e verifica dell'immobile il rischio resta alto.", safeAction: "Non pagare prima di vedere casa e verificare identita, proprieta e contratto con canali affidabili." },
+  { id: "used_car_plate_docs_partial", category: "Auto usata", situation: "Il venditore mostra targa e libretto, ma dice che l'auto e fuori regione e chiede un acconto per 'prenotare la visione'.", isRisky: true, difficulty: "difficile", redFlags: ["Documenti parziali", "Auto lontana", "Acconto"], explanation: "Documenti e targa possono rendere la proposta credibile, ma l'acconto prima della visione resta un segnale di rischio.", safeAction: "Vedi l'auto di persona, controlla proprieta e pagamenti tracciabili prima di versare denaro." },
+  { id: "investment_platform_professional_site", category: "Investimenti", situation: "Una piattaforma di investimento ha sito curato, area clienti e recensioni positive, ma non trovi autorizzazioni ufficiali chiare.", isRisky: true, difficulty: "difficile", redFlags: ["Sito professionale", "Autorizzazioni assenti", "Recensioni manipolabili"], explanation: "Un sito bello non prova che l'intermediario sia autorizzato. Recensioni e grafiche possono essere costruite per sembrare affidabili.", safeAction: "Verifica l'autorizzazione su registri ufficiali prima di aprire conto o inviare denaro." },
+  { id: "recovery_funds_law_firm", category: "Investimenti", situation: "Uno studio legale estero dice di poter recuperare soldi persi in trading. Chiede una piccola tassa iniziale per avviare la pratica.", isRisky: true, difficulty: "difficile", redFlags: ["Recupero fondi", "Tassa iniziale", "Vittima gia colpita"], explanation: "Le truffe di recupero fondi sono particolarmente insidiose: promettono aiuto a chi ha gia subito una perdita.", safeAction: "Non pagare anticipi. Verifica albo, sede, reputazione e rivolgiti a canali legali riconosciuti." },
+  { id: "bank_operator_knows_data", category: "Telefonate", situation: "Un presunto operatore bancario conosce il tuo nome e le ultime cifre della carta, poi ti chiede di confermare un codice per bloccare un addebito.", isRisky: true, difficulty: "difficile", redFlags: ["Dati parziali veri", "Richiesta codice", "Falsa urgenza"], explanation: "Conoscere alcuni dati non rende la chiamata sicura. I truffatori possono avere informazioni parziali e usarle per sembrare credibili.", safeAction: "Non comunicare codici. Chiudi e chiama la banca dal numero ufficiale." },
+  { id: "utility_agent_real_badge_pressure", category: "Contratti", situation: "Un incaricato luce/gas mostra badge e documenti, ma insiste per farti firmare subito dicendo che domani perderai lo sconto.", isRisky: true, difficulty: "difficile", redFlags: ["Pressione", "Firma immediata", "Offerta a tempo"], explanation: "Anche un venditore reale puo usare pressione commerciale. Il rischio e firmare condizioni non capite o non convenienti.", safeAction: "Prendi il materiale, confronta l'offerta e non firmare finche non hai letto con calma." },
+  { id: "marketplace_buyer_sends_courier", category: "Marketplace", situation: "Un acquirente dice che manda un corriere a ritirare l'oggetto e ti invia un modulo per ricevere il pagamento anticipato.", isRisky: true, difficulty: "difficile", redFlags: ["Corriere organizzato da altri", "Modulo pagamento", "Dati carta"], explanation: "La truffa e credibile perche sembra logistica normale, ma il modulo spesso serve a rubare dati o autorizzare pagamenti.", safeAction: "Usa pagamenti e spedizioni gestiti dalla piattaforma o pagamento verificato prima della consegna." },
+  { id: "job_remote_equipment_check", category: "Lavoro", situation: "Una societa ti assume da remoto e ti manda un assegno o bonifico per comprare attrezzatura da un fornitore indicato da loro.", isRisky: true, difficulty: "difficile", redFlags: ["Assegno/bonifico sospetto", "Fornitore imposto", "Lavoro remoto"], explanation: "Alcune truffe lavorative usano pagamenti che poi vengono stornati, mentre tu hai gia speso soldi reali.", safeAction: "Verifica azienda, contratto e modalita. Non anticipare acquisti su fornitori imposti senza garanzie." },
+  { id: "romance_small_test_transfer", category: "Relazioni", situation: "Una persona conosciuta online non chiede subito grandi somme, ma prima piccoli trasferimenti per 'testare la fiducia'.", isRisky: true, difficulty: "difficile", redFlags: ["Fiducia emotiva", "Piccole somme", "Escalation"], explanation: "Le truffe affettive spesso iniziano con richieste piccole per creare abitudine e abbassare le difese.", safeAction: "Non inviare denaro a persone conosciute solo online. Parla con qualcuno di fiducia prima di agire." },
+  { id: "crypto_withdrawal_tax", category: "Crypto / trading", situation: "Una piattaforma ti mostra profitti, ma per prelevare chiede di pagare prima una tassa o commissione esterna.", isRisky: true, difficulty: "difficile", redFlags: ["Prelievo bloccato", "Commissione anticipata", "Profitti non verificati"], explanation: "Nelle piattaforme fraudolente i profitti sono solo numeri sullo schermo. La richiesta di pagare per prelevare e un segnale forte.", safeAction: "Non versare altri soldi. Verifica la piattaforma e conserva prove delle comunicazioni." },
+  { id: "condominium_fake_notice", category: "Casa", situation: "Trovi nella cassetta una comunicazione condominiale con QR per pagare una spesa urgente, ma l'amministratore non l'aveva annunciata.", isRisky: true, difficulty: "difficile", redFlags: ["QR pagamento", "Avviso inatteso", "Urgenza"], explanation: "Avvisi fisici possono sembrare credibili, ma possono essere falsi. Il QR rende facile deviare il pagamento.", safeAction: "Verifica con l'amministratore usando contatti gia noti prima di pagare." },
+  { id: "bank_branch_phone_after_visit", category: "Banca e pagamenti", situation: "Dopo una visita in filiale ricevi una chiamata che cita l'appuntamento e chiede un codice per completare la pratica.", isRisky: true, difficulty: "difficile", redFlags: ["Contesto reale", "Richiesta codice", "Falsa continuita"], explanation: "Il riferimento a un evento reale puo ingannare. Codici, OTP e PIN non vanno comunicati neanche se la chiamata sembra collegata a una pratica vera.", safeAction: "Chiudi e richiama la filiale o il servizio clienti ufficiale." },
+  { id: "hotel_wifi_payment", category: "Viaggi", situation: "In hotel trovi una rete Wi-Fi con nome simile a quello ufficiale. Per accedere chiede carta per una cauzione simbolica.", isRisky: true, difficulty: "difficile", redFlags: ["Wi-Fi clone", "Carta richiesta", "Nome simile"], explanation: "Reti Wi-Fi clone possono rubare dati o portarti a pagine false. La richiesta carta per accesso Wi-Fi e sospetta.", safeAction: "Chiedi alla reception il nome esatto della rete e non inserire dati carta su portali non verificati." },
+  { id: "second_hand_luxury_authenticity", category: "Acquisti", situation: "Un venditore propone un orologio o borsa di lusso con certificato fotografato, prezzo buono ma non assurdo, pagamento con bonifico.", isRisky: true, difficulty: "difficile", redFlags: ["Certificato fotografato", "Bonifico", "Bene costoso"], explanation: "Nei beni di valore i certificati possono essere falsi o copiati. Il prezzo non sempre e troppo basso, proprio per sembrare credibile.", safeAction: "Usa piattaforme con autenticazione, pagamento protetto e verifica professionale." },
+  { id: "tax_consultant_refund_fee", category: "Pubblica amministrazione", situation: "Un presunto consulente dice di averti trovato un rimborso fiscale e chiede una percentuale anticipata per sbloccarlo.", isRisky: true, difficulty: "difficile", redFlags: ["Rimborso inatteso", "Fee anticipata", "Soggetto non verificato"], explanation: "I rimborsi veri si verificano da canali ufficiali. Pagare prima un intermediario non verificato e rischioso.", safeAction: "Controlla dal portale ufficiale o con un professionista di fiducia." },
+  { id: "family_known_voice_short_call", category: "Familiari", situation: "Una voce simile a un familiare ti chiama per pochi secondi, dice di essere nei guai e ti passa subito un 'avvocato'.", isRisky: true, difficulty: "difficile", redFlags: ["Voce simile", "Panico", "Terza persona"], explanation: "La voce puo essere imitata o la chiamata costruita per farti agire sotto shock. Il passaggio a un presunto avvocato aumenta la pressione.", safeAction: "Interrompi, richiama il familiare su numero noto e verifica con altri parenti." },
+  { id: "doctor_private_payment", category: "Salute e benessere", situation: "Una persona si presenta come collaboratore di una clinica e chiede pagamento anticipato su conto personale per anticipare una visita.", isRisky: true, difficulty: "difficile", redFlags: ["Conto personale", "Anticipo", "Canale non ufficiale"], explanation: "Pagamenti sanitari su conti personali o canali non ufficiali sono un segnale di rischio e vanno verificati.", safeAction: "Chiama la clinica da contatti ufficiali e paga solo tramite canali autorizzati." },
+  { id: "iban_confirmed_by_two_channels", category: "Pagamenti quotidiani", situation: "Devi pagare un professionista. L'IBAN arriva via email e lo confermi anche telefonando al numero ufficiale gia noto.", isRisky: false, difficulty: "difficile", redFlags: ["Doppia verifica", "Numero noto"], explanation: "La doppia verifica su un canale gia conosciuto riduce molto il rischio di pagamento deviato.", safeAction: "Procedi solo dopo aver controllato beneficiario e causale." },
+  { id: "official_tax_notice_spid", category: "Pubblica amministrazione", situation: "Ricevi un avviso generico via email, ma invece di cliccare accedi con SPID al portale ufficiale e trovi la stessa comunicazione.", isRisky: false, difficulty: "difficile", redFlags: ["Verifica autonoma", "Portale ufficiale"], explanation: "Il comportamento corretto e non fidarsi del link, ma controllare sul canale ufficiale. Se la comunicazione compare li, e molto piu affidabile.", safeAction: "Continua solo dal portale ufficiale, senza usare link ricevuti via email." },
+  { id: "real_agent_no_pressure", category: "Contratti", situation: "Un consulente assicurativo ti invia preventivo completo, fascicolo informativo, costi e ti invita a leggere prima di firmare.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti completi", "Nessuna pressione"], explanation: "Trasparenza e assenza di fretta sono segnali positivi. Resta comunque importante capire costi, esclusioni e durata.", safeAction: "Leggi documenti, confronta alternative e chiedi chiarimenti prima di firmare." },
+  { id: "marketplace_cash_public_place", category: "Marketplace", situation: "Vendi un oggetto di basso valore e l'acquirente propone incontro in luogo pubblico, pagamento in contanti e controllo dell'oggetto sul posto.", isRisky: false, difficulty: "difficile", redFlags: ["Luogo pubblico", "Pagamento immediato"], explanation: "Non tutto e una truffa: per oggetti semplici, incontro sicuro e pagamento contestuale possono essere ragionevoli.", safeAction: "Scegli un luogo sicuro, non andare da solo se non ti senti tranquillo e controlla il denaro." },
+  { id: "secure_bank_message_no_codes", category: "Banca e pagamenti", situation: "La banca invia una notifica nell'app ufficiale che invita a leggere un documento, senza chiedere codici o clic esterni.", isRisky: false, difficulty: "difficile", redFlags: ["App ufficiale", "Nessun codice"], explanation: "Una comunicazione interna all'app ufficiale, senza richieste di codici o pagamenti, e generalmente piu sicura.", safeAction: "Leggi dall'app ufficiale e verifica se qualcosa ti sembra insolito." },
+  { id: "event_ticket_friend_known", category: "Eventi", situation: "Un amico che conosci di persona ti vende un biglietto a prezzo normale e ti permette di controllare nominativo e ricevuta prima del pagamento.", isRisky: false, difficulty: "difficile", redFlags: ["Persona nota", "Verifica biglietto"], explanation: "Il rischio e minore quando identita, prezzo e biglietto sono verificabili. Non e rischio zero, ma non e una classica truffa.", safeAction: "Controlla biglietto, nominativo e regole dell'evento prima di pagare." },
+  { id: "small_local_charity_receipt", category: "Di persona", situation: "Una piccola associazione locale chiede donazioni, mostra statuto, contatti verificabili e rilascia ricevuta tracciabile.", isRisky: false, difficulty: "difficile", redFlags: ["Ricevuta", "Contatti verificabili"], explanation: "Una realta piccola non e automaticamente sospetta. La chiave e poter verificare identita, finalita e pagamento.", safeAction: "Dona solo se riesci a verificare l'associazione e preferisci pagamenti tracciabili." },
+  { id: "bank_url_one_letter", category: "SMS / email", situation: "Ricevi una email della banca con grafica perfetta, ma il link porta a un dominio con una lettera diversa dal sito ufficiale.", isRisky: true, difficulty: "media", redFlags: ["Dominio simile", "Grafica perfetta", "Link"], explanation: "I siti clone possono essere quasi identici. Una lettera diversa nell'indirizzo e sufficiente per indicare rischio.", safeAction: "Non cliccare. Digita tu l'indirizzo ufficiale o usa l'app." },
+  { id: "fake_spid_help", category: "Pubblica amministrazione", situation: "Uno sconosciuto offre aiuto per attivare SPID e chiede foto documenti, tessera sanitaria e codice ricevuto via SMS.", isRisky: true, difficulty: "media", redFlags: ["Documenti", "Codice SMS", "Identita digitale"], explanation: "SPID e identita digitale sono molto sensibili. Codici e documenti possono permettere furti d'identita.", safeAction: "Usa solo provider ufficiali e non condividere codici con terzi." },
+  { id: "fake_landlord_video_only", category: "Affitti e casa", situation: "Per un affitto, il proprietario ti manda solo video dell'appartamento e dice che vive all'estero, chiedendo cauzione via bonifico.", isRisky: true, difficulty: "media", redFlags: ["Solo video", "Estero", "Cauzione anticipata"], explanation: "Video e foto possono essere copiati. Il pagamento prima di una verifica reale e rischioso.", safeAction: "Visita l'immobile o usa canali verificati prima di pagare." },
+  { id: "atm_card_stuck_helper", category: "Di persona", situation: "La carta resta bloccata al bancomat e uno sconosciuto molto gentile ti suggerisce di reinserire il PIN mentre lui resta vicino.", isRisky: true, difficulty: "media", redFlags: ["Sconosciuto", "PIN", "Bancomat"], explanation: "Alcune truffe al bancomat usano distrazione e osservazione del PIN.", safeAction: "Copri il PIN, non accettare aiuto da sconosciuti e contatta la banca." },
+  { id: "fake_delivery_address_fee", category: "SMS / email", situation: "Ricevi SMS: 'Indirizzo pacco incompleto, paga 0,89 euro per correggere la consegna'.", isRisky: true, difficulty: "media", redFlags: ["Importo piccolo", "Link", "Pacco"], explanation: "La piccola cifra serve a farti inserire la carta con poca attenzione.", safeAction: "Verifica tracking sul sito ufficiale del corriere." },
+  { id: "social_ad_investment_ai", category: "Investimenti", situation: "Una pubblicita social propone un software AI che genera rendimenti automatici e garantiti se versi almeno 250 euro.", isRisky: true, difficulty: "media", redFlags: ["AI miracolosa", "Rendimenti garantiti", "Deposito minimo"], explanation: "Parole come AI e automatico possono mascherare promesse finanziarie non realistiche.", safeAction: "Non versare denaro. Verifica autorizzazioni e rischi reali." },
+  { id: "fake_charity_disaster", category: "Beneficenza", situation: "Dopo una calamita, ricevi un link per donare subito a una raccolta fondi sconosciuta con foto drammatiche.", isRisky: true, difficulty: "media", redFlags: ["Emozione forte", "Link sconosciuto", "Urgenza"], explanation: "Le emergenze vere vengono sfruttate da raccolte fondi false o poco trasparenti.", safeAction: "Dona a enti riconosciuti tramite siti ufficiali." },
+  { id: "fake_refund_marketplace", category: "Marketplace", situation: "Il venditore dice che c'e stato un problema e ti manda un link per 'sbloccare il rimborso' inserendo la carta.", isRisky: true, difficulty: "media", redFlags: ["Rimborso via link", "Carta richiesta", "Canale esterno"], explanation: "I rimborsi non richiedono di reinserire la carta su link esterni alla piattaforma.", safeAction: "Gestisci rimborso solo dentro la piattaforma ufficiale." },
+  { id: "fake_insurance_renewal", category: "Assicurazioni", situation: "Ricevi una proposta RC auto molto economica da un sito poco noto che chiede pagamento immediato via bonifico.", isRisky: true, difficulty: "media", redFlags: ["Prezzo troppo basso", "Bonifico", "Sito poco noto"], explanation: "Polizze false o non valide possono sembrare convenienti ma lasciarti scoperto.", safeAction: "Verifica intermediario e compagnia su registri ufficiali prima di pagare." },
+  { id: "school_trip_payment", category: "Pagamenti quotidiani", situation: "Una chat non ufficiale chiede pagamento per gita scolastica su IBAN privato non indicato dalla scuola.", isRisky: true, difficulty: "media", redFlags: ["IBAN privato", "Chat", "Pagamento non ufficiale"], explanation: "Pagamenti scolastici o associativi vanno verificati con canali ufficiali, non solo in chat.", safeAction: "Chiedi conferma alla scuola o all'organizzazione tramite canali ufficiali." },
+  { id: "safe_known_charity_site", category: "Beneficenza", situation: "Vuoi donare a un ente noto e vai tu sul sito ufficiale digitando l'indirizzo nel browser.", isRisky: false, difficulty: "facile", redFlags: ["Iniziativa tua", "Sito ufficiale"], explanation: "Quando sei tu a scegliere il canale ufficiale, riduci il rischio di raccolte false.", safeAction: "Controlla URL e ricevuta della donazione." },
+  { id: "safe_subscription_cancel", category: "Abbonamenti", situation: "Un servizio ti avvisa chiaramente che la prova gratuita scade domani e offre pulsante di cancellazione nell'area account.", isRisky: false, difficulty: "media", redFlags: ["Trasparenza", "Area account"], explanation: "Un promemoria chiaro con possibilita di cancellare e un comportamento piu corretto.", safeAction: "Decidi se tenerlo e salva conferma di eventuale disdetta." },
+  { id: "safe_document_to_notary", category: "Documenti", situation: "Il notaio incaricato per una compravendita ti chiede documenti tramite canale concordato e studio verificabile.", isRisky: false, difficulty: "media", redFlags: ["Studio verificabile", "Canale concordato"], explanation: "Inviare documenti puo essere normale quando il soggetto e verificabile e il canale e concordato.", safeAction: "Verifica indirizzo email, studio e finalita prima di inviare." },
+
+  { id: "romance_video_call_avoided", category: "Relazioni", situation: "Una persona conosciuta online ti scrive ogni giorno, dice di provare qualcosa per te ma evita sempre videochiamate e incontri. Dopo settimane chiede soldi per un'emergenza.", isRisky: true, difficulty: "difficile", redFlags: ["Legame emotivo", "Nessun incontro", "Emergenza"], explanation: "Le truffe sentimentali costruiscono fiducia prima di chiedere denaro. Evitare verifiche reali e chiedere soldi e un segnale forte.", safeAction: "Non inviare denaro. Proponi una videochiamata e parlane con una persona di fiducia prima di agire." },
+  { id: "romance_travel_ticket", category: "Relazioni", situation: "Una ragazza o un ragazzo conosciuto online dice di voler venire a trovarti, ma chiede di pagare biglietto, visto o assicurazione per poter partire.", isRisky: true, difficulty: "media", redFlags: ["Promessa incontro", "Soldi per viaggio", "Urgenza emotiva"], explanation: "La promessa di incontrarsi puo essere usata per rendere la richiesta piu credibile. Spesso dopo il primo pagamento arrivano nuovi problemi e nuove richieste.", safeAction: "Non pagare viaggi o documenti a persone mai incontrate. Verifica identita e coerenza della storia." },
+  { id: "romance_medical_emergency", category: "Relazioni", situation: "Una persona con cui stai creando un rapporto online racconta di una malattia improvvisa in famiglia e chiede un prestito urgente, promettendo di restituire tutto.", isRisky: true, difficulty: "difficile", redFlags: ["Malattia", "Prestito urgente", "Rapporto recente"], explanation: "Le emergenze sanitarie vere toccano corde profonde. Proprio per questo vengono usate per far agire senza verificare.", safeAction: "Fermati. Non inviare denaro senza verifiche indipendenti e senza aver coinvolto qualcuno di fiducia." },
+  { id: "romance_crypto_advice", category: "Relazioni", situation: "Dopo alcune settimane di chat, una persona molto affettuosa ti mostra i suoi guadagni e ti invita a investire su una piattaforma consigliata da lei.", isRisky: true, difficulty: "difficile", redFlags: ["Relazione + investimento", "Piattaforma consigliata", "Profitti mostrati"], explanation: "Nelle truffe sentimentali evolute, l'investimento arriva dopo aver creato fiducia. La piattaforma puo mostrare profitti finti.", safeAction: "Non investire su piattaforme indicate da persone conosciute online. Verifica autorizzazioni da fonti ufficiali." },
+  { id: "romance_gift_customs_fee", category: "Relazioni", situation: "Una persona conosciuta online dice di averti spedito un regalo costoso. Poco dopo arriva una richiesta di pagamento per dogana o sblocco pacco.", isRisky: true, difficulty: "media", redFlags: ["Regalo inatteso", "Dogana", "Pagamento anticipato"], explanation: "Il regalo crea gratitudine e pressione. Il pagamento per sbloccarlo e spesso il vero obiettivo della truffa.", safeAction: "Non pagare. Verifica tracking e corriere da canali ufficiali, senza usare link ricevuti." },
+  { id: "romance_blackmail_photos", category: "Relazioni", situation: "Dopo una chat privata, una persona minaccia di diffondere foto o messaggi se non paghi subito.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto", "Minaccia", "Pagamento immediato"], explanation: "Il ricatto punta su vergogna e paura. Pagare non garantisce che la richiesta finisca, anzi puo aumentare le pressioni.", safeAction: "Non pagare. Conserva prove, blocca il contatto e valuta di rivolgerti alle autorita." },
+  { id: "romance_bank_account_problem", category: "Relazioni", situation: "Una persona con cui chatti da poco dice di avere il conto bloccato e chiede di ricevere un bonifico sul tuo conto per poi girarlo a terzi.", isRisky: true, difficulty: "difficile", redFlags: ["Conto bloccato", "Usare il tuo conto", "Giro denaro"], explanation: "Usare il tuo conto per soldi di altri puo esporti a rischi seri. Potrebbe trattarsi di fondi rubati o riciclaggio.", safeAction: "Non ricevere o trasferire denaro per persone che non conosci davvero." },
+  { id: "romance_slow_friendship_no_money", category: "Relazioni", situation: "Una persona conosciuta online ti propone una videochiamata, non chiede soldi, non parla di investimenti e accetta tempi lenti per conoscersi.", isRisky: false, difficulty: "media", redFlags: ["Verifica identita", "Nessuna richiesta denaro"], explanation: "Non ogni conoscenza online e una truffa. L'assenza di richieste economiche e la disponibilita a verificarsi sono segnali piu positivi.", safeAction: "Resta prudente, proteggi dati personali e incontra eventualmente in luoghi pubblici." },
+  { id: "friend_investment_guaranteed_return", category: "Amici e parenti", situation: "Un amico ti propone un investimento 'garantito' che gli ha fatto guadagnare molto. Dice che se entri tramite lui hai un bonus e devi decidere entro oggi.", isRisky: true, difficulty: "difficile", redFlags: ["Amico", "Rendimento garantito", "Fretta"], explanation: "La fiducia personale non sostituisce le verifiche. Anche un amico puo essere in buona fede ma coinvolto in una truffa o in uno schema rischioso.", safeAction: "Chiedi documenti, autorizzazioni e rischi. Non investire solo per fiducia o pressione." },
+  { id: "relative_crypto_family_group", category: "Amici e parenti", situation: "Un parente condivide nel gruppo famiglia un link per comprare una crypto 'prima che esploda', dicendo che alcuni amici hanno gia raddoppiato.", isRisky: true, difficulty: "media", redFlags: ["Passaparola", "Guadagni rapidi", "Link"], explanation: "Il passaparola familiare puo abbassare le difese. Guadagni rapidi e link non verificati restano segnali di rischio.", safeAction: "Non investire tramite link in chat. Verifica progetto, rischi e autorizzazioni prima di qualsiasi versamento." },
+  { id: "friend_loan_emotional_pressure", category: "Amici e parenti", situation: "Un amico ti chiede un prestito importante e dice: 'Se mi vuoi bene, non farmi domande'. Vuole contanti e promette di restituire a breve.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Contanti", "Nessuna chiarezza"], explanation: "Le richieste emotive possono rendere difficile fare domande. Un prestito senza chiarezza puo danneggiare sia soldi sia rapporto.", safeAction: "Chiedi motivo, tempi e modalita scritte. Presta solo somme che puoi permetterti di perdere." },
+  { id: "relative_urgent_transfer_new_number", category: "Amici e parenti", situation: "Ricevi un messaggio da un numero nuovo: 'Sono tuo figlio, ho perso il telefono. Devo pagare subito una bolletta, fai un bonifico?'.", isRisky: true, difficulty: "media", redFlags: ["Numero nuovo", "Urgenza", "Bonifico"], explanation: "La truffa del familiare in difficolta usa affetto e urgenza. Il numero nuovo e la richiesta di soldi sono segnali importanti.", safeAction: "Chiama il familiare sul vecchio numero o verifica con altri parenti prima di pagare." },
+  { id: "friend_business_partnership_cash", category: "Amici e parenti", situation: "Un conoscente ti propone di entrare in una piccola attivita con denaro contante, senza contratto, dicendo che 'tra amici non servono carte'.", isRisky: true, difficulty: "difficile", redFlags: ["Niente contratto", "Contanti", "Fiducia personale"], explanation: "Quando ci sono soldi e attivita economiche, la fiducia non basta. Senza documenti e regole chiare il rischio e alto.", safeAction: "Pretendi accordi scritti, conti chiari e consulenza indipendente prima di versare denaro." },
+  { id: "relative_medical_loan_verified", category: "Amici e parenti", situation: "Un familiare ti chiede aiuto economico per una spesa medica, ti mostra documenti verificabili e accetta un bonifico tracciabile con accordo scritto sui tempi.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti verificabili", "Bonifico tracciabile", "Accordo chiaro"], explanation: "Una richiesta emotiva non e automaticamente una truffa. Verifiche, trasparenza e tracciabilita riducono il rischio.", safeAction: "Aiuta solo se puoi permettertelo e metti per iscritto importo e tempi, senza sensi di colpa." },
+  { id: "friend_asks_card_for_emergency", category: "Amici e parenti", situation: "Un amico dice di avere la carta bloccata e ti chiede di prestargli la tua carta o i dati per fare un pagamento urgente.", isRisky: true, difficulty: "media", redFlags: ["Dati carta", "Urgenza", "Prestito mezzo pagamento"], explanation: "Anche se conosci la persona, condividere carta, PIN o codici e pericoloso e puo creare problemi difficili da risolvere.", safeAction: "Non condividere dati di pagamento. Se vuoi aiutare, usa un bonifico tracciabile a suo nome." },
+  { id: "romance_investment_group_invite", category: "Relazioni", situation: "Una persona conosciuta su un'app di incontri ti invita in un gruppo esclusivo dove un 'mentor' insegna a fare trading con segnali sicuri.", isRisky: true, difficulty: "difficile", redFlags: ["Dating + trading", "Gruppo esclusivo", "Segnali sicuri"], explanation: "Il passaggio da relazione a gruppo di investimento e un modello frequente nelle truffe. Il gruppo crea pressione sociale e fiducia artificiale.", safeAction: "Esci dal gruppo e non versare denaro. Verifica sempre intermediari e autorizzazioni." },
+  { id: "romance_money_for_document", category: "Relazioni", situation: "Una persona dice di non poter incontrarti perche deve rinnovare un documento. Chiede soldi per completare la pratica e promette che poi verra da te.", isRisky: true, difficulty: "media", redFlags: ["Documento", "Promessa incontro", "Pagamento"], explanation: "La richiesta usa il desiderio di incontrarsi per rendere il pagamento accettabile. Spesso dopo emergono altri ostacoli.", safeAction: "Non pagare documenti a persone mai incontrate. Verifica identita e situazione con calma." },
+  { id: "friend_guarantee_loan", category: "Amici e parenti", situation: "Un amico ti chiede di fare da garante per un finanziamento. Dice che e solo una formalita e che non rischi nulla.", isRisky: true, difficulty: "difficile", redFlags: ["Garante", "Rischio minimizzato", "Pressione affettiva"], explanation: "Fare da garante non e una formalita: se l'altra persona non paga, il debito puo ricadere su di te.", safeAction: "Leggi il contratto, valuta il rischio reale e chiedi consulenza prima di firmare." },
+  { id: "relative_investment_to_help_family", category: "Amici e parenti", situation: "Un parente ti propone di investire in un progetto 'per aiutare la famiglia' e dice che rifiutare sarebbe mancanza di fiducia.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Famiglia", "Investimento poco chiaro"], explanation: "Quando investimento e legame familiare si mischiano, e facile perdere lucidita. La pressione emotiva e un segnale da prendere sul serio.", safeAction: "Separare affetto e soldi: chiedi business plan, rischi e accordi scritti prima di decidere." },
+  { id: "friend_repay_old_debt_link", category: "Amici e parenti", situation: "Un vecchio amico ti scrive sui social dicendo di volerti restituire dei soldi, ma ti manda un link dove inserire carta e documento per riceverli.", isRisky: true, difficulty: "media", redFlags: ["Link pagamento", "Documento", "Profilo social"], explanation: "Potrebbe essere un profilo compromesso. Per ricevere soldi non serve inserire dati carta su link sospetti.", safeAction: "Verifica l'identita con una chiamata e usa metodi di pagamento noti e sicuri." },
+  { id: "romance_shared_future_pressure", category: "Relazioni", situation: "Una persona parla presto di convivenza, matrimonio o futuro insieme e poi chiede un aiuto economico per 'sistemare l'ultimo problema' prima di raggiungerti.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro accelerato", "Aiuto economico", "Problema finale"], explanation: "Le promesse di futuro possono creare attaccamento rapido. La richiesta economica dopo una forte spinta emotiva e un segnale di rischio.", safeAction: "Non inviare denaro. Dai tempo alla relazione e verifica fatti, identita e coerenza." },
+  { id: "romance_real_meeting_public_no_money", category: "Relazioni", situation: "Una persona conosciuta online propone un primo incontro in luogo pubblico, non chiede denaro e accetta che tu avvisi un amico dell'appuntamento.", isRisky: false, difficulty: "media", redFlags: ["Luogo pubblico", "Nessuna richiesta soldi", "Prudenza"], explanation: "Questo comportamento e piu prudente e trasparente. Non elimina ogni rischio personale, ma non mostra i classici segnali economici della truffa affettiva.", safeAction: "Incontra in luogo pubblico, informa qualcuno e non condividere dati finanziari." },
+  { id: "friend_investment_documents_verified", category: "Amici e parenti", situation: "Un amico ti parla di un investimento, ma ti dice chiaramente che ci sono rischi, ti invita a leggere documenti ufficiali e non ti spinge a decidere subito.", isRisky: false, difficulty: "difficile", redFlags: ["Rischi dichiarati", "Documenti ufficiali", "Nessuna fretta"], explanation: "La presenza di rischi spiegati, documenti verificabili e assenza di pressione sono segnali piu sani. Resta comunque da valutare se sia adatto a te.", safeAction: "Leggi documenti, verifica autorizzazioni e valuta con calma prima di investire." },
+  { id: "relative_loan_no_written_terms", category: "Amici e parenti", situation: "Un cugino ti chiede 3.000 euro in prestito e dice che non serve scrivere nulla perche 'siamo parenti'.", isRisky: true, difficulty: "media", redFlags: ["Prestito familiare", "Nessun accordo", "Importo rilevante"], explanation: "Prestiti tra parenti senza accordi chiari possono creare conflitti e perdite. La fiducia non sostituisce chiarezza su tempi e restituzione.", safeAction: "Se decidi di aiutare, metti importo, tempi e modalita per iscritto." },
+  { id: "friend_multilevel_recruit", category: "Amici e parenti", situation: "Un amico ti invita a un incontro per un'opportunita di guadagno. Il focus e far entrare altre persone piu che vendere un prodotto reale.", isRisky: true, difficulty: "difficile", redFlags: ["Reclutamento", "Guadagni promessi", "Pressione gruppo"], explanation: "Quando il guadagno dipende soprattutto dal reclutare altri, il rischio di schema insostenibile aumenta molto.", safeAction: "Chiedi come si genera davvero il guadagno, costi iniziali e documenti. Non firmare sull'onda dell'entusiasmo." },
+  { id: "romance_soldier_oil_worker", category: "Relazioni", situation: "Una persona dice di essere militare, medico o lavoratore all'estero, non puo videochiamare per sicurezza e chiede soldi per sbloccare documenti o bagagli.", isRisky: true, difficulty: "media", redFlags: ["All'estero", "No videochiamata", "Soldi per sblocco"], explanation: "Profili con lavori difficili da verificare e impossibilita di incontrarsi sono comuni nelle truffe sentimentali.", safeAction: "Non inviare denaro e non fidarti di documenti inviati in chat senza verifiche indipendenti." },
+  { id: "friend_sudden_profit_screenshot", category: "Amici e parenti", situation: "Un amico ti manda screenshot di profitti elevati su una piattaforma e dice che anche tu puoi iniziare con poco, ma devi usare il suo link.", isRisky: true, difficulty: "media", redFlags: ["Screenshot profitti", "Link personale", "Guadagno facile"], explanation: "Screenshot e testimonianze possono essere falsi o non rappresentare il rischio reale. Il link personale puo incentivare chi ti invita.", safeAction: "Non basarti su screenshot. Verifica piattaforma, rischi, autorizzazioni e costi." },
+  { id: "relative_emergency_cash_courier", category: "Amici e parenti", situation: "Un presunto parente ti chiama in lacrime e dice che manderà un corriere a ritirare contanti o gioielli per risolvere un'emergenza.", isRisky: true, difficulty: "difficile", redFlags: ["Corriere", "Contanti/gioielli", "Panico"], explanation: "Le richieste di consegnare contanti o gioielli a intermediari sono un segnale molto forte di truffa emotiva.", safeAction: "Non consegnare nulla. Richiama il parente e contatta le forze dell'ordine se necessario." },
+  { id: "romance_wants_your_documents", category: "Relazioni", situation: "Una persona conosciuta da poco dice di voler prenotare un viaggio insieme e ti chiede foto di documento, codice fiscale e indirizzo.", isRisky: true, difficulty: "media", redFlags: ["Documenti", "Rapporto recente", "Viaggio"], explanation: "Documenti e dati personali possono essere usati per furto d'identita, contratti o profili falsi.", safeAction: "Non inviare documenti a persone non verificate. Prenota tu tramite canali ufficiali se necessario." },
+  { id: "friend_short_term_loan_written", category: "Amici e parenti", situation: "Un amico fidato chiede un piccolo prestito, spiega il motivo, propone bonifico tracciabile e una data precisa di restituzione scritta.", isRisky: false, difficulty: "media", redFlags: ["Trasparenza", "Accordo scritto", "Importo sostenibile"], explanation: "Non ogni prestito tra amici e una truffa. Chiarezza, tracciabilita e importo sostenibile rendono la situazione piu gestibile.", safeAction: "Presta solo cio che puoi permetterti e conserva accordo e pagamento tracciabile." },
+  { id: "romance_video_call_investment", category: "Relazioni", situation: "Una persona conosciuta online accetta videochiamate brevi, ma dopo pochi giorni ti propone una piattaforma di investimento usata da un suo familiare esperto.", isRisky: true, difficulty: "difficile", redFlags: ["Relazione recente", "Investimento", "Fiducia costruita"], explanation: "La videochiamata puo rendere la persona piu credibile, ma il passaggio rapido verso investimenti resta un segnale di rischio.", safeAction: "Non investire tramite link ricevuti in chat. Verifica piattaforma e autorizzazioni da fonti indipendenti." },
+  { id: "romance_small_first_help", category: "Relazioni", situation: "Una persona con cui chatti da settimane chiede solo 25 euro per una ricarica, dicendo che e imbarazzata e te li restituira domani.", isRisky: true, difficulty: "media", redFlags: ["Richiesta piccola", "Imbarazzo", "Relazione online"], explanation: "Le richieste piccole servono spesso a testare disponibilita e fiducia. Possono diventare richieste sempre piu grandi.", safeAction: "Non inviare denaro a persone mai incontrate. Mantieni confini chiari anche se l importo sembra basso." },
+  { id: "romance_public_no_money", category: "Relazioni", situation: "Una persona conosciuta online propone di vedervi in un bar pubblico, non chiede soldi e accetta di aspettare i tuoi tempi.", isRisky: false, difficulty: "media", redFlags: ["Luogo pubblico", "Nessuna richiesta denaro", "Tempo per decidere"], explanation: "Non e una truffa economica evidente. Resta comunque prudente sulla sicurezza personale e sui dati che condividi.", safeAction: "Incontra in luogo pubblico, informa qualcuno e non condividere dati finanziari o documenti." },
+  { id: "romance_crypto_together", category: "Relazioni", situation: "Una persona con cui stai creando confidenza dice che potreste costruire un futuro insieme iniziando a investire entrambi in crypto su una piattaforma privata.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro insieme", "Crypto", "Piattaforma privata"], explanation: "La promessa di un progetto comune puo abbassare le difese. Le piattaforme private non verificate sono un rischio alto.", safeAction: "Non versare denaro. Verifica societa, autorizzazioni e possibilita di prelievo da fonti indipendenti." },
+  { id: "romance_medical_emergency_extra2", category: "Relazioni", situation: "Una persona conosciuta in chat dice che un familiare e in ospedale e chiede un aiuto urgente, promettendo di restituire tutto.", isRisky: true, difficulty: "difficile", redFlags: ["Emergenza medica", "Urgenza", "Pressione emotiva"], explanation: "Le emergenze mediche sono usate per creare senso di colpa e velocita. La storia puo sembrare umana ma non e verificabile.", safeAction: "Non inviare denaro. Chiedi verifiche indipendenti e prenditi tempo prima di qualsiasi decisione." },
+  { id: "romance_ticket_to_visit", category: "Relazioni", situation: "Una persona dice di voler venire a trovarti ma chiede soldi per il biglietto aereo perche la carta non funziona.", isRisky: true, difficulty: "media", redFlags: ["Biglietto viaggio", "Carta non funziona", "Promessa incontro"], explanation: "Il desiderio di incontrarsi rende la richiesta piu credibile. Spesso dopo il primo pagamento compaiono nuovi ostacoli.", safeAction: "Non pagare viaggi a persone che non conosci davvero. Verifica identita e prenotazioni da canali ufficiali." },
+  { id: "romance_shared_bank_account", category: "Relazioni", situation: "Dopo poche settimane una persona dice che per fidarsi davvero dovreste aprire un conto o condividere dati bancari.", isRisky: true, difficulty: "difficile", redFlags: ["Dati bancari", "Relazione accelerata", "Fiducia richiesta"], explanation: "La richiesta di condividere dati o conti e sproporzionata rispetto a una relazione recente e puo portare a furti o debiti.", safeAction: "Non condividere dati bancari, codici o documenti. Una relazione sana non richiede accesso ai tuoi soldi." },
+  { id: "romance_photo_blackmail", category: "Relazioni", situation: "Dopo uno scambio intimo, una persona minaccia di inviare foto o chat ai tuoi contatti se non paghi.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto", "Vergogna", "Pagamento urgente"], explanation: "Il ricatto sfrutta paura e vergogna. Pagare non garantisce che la minaccia finisca.", safeAction: "Non pagare. Conserva prove, blocca il contatto e valuta denuncia o supporto specializzato." },
+  { id: "romance_slow_boundaries", category: "Relazioni", situation: "La persona che stai conoscendo rispetta i tuoi confini, non chiede soldi e non propone investimenti o favori economici.", isRisky: false, difficulty: "facile", redFlags: ["Confini rispettati", "Nessuna pressione", "Nessuna richiesta soldi"], explanation: "Questo comportamento non mostra segnali economici di truffa. La prudenza resta utile, ma non ogni conoscenza online e pericolosa.", safeAction: "Continua con calma, proteggi dati personali e non anticipare fiducia economica." },
+  { id: "romance_bank_account_transfer", category: "Relazioni", situation: "Una persona conosciuta online ti chiede di ricevere un bonifico sul tuo conto perche nel suo paese ci sono restrizioni.", isRisky: true, difficulty: "difficile", redFlags: ["Conto personale", "Estero", "Transito fondi"], explanation: "Usare il tuo conto per terzi puo esporti a rischi legali e finanziari.", safeAction: "Rifiuta. Non fare transitare fondi per persone conosciute online." },
+  { id: "romance_document_money", category: "Relazioni", situation: "Una persona dice di non poter viaggiare per incontrarti finche non rinnova un documento e ti chiede soldi per la pratica.", isRisky: true, difficulty: "media", redFlags: ["Documento", "Promessa incontro", "Pagamento"], explanation: "La richiesta usa il desiderio di incontrarsi per rendere il pagamento accettabile. Spesso emergono altri ostacoli.", safeAction: "Non pagare documenti a persone mai incontrate. Verifica identita e situazione con calma." },
+  { id: "romance_charity_project", category: "Relazioni", situation: "Una persona conosciuta online ti chiede di donare al suo progetto benefico personale, ma il sito non indica ente, bilanci o referenti.", isRisky: true, difficulty: "media", redFlags: ["Beneficenza personale", "Sito opaco", "Relazione online"], explanation: "Beneficenza e relazione possono creare pressione. Senza ente e trasparenza, il rischio e alto.", safeAction: "Dona solo a enti verificabili e canali ufficiali." },
+  { id: "romance_family_blocked_card", category: "Relazioni", situation: "Una persona con cui parli ogni giorno dice che la carta e stata bloccata e chiede un prestito per pagare affitto e medicine.", isRisky: true, difficulty: "difficile", redFlags: ["Carta bloccata", "Bisogni essenziali", "Prestito"], explanation: "Bisogni essenziali e contatto quotidiano possono creare forte coinvolgimento emotivo. La verifica resta necessaria.", safeAction: "Non inviare denaro senza verifiche indipendenti. Se vuoi aiutare, cerca canali ufficiali e tracciabili." },
+  { id: "romance_investment_mentor", category: "Relazioni", situation: "Una persona conosciuta su un app di incontri ti presenta un mentor che insegna trading con segnali sicuri.", isRisky: true, difficulty: "difficile", redFlags: ["Dating + trading", "Mentor", "Segnali sicuri"], explanation: "Il passaggio da relazione a investimento e un modello frequente nelle truffe. Il mentor crea autorita artificiale.", safeAction: "Non versare denaro. Esci dal gruppo e verifica intermediari su registri ufficiali." },
+  { id: "romance_future_pressure", category: "Relazioni", situation: "Una persona parla presto di convivenza e futuro insieme, poi chiede soldi per risolvere l ultimo problema prima di raggiungerti.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro accelerato", "Aiuto economico", "Problema finale"], explanation: "Le promesse di futuro possono creare attaccamento rapido. La richiesta economica dopo spinta emotiva e un segnale di rischio.", safeAction: "Non inviare denaro. Dai tempo alla relazione e verifica fatti, identita e coerenza." },
+  { id: "friend_loan_cash_no_trace", category: "Amici e parenti", situation: "Un amico ti chiede 1.500 euro in contanti per evitare problemi con la banca e dice di non fare bonifici.", isRisky: true, difficulty: "difficile", redFlags: ["Contanti", "Nessuna traccia", "Urgenza"], explanation: "La richiesta di contanti e assenza di traccia rende difficile dimostrare il prestito e recuperare il denaro.", safeAction: "Se decidi di aiutare, usa pagamento tracciabile e accordo scritto con tempi di restituzione." },
+  { id: "friend_loan_clear_terms", category: "Amici e parenti", situation: "Un amico chiede un prestito limitato, propone bonifico, accordo scritto e restituzione a rate sostenibili.", isRisky: false, difficulty: "media", redFlags: ["Accordo scritto", "Tracciabilita", "Importo limitato"], explanation: "Non e automaticamente una truffa. Chiarezza e tracciabilita proteggono entrambi.", safeAction: "Presta solo cio che puoi permetterti di perdere e conserva accordo e prove di pagamento." },
+  { id: "relative_business_no_docs", category: "Amici e parenti", situation: "Un parente ti chiede di investire nella sua attivita senza bilanci, dicendo che tra familiari non servono documenti.", isRisky: true, difficulty: "difficile", redFlags: ["Famiglia", "Nessun documento", "Investimento"], explanation: "Il legame familiare non elimina il rischio. Senza documenti non sai cosa stai finanziando e con quali diritti.", safeAction: "Chiedi numeri, contratto, rischi e tempi. Se non sono chiari, non investire." },
+  { id: "friend_account_blocked_transfer", category: "Amici e parenti", situation: "Un amico dice che il suo conto e bloccato e ti chiede di ricevere soldi sul tuo conto per poi girarglieli.", isRisky: true, difficulty: "difficile", redFlags: ["Conto terzi", "Transito denaro", "Spiegazione vaga"], explanation: "Fare transitare denaro per altri puo esporti a problemi seri se i fondi hanno origine dubbia.", safeAction: "Non usare il tuo conto per movimenti di altri. Suggerisci canali ufficiali e tracciabili." },
+  { id: "relative_voice_iban_new", category: "Amici e parenti", situation: "Ricevi un vocale che sembra di un familiare: dice di essere nei guai e chiede un bonifico immediato su un IBAN nuovo.", isRisky: true, difficulty: "difficile", redFlags: ["Vocale credibile", "IBAN nuovo", "Emergenza"], explanation: "Anche la voce puo essere imitata o manipolata. Urgenza e IBAN nuovo restano segnali molto forti.", safeAction: "Richiama il familiare su numero conosciuto o verifica con altri parenti prima di inviare denaro." },
+  { id: "friend_real_product_unsuitable", category: "Amici e parenti", situation: "Un amico ti segnala un prodotto finanziario reale e autorizzato, ma molto rischioso, dicendo che a lui sta andando bene.", isRisky: true, difficulty: "difficile", redFlags: ["Prodotto reale", "Rischio alto", "Esperienza altrui"], explanation: "Anche un prodotto vero puo essere inadatto. Il fatto che funzioni per un amico non significa che sia adatto a te.", safeAction: "Leggi rischi e costi. Valuta obiettivi, orizzonte e tolleranza alle perdite prima di decidere." },
+  { id: "family_gift_traceable", category: "Amici e parenti", situation: "Un familiare vuole regalarti una somma con bonifico tracciabile e causale chiara, senza chiedere nulla in cambio.", isRisky: false, difficulty: "facile", redFlags: ["Bonifico tracciabile", "Nessuna pressione", "Causale chiara"], explanation: "Non mostra segnali tipici di truffa. Resta utile chiarire motivazione e aspetti fiscali se l importo e rilevante.", safeAction: "Conserva traccia del bonifico e valuta eventuali implicazioni se la somma e alta." },
+  { id: "friend_card_data_request", category: "Amici e parenti", situation: "Un amico ti chiede di prestargli carta, PIN o codici per fare un pagamento urgente.", isRisky: true, difficulty: "media", redFlags: ["Dati carta", "Urgenza", "Prestito mezzo pagamento"], explanation: "Anche se conosci la persona, condividere carta, PIN o codici e pericoloso e puo creare problemi difficili da risolvere.", safeAction: "Non condividere dati di pagamento. Se vuoi aiutare, usa un bonifico tracciabile." },
+  { id: "friend_guarantee_loan_extra2", category: "Amici e parenti", situation: "Un amico ti chiede di fare da garante per un finanziamento. Dice che e solo una formalita e che non rischi nulla.", isRisky: true, difficulty: "difficile", redFlags: ["Garante", "Rischio minimizzato", "Pressione affettiva"], explanation: "Fare da garante non e una formalita: se l altra persona non paga, il debito puo ricadere su di te.", safeAction: "Leggi il contratto, valuta il rischio reale e chiedi consulenza prima di firmare." },
+  { id: "relative_family_guilt_investment", category: "Amici e parenti", situation: "Un parente ti propone di investire in un progetto per aiutare la famiglia e dice che rifiutare sarebbe mancanza di fiducia.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Famiglia", "Investimento poco chiaro"], explanation: "Quando investimento e legame familiare si mischiano, e facile perdere lucidita. La pressione emotiva e un segnale.", safeAction: "Separa affetto e soldi: chiedi business plan, rischi e accordi scritti prima di decidere." },
+  { id: "friend_repay_link", category: "Amici e parenti", situation: "Un vecchio amico ti scrive sui social dicendo di volerti restituire soldi, ma ti manda un link dove inserire carta e documento.", isRisky: true, difficulty: "media", redFlags: ["Link pagamento", "Documento", "Profilo social"], explanation: "Potrebbe essere un profilo compromesso. Per ricevere soldi non serve inserire dati carta su link sospetti.", safeAction: "Verifica l identita con una chiamata e usa metodi di pagamento noti e sicuri." },
+  { id: "relative_loan_no_written_terms_extra2", category: "Amici e parenti", situation: "Un cugino ti chiede 3.000 euro in prestito e dice che non serve scrivere nulla perche siete parenti.", isRisky: true, difficulty: "media", redFlags: ["Prestito familiare", "Nessun accordo", "Importo rilevante"], explanation: "Prestiti tra parenti senza accordi chiari possono creare conflitti e perdite. La fiducia non sostituisce chiarezza.", safeAction: "Se decidi di aiutare, metti importo, tempi e modalita per iscritto." },
+  { id: "friend_multilevel_recruit_extra2", category: "Amici e parenti", situation: "Un amico ti invita a un incontro per un opportunita di guadagno dove il focus e far entrare altre persone.", isRisky: true, difficulty: "difficile", redFlags: ["Reclutamento", "Guadagni promessi", "Pressione gruppo"], explanation: "Quando il guadagno dipende soprattutto dal reclutare altri, il rischio di schema insostenibile aumenta molto.", safeAction: "Chiedi come si genera davvero il guadagno, costi iniziali e documenti. Non firmare sull entusiasmo." },
+  { id: "friend_medical_direct_payment", category: "Amici e parenti", situation: "Un amico chiede aiuto per una spesa medica, mostra documenti verificabili e accetta pagamento diretto alla struttura.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti verificabili", "Pagamento diretto", "Nessuna fretta"], explanation: "Non e necessariamente una truffa: la possibilita di pagare direttamente e verificare riduce il rischio.", safeAction: "Se vuoi aiutare, paga canali ufficiali e conserva ricevuta." },
+  { id: "emotional_blackmail_parent", category: "Amici e parenti", situation: "Un familiare ti dice che se non gli presti soldi rovinerai il rapporto e non ti parlera piu.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto emotivo", "Famiglia", "Prestito"], explanation: "La pressione affettiva puo portare a decisioni finanziarie non sostenibili. Aiutare non deve metterti in difficolta.", safeAction: "Prenditi tempo, definisci limiti e metti eventuali accordi per iscritto." },
+  { id: "investment_friend_low_amount", category: "Amici e parenti", situation: "Un amico ti dice di iniziare con soli 50 euro su una piattaforma sconosciuta per vedere come va.", isRisky: true, difficulty: "difficile", redFlags: ["Importo piccolo", "Piattaforma sconosciuta", "Test fiducia"], explanation: "L importo basso serve a farti iniziare. Dopo il primo versamento possono aumentare richieste e pressione.", safeAction: "Non testare piattaforme non verificate. Cerca autorizzazioni e recensioni indipendenti." },
+  { id: "door_charity_child_guilt", category: "Di persona", situation: "Una persona mostra foto di bambini malati e ti chiede contanti subito, dicendo che rifiutare significa non avere cuore.", isRisky: true, difficulty: "media", redFlags: ["Senso di colpa", "Contanti", "Nessuna verifica"], explanation: "La pressione emotiva puo essere usata per impedire verifiche. Una raccolta seria accetta controlli e canali ufficiali.", safeAction: "Non donare in contanti sotto pressione. Cerca l ente e dona dal sito ufficiale." },
+  { id: "door_utility_discount_now", category: "Di persona", situation: "Un incaricato dice che il tuo contratto luce e sbagliato e che solo firmando subito avrai diritto a uno sconto riservato.", isRisky: true, difficulty: "media", redFlags: ["Firma immediata", "Sconto riservato", "Confusione contratto"], explanation: "Le vendite aggressive puntano a farti firmare prima di leggere. Uno sconto vero puo essere verificato con calma.", safeAction: "Non firmare subito. Chiedi copia dell offerta e confrontala da casa." },
+  { id: "cash_investment_neighbor", category: "Di persona", situation: "Un vicino propone di consegnargli contanti per una occasione di investimento riservata, senza contratto.", isRisky: true, difficulty: "difficile", redFlags: ["Contanti", "Investimento riservato", "Nessun contratto"], explanation: "Vicinanza e fiducia di quartiere possono far abbassare le difese. Contanti senza contratto sono un rischio alto.", safeAction: "Non consegnare contanti per investimenti. Chiedi documenti e soggetto autorizzato." },
+  { id: "community_collection_clear", category: "Di persona", situation: "Un gruppo di quartiere raccoglie piccole quote per una spesa comune, con elenco pubblico e ricevute.", isRisky: false, difficulty: "media", redFlags: ["Trasparenza", "Ricevute", "Importo piccolo"], explanation: "La trasparenza rende la situazione piu gestibile. Resta utile sapere chi custodisce il denaro.", safeAction: "Versa solo importi sostenibili e con ricevuta o traccia." },
+  { id: "elderly_fake_police_jewels", category: "Familiari", situation: "Un anziano riceve visita di persone che dicono di dover controllare gioielli per una indagine di polizia.", isRisky: true, difficulty: "facile", redFlags: ["Falsa autorita", "Gioielli", "Visita a casa"], explanation: "Forze dell ordine non chiedono di consegnare gioielli a casa in questo modo.", safeAction: "Non consegnare nulla e chiama il 112 o familiari da numeri conosciuti." },
+  { id: "official_police_station", category: "Familiari", situation: "Una persona viene invitata a recarsi in caserma per una denuncia tramite comunicazione verificabile.", isRisky: false, difficulty: "media", redFlags: ["Sede ufficiale", "Verificabile", "Nessuna richiesta denaro"], explanation: "Una convocazione verificabile presso sede ufficiale non ha i segnali tipici della truffa economica.", safeAction: "Verifica telefonando alla sede ufficiale se hai dubbi." },
+  { id: "parking_qr_fake", category: "Pagamenti reali", situation: "In un parcheggio trovi un QR code adesivo sopra il cartello ufficiale per pagare la sosta.", isRisky: true, difficulty: "difficile", redFlags: ["QR code adesivo", "Pagamento", "Sito non verificato"], explanation: "QR code falsi possono portare a siti che rubano dati. Un adesivo sovrapposto e un segnale da verificare.", safeAction: "Usa app ufficiale o sito indicato da fonti certe, non un QR sospetto." },
+  { id: "restaurant_qr_menu_safe", category: "Pagamenti reali", situation: "Al ristorante il QR code porta solo al menu, non chiede dati personali o pagamenti.", isRisky: false, difficulty: "facile", redFlags: ["Menu", "Nessun pagamento", "Nessun dato sensibile"], explanation: "Un QR per consultare il menu e normale se non richiede dati o pagamenti sospetti.", safeAction: "Controlla comunque l indirizzo se devi inserire dati o pagare." },
+  { id: "atm_stranger_help", category: "Pagamenti reali", situation: "Al bancomat uno sconosciuto ti offre aiuto e si avvicina mentre inserisci PIN e carta.", isRisky: true, difficulty: "facile", redFlags: ["Bancomat", "PIN", "Sconosciuto vicino"], explanation: "La vicinanza durante prelievo o inserimento PIN espone a furto di dati o carta.", safeAction: "Copri il PIN, annulla se ti senti osservato e non accettare aiuto da sconosciuti." },
+  { id: "pos_amount_receipt", category: "Pagamenti reali", situation: "Paghi con carta in negozio, il commerciante ti mostra importo sul POS e ti consegna ricevuta.", isRisky: false, difficulty: "facile", redFlags: ["Importo visibile", "Ricevuta", "Negozio fisico"], explanation: "E una procedura normale. Il controllo dell importo resta sempre utile.", safeAction: "Verifica importo prima di avvicinare la carta e conserva ricevuta se serve." },
+  { id: "invoice_iban_changed_extra2", category: "Banca e pagamenti", situation: "Ricevi una fattura reale da un fornitore, ma una seconda email comunica un nuovo IBAN per pagare.", isRisky: true, difficulty: "difficile", redFlags: ["IBAN cambiato", "Fattura reale", "Email separata"], explanation: "Le frodi su IBAN modificato sfruttano documenti veri e cambiano solo il conto di pagamento.", safeAction: "Verifica il cambio IBAN chiamando un numero gia noto, non quello indicato nella email." },
+  { id: "condo_iban_change", category: "Casa e condominio", situation: "L amministratore comunica un nuovo IBAN per le spese condominiali da una email insolita e con tono urgente.", isRisky: true, difficulty: "difficile", redFlags: ["IBAN nuovo", "Email insolita", "Urgenza"], explanation: "Un cambio IBAN e sempre da verificare. Le truffe usano contesti reali come condominio o fornitori.", safeAction: "Contatta l amministratore da numero gia conosciuto prima di pagare." },
+  { id: "condo_official_notice", category: "Casa e condominio", situation: "Ricevi comunicazione di assemblea condominiale con canali noti e nessuna richiesta di pagamento immediato.", isRisky: false, difficulty: "facile", redFlags: ["Canale noto", "Nessun pagamento urgente", "Verificabile"], explanation: "Non presenta segnali forti di truffa. Le comunicazioni ordinarie possono comunque essere controllate.", safeAction: "Confronta con bacheca, PEC o contatti abituali se hai dubbi." },
+  { id: "rental_owner_abroad_docs", category: "Affitti e casa", situation: "Il proprietario dice di vivere all estero, invia documenti e chiede caparra prima della visita tramite bonifico estero.", isRisky: true, difficulty: "difficile", redFlags: ["Proprietario all estero", "Caparra prima visita", "Bonifico estero"], explanation: "Documenti inviati in chat possono essere falsi o rubati. Caparra prima di vedere resta un segnale critico.", safeAction: "Visita l immobile, verifica proprieta e contratto prima di pagare." },
+  { id: "rental_after_visit_receipt", category: "Affitti e casa", situation: "Dopo visita di una stanza, coinquilini e proprietario verificabili chiedono una piccola caparra tracciabile con ricevuta.", isRisky: false, difficulty: "media", redFlags: ["Visita effettuata", "Ricevuta", "Tracciabilita"], explanation: "La visita e la tracciabilita riducono il rischio. Serve comunque leggere condizioni e identita.", safeAction: "Paga solo con causale chiara e conserva ricevuta e accordo." },
+  { id: "used_car_no_vin", category: "Auto usata", situation: "Il venditore di un auto usata rifiuta di condividere targa o telaio prima dell incontro e chiede anticipo per bloccarla.", isRisky: true, difficulty: "media", redFlags: ["Dati auto negati", "Anticipo", "Prezzo attraente"], explanation: "Rifiutare dati base e chiedere anticipo prima delle verifiche aumenta il rischio.", safeAction: "Verifica documenti, storico, proprieta e auto dal vivo prima di pagare." },
+  { id: "used_car_mechanic_ok", category: "Auto usata", situation: "Il venditore accetta controllo dal meccanico, visura, prova su strada e pagamento tracciabile dopo passaggio.", isRisky: false, difficulty: "media", redFlags: ["Controllo meccanico", "Documenti", "Pagamento tracciabile"], explanation: "E un comportamento piu trasparente. Non elimina ogni rischio, ma permette verifiche concrete.", safeAction: "Fai controlli, usa pagamento tracciabile e verifica il passaggio di proprieta." },
+  { id: "job_reshipping_packages", category: "Lavoro", situation: "Un lavoro da casa ti chiede di ricevere pacchi e rispedirli, promettendo compensi facili senza colloquio vero.", isRisky: true, difficulty: "difficile", redFlags: ["Pacchi da rispedire", "Lavoro facile", "Nessun colloquio"], explanation: "Potresti diventare intermediario inconsapevole di merce acquistata fraudolentemente.", safeAction: "Non accettare lavori che usano il tuo indirizzo o conto senza contratto chiaro e azienda verificata." },
+  { id: "job_fake_check_equipment", category: "Lavoro", situation: "Un presunto datore invia un assegno per comprare attrezzatura e chiede di girare una parte a un fornitore indicato.", isRisky: true, difficulty: "difficile", redFlags: ["Assegno", "Fornitore imposto", "Anticipo"], explanation: "Gli assegni possono risultare falsi dopo giorni. Intanto tu avresti inviato soldi veri.", safeAction: "Non anticipare o girare denaro per un datore non verificato." },
+  { id: "job_regular_contract_safe", category: "Lavoro", situation: "Un azienda verificabile propone contratto, colloquio, mansioni e pagamento su conto intestato a te.", isRisky: false, difficulty: "facile", redFlags: ["Contratto", "Azienda verificabile", "Mansioni chiare"], explanation: "Sono elementi normali di un rapporto di lavoro. Leggi comunque condizioni e contratto.", safeAction: "Verifica azienda, contratto e retribuzione prima di firmare." },
+  { id: "subscription_trial_card", category: "Abbonamenti", situation: "Un sito poco conosciuto offre prova gratuita ma chiede carta e rende poco chiaro come disdire.", isRisky: true, difficulty: "media", redFlags: ["Prova gratuita", "Disdetta opaca", "Carta richiesta"], explanation: "Alcuni servizi puntano su rinnovi difficili da cancellare. La poca chiarezza e un segnale.", safeAction: "Cerca condizioni, recensioni e modalita di recesso prima di inserire la carta." },
+  { id: "subscription_known_terms", category: "Abbonamenti", situation: "Un servizio noto indica prezzo, rinnovo e pulsante di cancellazione prima dell acquisto.", isRisky: false, difficulty: "facile", redFlags: ["Prezzo chiaro", "Recesso visibile", "Servizio noto"], explanation: "La trasparenza su prezzo e disdetta e un segnale positivo, anche se devi valutare se ti serve davvero.", safeAction: "Controlla data rinnovo e salva promemoria se attivi la prova." },
+  { id: "tax_refund_card_link", category: "Pubblica amministrazione", situation: "Ricevi una email che promette rimborso fiscale immediato e chiede dati carta tramite link.", isRisky: true, difficulty: "facile", redFlags: ["Rimborso", "Dati carta", "Link"], explanation: "Gli enti pubblici non chiedono dati carta via email per erogare rimborsi in questo modo.", safeAction: "Accedi solo dal sito ufficiale digitando l indirizzo o usando app istituzionali." },
+  { id: "municipal_pagopa_safe", category: "Pubblica amministrazione", situation: "Ricevi un avviso di pagamento con codice pagoPA verificabile sul portale ufficiale.", isRisky: false, difficulty: "media", redFlags: ["PagoPA", "Portale ufficiale", "Codice verificabile"], explanation: "Un pagamento verificabile su canali ufficiali e meno rischioso. Occhio a link copiati o siti clone.", safeAction: "Apri il portale ufficiale senza usare link sospetti e verifica il codice." },
+  { id: "green_bond_private", category: "Investimenti", situation: "Un sito propone obbligazioni green riservate ai privati con rendimento alto e logo di aziende famose.", isRisky: true, difficulty: "difficile", redFlags: ["Rendimento alto", "Loghi famosi", "Sito non verificato"], explanation: "Loghi e temi sostenibili possono essere usati per sembrare affidabili. Rendimento alto e canale non verificato sono rischiosi.", safeAction: "Verifica emittente, prospetto, intermediario autorizzato e registri ufficiali." },
+  { id: "bank_branch_product_docs", category: "Investimenti", situation: "La tua banca ti propone un prodotto in filiale, consegna documenti KID e ti lascia tempo per valutare.", isRisky: false, difficulty: "media", redFlags: ["Documenti ufficiali", "Tempo", "Canale verificato"], explanation: "Non e una truffa tipica, ma puo comunque non essere adatto o avere costi alti.", safeAction: "Leggi costi, rischi e alternative prima di aderire." },
+  { id: "trading_signal_influencer", category: "Investimenti", situation: "Un influencer offre una prova gratuita dei suoi segnali di trading e mostra solo operazioni vincenti.", isRisky: true, difficulty: "media", redFlags: ["Solo vittorie", "Segnali trading", "Influencer"], explanation: "Mostrare solo guadagni crea una percezione falsa. Il trading resta rischioso e i risultati possono essere selezionati.", safeAction: "Non pagare segnali senza verifiche, track record indipendente e comprensione dei rischi." },
+  { id: "crypto_withdraw_tax", category: "Crypto", situation: "Una piattaforma crypto ti mostra profitti, ma per prelevare chiede prima una tassa da pagare separatamente.", isRisky: true, difficulty: "difficile", redFlags: ["Prelievo bloccato", "Tassa anticipata", "Profitti visibili"], explanation: "Chiedere soldi per sbloccare profitti e un segnale classico di truffa. I profitti mostrati potrebbero essere finti.", safeAction: "Non pagare ulteriori somme. Raccogli prove e valuta segnalazione." },
+  { id: "crypto_exchange_2fa", category: "Crypto", situation: "Usi un exchange noto, hai 2FA attiva e prelevi su conto intestato a te con procedure standard.", isRisky: false, difficulty: "media", redFlags: ["2FA", "Exchange noto", "Conto intestato"], explanation: "Non e automaticamente rischioso, ma crypto e custodia restano aree da gestire con attenzione.", safeAction: "Usa sicurezza forte, controlla indirizzi e non investire piu di quanto puoi perdere." },
+  { id: "delivery_unexpected_cod", category: "Corrieri", situation: "Un corriere arriva con un pacco non atteso e chiede pagamento in contanti alla consegna.", isRisky: true, difficulty: "media", redFlags: ["Pacco non atteso", "Contanti", "Consegna"], explanation: "Il contrassegno su pacchi non attesi puo essere usato per farti pagare merce inutile o mai ordinata.", safeAction: "Rifiuta se non riconosci ordine e mittente. Verifica con familiari prima di pagare." },
+  { id: "delivery_expected_cod_safe", category: "Corrieri", situation: "Aspetti un pacco in contrassegno acquistato da te e l importo corrisponde all ordine.", isRisky: false, difficulty: "facile", redFlags: ["Pacco atteso", "Importo corretto", "Ordine riconosciuto"], explanation: "La situazione e coerente con un acquisto fatto da te. Controlla sempre importo e mittente.", safeAction: "Paga solo se ordine, importo e corriere corrispondono." },
+  { id: "school_trip_iban_change", category: "Famiglia e scuola", situation: "Ricevi in un gruppo genitori un messaggio con nuovo IBAN per pagare una gita scolastica entro sera.", isRisky: true, difficulty: "difficile", redFlags: ["Gruppo chat", "IBAN nuovo", "Urgenza"], explanation: "Anche i gruppi reali possono essere compromessi o confusi. Nuovo IBAN e fretta vanno verificati.", safeAction: "Chiedi conferma alla scuola tramite canale ufficiale prima di pagare." },
+  { id: "school_registry_payment", category: "Famiglia e scuola", situation: "La scuola invia comunicazione ufficiale dal registro elettronico con importo e causale verificabili.", isRisky: false, difficulty: "facile", redFlags: ["Registro ufficiale", "Causale", "Verificabile"], explanation: "Il canale ufficiale riduce il rischio. Resta utile controllare importo e scadenza.", safeAction: "Paga tramite canale indicato dalla scuola e conserva ricevuta." },
+  { id: "health_miracle_supplement", category: "Salute e benessere", situation: "Un annuncio promette guarigione rapida o dimagrimento garantito se compri subito un integratore costoso.", isRisky: true, difficulty: "media", redFlags: ["Promessa garantita", "Salute", "Urgenza acquisto"], explanation: "Promesse sanitarie garantite e pressione commerciale sono segnali di rischio e possono danneggiare salute e soldi.", safeAction: "Parla con un professionista sanitario e diffida da promesse assolute." },
+  { id: "health_official_visit", category: "Salute e benessere", situation: "Prenoti una visita da un centro noto, ricevi conferma ufficiale e paghi con ricevuta.", isRisky: false, difficulty: "facile", redFlags: ["Centro noto", "Ricevuta", "Prenotazione"], explanation: "E un processo normale. Controlla sempre dati e importi.", safeAction: "Usa canali ufficiali e conserva ricevute." },
+  { id: "ticket_soldout_cheap", category: "Eventi", situation: "Trovi biglietti per un concerto sold out a prezzo basso e il venditore chiede bonifico amici e familiari.", isRisky: true, difficulty: "media", redFlags: ["Prezzo basso", "Sold out", "Pagamento non protetto"], explanation: "Biglietti falsi e pagamenti non protetti sono rischi frequenti negli eventi sold out.", safeAction: "Usa piattaforme ufficiali di rivendita e pagamenti con tutela." },
+  { id: "ticket_official_resale_safe", category: "Eventi", situation: "Acquisti biglietto da piattaforma ufficiale di rivendita con trasferimento nominativo tracciato.", isRisky: false, difficulty: "media", redFlags: ["Piattaforma ufficiale", "Trasferimento nominativo", "Pagamento protetto"], explanation: "La piattaforma ufficiale riduce il rischio di biglietti falsi.", safeAction: "Controlla condizioni, nominativo e ricevuta." },
+  { id: "pet_free_shipping_fee", category: "Animali", situation: "Un annuncio regala un cucciolo ma chiede soldi per trasporto, vaccini e documenti prima di vederlo.", isRisky: true, difficulty: "media", redFlags: ["Cucciolo gratuito", "Spese anticipo", "Nessuna visita"], explanation: "Le truffe sugli animali usano emozione e desiderio di aiutare. Le spese anticipate sono il vero obiettivo.", safeAction: "Vedi animale, allevamento o associazione e documenti prima di pagare." },
+  { id: "pet_shelter_safe", category: "Animali", situation: "Un rifugio verificabile propone adozione con visita, modulo e donazione tracciabile.", isRisky: false, difficulty: "facile", redFlags: ["Rifugio verificabile", "Visita", "Modulo"], explanation: "Trasparenza e visita sono segnali positivi.", safeAction: "Verifica associazione e condizioni di adozione." },
+];
+
+function pickScamGameQuestions(pool: ScamScenario[], count = 5): ScamScenario[] {
+  const shuffle = <T,>(items: T[]) => [...items].sort(() => Math.random() - 0.5);
+  const selected: ScamScenario[] = [];
+  const addUnique = (items: ScamScenario[], max: number) => {
+    for (const item of items) {
+      if (selected.length >= max) break;
+      if (!selected.some((current) => current.id === item.id)) selected.push(item);
+    }
+  };
+
+  const difficult = shuffle(pool.filter((item) => item.difficulty === "difficile"));
+  const risky = shuffle(pool.filter((item) => item.isRisky));
+  const safe = shuffle(pool.filter((item) => !item.isRisky));
+
+  // Ogni partita contiene almeno uno scenario difficile, quando disponibile,
+  // e almeno uno scenario non rischioso per non rendere il gioco prevedibile.
+  addUnique(difficult, Math.min(1, count));
+  addUnique(safe, Math.min(2, count));
+  addUnique(risky, count);
+  addUnique(shuffle(pool), count);
+
+  return shuffle(selected).slice(0, count);
+}
+
+const awarenessActions: AwarenessAction[] = [
+  {
+    id: "unused_subscriptions",
+    title: "Taglia abbonamenti inutilizzati",
+    category: "Risparmio",
+    area: "Abbonamenti",
+    estimatedSavingMonthly: 15,
+    estimatedSavingYearly: 180,
+    difficulty: 1,
+    sacrifice: 1,
+    minutes: 10,
+    why: "Molti abbonamenti restano attivi anche quando non li usi piu. Toglierne uno e un risparmio immediato, senza rinunce vere.",
+    steps: [
+      "Apri l'elenco delle spese ricorrenti della carta o del conto",
+      "Segna gli abbonamenti che non usi da almeno 30 giorni",
+      "Disdici quelli inutili o mettili in pausa",
+      "Sposta la cifra liberata verso il PAC o il tuo obiettivo",
+    ],
+  },
+  {
+    id: "food_waste",
+    title: "Riduci lo spreco di cibo",
+    category: "Risparmio",
+    area: "Cibo",
+    estimatedSavingMonthly: 30,
+    estimatedSavingYearly: 360,
+    difficulty: 2,
+    sacrifice: 1,
+    minutes: 15,
+    why: "Buttare cibo significa buttare denaro. Una piccola organizzazione prima della spesa puo liberare soldi ogni mese.",
+    steps: [
+      "Controlla frigo e dispensa prima di uscire",
+      "Pianifica 3 pasti semplici per i prossimi giorni",
+      "Fai una lista e compra solo quello che serve davvero",
+      "Dedica un pasto a usare avanzi o prodotti vicini alla scadenza",
+    ],
+  },
+  {
+    id: "energy_waste",
+    title: "Taglia sprechi di luce e gas",
+    category: "Risparmio",
+    area: "Energia",
+    estimatedSavingMonthly: 25,
+    estimatedSavingYearly: 300,
+    difficulty: 2,
+    sacrifice: 1,
+    minutes: 20,
+    why: "Non serve vivere al freddo o al buio. Piccole abitudini ripetute riducono bollette e sprechi senza stravolgere la casa.",
+    steps: [
+      "Spegni luci e dispositivi in standby quando non servono",
+      "Usa lavatrice e lavastoviglie a pieno carico",
+      "Abbassa il riscaldamento anche solo di 1 grado quando possibile",
+      "Controlla una volta l'anno se l'offerta luce e gas e ancora conveniente",
+    ],
+  },
+  {
+    id: "phone_plan",
+    title: "Rivedi telefono e internet",
+    category: "Risparmio",
+    area: "Casa",
+    estimatedSavingMonthly: 10,
+    estimatedSavingYearly: 120,
+    difficulty: 2,
+    sacrifice: 1,
+    minutes: 20,
+    why: "Se paghi piu del necessario per un servizio simile, stai rinunciando a risparmio senza ottenere vero valore in cambio.",
+    steps: [
+      "Controlla quanto paghi oggi per telefono e internet",
+      "Confronta 2 o 3 offerte simili",
+      "Verifica vincoli, costi di attivazione e qualita del servizio",
+      "Cambia solo se il risparmio e reale e il servizio resta adeguato",
+    ],
+  },
+  {
+    id: "bank_fees",
+    title: "Controlla conto, carte e commissioni",
+    category: "Risparmio",
+    area: "Banca",
+    estimatedSavingMonthly: 8,
+    estimatedSavingYearly: 96,
+    difficulty: 2,
+    sacrifice: 1,
+    minutes: 15,
+    why: "Canoni, carte e piccole commissioni sembrano dettagli, ma sommati nel tempo possono pesare piu di quanto pensi.",
+    steps: [
+      "Controlla canone conto, carta e prelievi",
+      "Guarda se paghi commissioni ricorrenti",
+      "Confronta un'alternativa con costi piu bassi",
+      "Tieni solo i servizi che usi davvero",
+    ],
+  },
+  {
+    id: "remunerated_liquidity",
+    title: "Fai lavorare la liquidita ferma",
+    category: "Risparmio",
+    area: "Banca",
+    estimatedSavingMonthly: 8,
+    estimatedSavingYearly: 96,
+    difficulty: 2,
+    sacrifice: 1,
+    minutes: 15,
+    why: "La liquidita che resta ferma sul conto puo perdere valore nel tempo. Una parte della liquidita non investita, se non ti serve subito, puo stare su un conto remunerato semplice e svincolato.",
+    steps: [
+      "Individua quanta liquidita vuoi tenere disponibile per spese e imprevisti",
+      "Confronta conti remunerati o soluzioni simili, controllando tasso, costi, vincoli e sicurezza",
+      "Trade Republic e un esempio: al momento offre il 2% annuo lordo sulla liquidita con accredito mensile, ma verifica sempre le condizioni aggiornate",
+      "Non spostare tutta la liquidita: tieni sempre una parte facilmente accessibile per le spese quotidiane",
+    ],
+  },
+  {
+    id: "lunch_bar",
+    title: "Riduci pranzi fuori e piccoli extra",
+    category: "Risparmio",
+    area: "Cibo",
+    estimatedSavingMonthly: 40,
+    estimatedSavingYearly: 480,
+    difficulty: 3,
+    sacrifice: 2,
+    minutes: 10,
+    why: "Bar, delivery e pranzi fuori non sono un problema se scelti. Diventano costosi quando sono automatici.",
+    steps: [
+      "Conta quante volte compri pranzo, caffe o delivery in una settimana",
+      "Scegli 2 giorni in cui porti qualcosa da casa",
+      "Mantieni qualche uscita piacevole, ma programmata",
+      "Trasforma il risparmio settimanale in un versamento fisso",
+    ],
+  },
+  {
+    id: "impulse_rule_24h",
+    title: "Usa la regola delle 24 ore",
+    category: "Risparmio",
+    area: "Acquisti",
+    estimatedSavingMonthly: 35,
+    estimatedSavingYearly: 420,
+    difficulty: 2,
+    sacrifice: 2,
+    minutes: 5,
+    why: "Molti acquisti sembrano necessari solo nel momento. Aspettare 24 ore ti fa distinguere desiderio reale e impulso.",
+    steps: [
+      "Quando vuoi comprare qualcosa non essenziale, salvalo in una lista",
+      "Aspetta almeno 24 ore prima di acquistarlo",
+      "Chiediti se lo ricompreresti anche pagando tutto subito",
+      "Se rinunci, sposta quella cifra verso il tuo obiettivo",
+    ],
+  },
+  {
+    id: "bnpl_small_rates",
+    title: "Evita piccole rate inutili",
+    category: "Risparmio",
+    area: "Acquisti",
+    estimatedSavingMonthly: 25,
+    estimatedSavingYearly: 300,
+    difficulty: 3,
+    sacrifice: 2,
+    minutes: 5,
+    why: "Le rate piccole rendono invisibile il costo reale. Se un acquisto non e essenziale, la rata puo diventare una trappola gentile.",
+    steps: [
+      "Individua le rate attive per oggetti non essenziali",
+      "Evita nuove rate per acquisti impulsivi",
+      "Prima di rateizzare, chiediti se compreresti lo stesso pagando subito",
+      "Usa la rata evitata per aumentare il capitale mensile",
+    ],
+  },
+  {
+    id: "insurance_check",
+    title: "Rivedi assicurazioni e spese auto",
+    category: "Risparmio",
+    area: "Auto",
+    estimatedSavingMonthly: 20,
+    estimatedSavingYearly: 240,
+    difficulty: 3,
+    sacrifice: 1,
+    minutes: 25,
+    why: "Assicurazione e servizi collegati all'auto cambiano nel tempo. Controllarli una volta l'anno puo evitare costi inutili.",
+    steps: [
+      "Controlla quanto paghi oggi per assicurazione e servizi auto",
+      "Confronta preventivi simili prima del rinnovo",
+      "Verifica coperture doppie o servizi che non usi",
+      "Scegli il risparmio solo se non riduce protezioni importanti",
+    ],
+  },
+  {
+    id: "sell_unused_items",
+    title: "Vendi oggetti che non usi",
+    category: "Risparmio",
+    area: "Entrate",
+    estimatedSavingMonthly: 50,
+    estimatedSavingYearly: 600,
+    difficulty: 3,
+    sacrifice: 1,
+    minutes: 30,
+    why: "A volte il modo piu rapido per liberare capitale e trasformare oggetti inutilizzati in denaro utile per un obiettivo.",
+    steps: [
+      "Scegli 3 oggetti che non usi da mesi",
+      "Stima un prezzo realistico, non perfetto",
+      "Pubblicali su un canale affidabile",
+      "Destina l'incasso a fondo emergenza, PAC o obiettivo personale",
+    ],
+  },
+];
+
+function safeNumber(value: string | number) {
+  const parsed = typeof value === "number" ? value : Number(String(value).replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function calcMortgagePayment(principal: number, annualRatePercent: number, years: number) {
+  const months = Math.max(Math.round(years * 12), 1);
+  const monthlyRate = annualRatePercent / 100 / 12;
+  if (monthlyRate <= 0) return principal / months;
+  return principal * (monthlyRate / (1 - Math.pow(1 + monthlyRate, -months)));
+}
+
+function awarenessScore(action: AwarenessAction) {
+  const economicImpact = Math.min(5, Math.max(1, Math.round(action.estimatedSavingMonthly / 10)));
+  const ease = 6 - action.difficulty;
+  const relevance = 4;
+  return economicImpact + ease + relevance - action.sacrifice;
+}
+
+const shoppingCategories: ShoppingCategory[] = [
+  "Frutta e verdura",
+  "Pasta, riso e pane",
+  "Proteine",
+  "Latte e derivati",
+  "Casa e pulizia",
+  "Igiene personale",
+  "Extra e sfizi",
+  "Altro",
+];
+
+const commonShoppingProducts: ShoppingPreset[] = [
+  { name: "Frutta", category: "Frutta e verdura", estimatedPrice: 5 },
+  { name: "Verdura", category: "Frutta e verdura", estimatedPrice: 6 },
+  { name: "Insalata", category: "Frutta e verdura", estimatedPrice: 2.5 },
+  { name: "Pomodori", category: "Frutta e verdura", estimatedPrice: 3 },
+  { name: "Pasta", category: "Pasta, riso e pane", estimatedPrice: 1.5 },
+  { name: "Riso", category: "Pasta, riso e pane", estimatedPrice: 2.5 },
+  { name: "Pane", category: "Pasta, riso e pane", estimatedPrice: 2 },
+  { name: "Farina", category: "Pasta, riso e pane", estimatedPrice: 1.2 },
+  { name: "Uova", category: "Proteine", estimatedPrice: 3 },
+  { name: "Legumi", category: "Proteine", estimatedPrice: 2 },
+  { name: "Carne", category: "Proteine", estimatedPrice: 9 },
+  { name: "Pesce", category: "Proteine", estimatedPrice: 10 },
+  { name: "Latte", category: "Latte e derivati", estimatedPrice: 1.6 },
+  { name: "Yogurt", category: "Latte e derivati", estimatedPrice: 3 },
+  { name: "Formaggio", category: "Latte e derivati", estimatedPrice: 5 },
+  { name: "Detersivo", category: "Casa e pulizia", estimatedPrice: 4 },
+  { name: "Carta igienica", category: "Casa e pulizia", estimatedPrice: 4.5 },
+  { name: "Sapone piatti", category: "Casa e pulizia", estimatedPrice: 2 },
+  { name: "Shampoo", category: "Igiene personale", estimatedPrice: 3 },
+  { name: "Dentifricio", category: "Igiene personale", estimatedPrice: 2 },
+  { name: "Snack", category: "Extra e sfizi", estimatedPrice: 3, isExtra: true },
+  { name: "Dolci", category: "Extra e sfizi", estimatedPrice: 4, isExtra: true },
+  { name: "Bibite", category: "Extra e sfizi", estimatedPrice: 3, isExtra: true },
+];
+
+
 function formatEuro(value: number): string {
   return new Intl.NumberFormat("it-IT", {
     style: "currency",
@@ -854,11 +1452,37 @@ function buildBadges(params: {
   totalChecklist: number;
   pacHistory: PacMonth[];
   totalInvested: number;
+  goalTarget: number;
   activeCategories: number;
+  awarenessActionsCompleted: number;
+  monthlyFreedByAwareness: number;
+  fraudChecksCompleted: number;
+  scamAnsweredScenarioCount: number;
+  scamScenarioPoolSize: number;
+  scamPerfectGames: number;
+  vehicleAnalysisUsed: boolean;
+  mortgageAnalysisUsed: boolean;
 }): Badge[] {
-  const { purchaseUnlocked, checklistCompleted, totalChecklist, pacHistory, totalInvested, activeCategories } = params;
+  const {
+    purchaseUnlocked,
+    checklistCompleted,
+    totalChecklist,
+    pacHistory,
+    totalInvested,
+    goalTarget,
+    activeCategories,
+    awarenessActionsCompleted,
+    monthlyFreedByAwareness,
+    fraudChecksCompleted,
+    scamAnsweredScenarioCount,
+    scamScenarioPoolSize,
+    scamPerfectGames,
+    vehicleAnalysisUsed,
+    mortgageAnalysisUsed,
+  } = params;
   const completedMonths = pacHistory.filter((m) => m.completed).length;
   const streak = calculateCurrentStreak(pacHistory);
+  const setupTarget = Math.max(totalChecklist, 1);
 
   let hasGapAndReturn = false;
   for (let i = 1; i < pacHistory.length; i++) {
@@ -868,76 +1492,377 @@ function buildBadges(params: {
     }
   }
 
+  const clamp = (value: number, target: number) => Math.min(Math.max(value, 0), target);
+  const capitalProgress = (target: number) => clamp(totalInvested, target);
+
   return [
     {
       id: "first_step",
-      title: "Hai iniziato davvero",
-      description: "Hai completato il questionario e ricevuto il tuo piano di riferimento.",
+      title: "Piano ricevuto",
+      description: "Hai completato il questionario e hai un modello da seguire.",
       unlocked: purchaseUnlocked,
+      tier: "inizio",
+      icon: "🧭",
+      progress: purchaseUnlocked ? 1 : 0,
+      target: 1,
+      progressLabel: purchaseUnlocked ? "1/1" : "0/1",
+      lockedHint: "Completa il questionario iniziale.",
     },
     {
       id: "system_on",
-      title: "Sistema attivato",
-      description: "Hai completato il setup iniziale: ora il piano e pronto per lavorare nel tempo.",
+      title: "Setup completato",
+      description: "Hai messo in ordine i passaggi base: ora il piano è operativo.",
       unlocked: checklistCompleted >= totalChecklist && totalChecklist > 0,
+      tier: "inizio",
+      icon: "✅",
+      progress: clamp(checklistCompleted, setupTarget),
+      target: setupTarget,
+      progressLabel: `${clamp(checklistCompleted, setupTarget)}/${setupTarget}`,
+      lockedHint: "Completa i passaggi della guida iniziale.",
     },
     {
       id: "pac_started",
-      title: "Primo mese chiuso",
-      description: "Hai trasformato il piano in azione concreta completando il primo PAC.",
+      title: "Primo mese fatto",
+      description: "Hai trasformato il piano in un'azione concreta.",
       unlocked: completedMonths >= 1,
+      tier: "costanza",
+      icon: "🚀",
+      progress: clamp(completedMonths, 1),
+      target: 1,
+      progressLabel: `${clamp(completedMonths, 1)}/1`,
+      lockedHint: "Chiudi il primo mese di PAC.",
     },
     {
       id: "streak_3",
       title: "Routine attivata",
-      description: "Hai mantenuto il PAC per 3 mesi consecutivi. Ora sta diventando abitudine.",
+      description: "Tre mesi consecutivi: il metodo inizia a diventare abitudine.",
       unlocked: streak >= 3,
+      tier: "costanza",
+      icon: "🔥",
+      progress: clamp(streak, 3),
+      target: 3,
+      progressLabel: `${clamp(streak, 3)}/3 mesi`,
+      lockedHint: "Mantieni il PAC per 3 mesi consecutivi.",
     },
     {
       id: "streak_6",
       title: "Disciplina reale",
-      description: "Hai protetto la catena per 6 mesi. Questo e il comportamento che fa la differenza.",
+      description: "Sei mesi di continuità: stai costruendo comportamento, non solo capitale.",
       unlocked: streak >= 6,
+      tier: "costanza",
+      icon: "🛡️",
+      progress: clamp(streak, 6),
+      target: 6,
+      progressLabel: `${clamp(streak, 6)}/6 mesi`,
+      lockedHint: "Proteggi la catena per 6 mesi.",
     },
     {
       id: "streak_12",
-      title: "Macchina da compounding",
-      description: "Hai completato 12 mesi consecutivi. Sei nella zona dove il metodo inizia a pesare davvero.",
+      title: "Investitore disciplinato",
+      description: "Dodici mesi consecutivi: il piano è diventato identità.",
       unlocked: streak >= 12,
+      tier: "identita",
+      icon: "🏆",
+      progress: clamp(streak, 12),
+      target: 12,
+      progressLabel: `${clamp(streak, 12)}/12 mesi`,
+      lockedHint: "Completa 12 mesi consecutivi.",
     },
     {
       id: "restart",
-      title: "Non molli facilmente",
-      description: "Hai ripreso il piano dopo una pausa. La differenza la fa chi riparte.",
+      title: "Ripartenza intelligente",
+      description: "Hai ripreso dopo una pausa. La differenza la fa chi torna sul metodo.",
       unlocked: hasGapAndReturn,
+      tier: "identita",
+      icon: "🔁",
+      progress: hasGapAndReturn ? 1 : 0,
+      target: 1,
+      progressLabel: hasGapAndReturn ? "ripreso" : "in attesa",
+      lockedHint: "Si sblocca se riprendi il percorso dopo una pausa.",
     },
     {
       id: "capital_1000",
-      title: "Primo capitale serio",
-      description: "Hai superato 1.000 EUR di capitale aggiornato. La base e stata costruita.",
+      title: "Prima base solida",
+      description: "Hai superato 1.000 € di capitale aggiornato.",
       unlocked: totalInvested >= 1000,
+      tier: "capitale",
+      icon: "🌱",
+      progress: capitalProgress(1000),
+      target: 1000,
+      progressLabel: `${formatEuro(Math.min(totalInvested, 1000))}/1.000 €`,
+      lockedHint: "Aggiorna il capitale fino a 1.000 €.",
     },
     {
       id: "capital_5000",
       title: "Costruttore di capitale",
-      description: "Hai superato 5.000 EUR di capitale aggiornato. Il piano sta prendendo forma.",
+      description: "Hai superato 5.000 €: il piano sta prendendo forma.",
       unlocked: totalInvested >= 5000,
+      tier: "capitale",
+      icon: "🏗️",
+      progress: capitalProgress(5000),
+      target: 5000,
+      progressLabel: `${formatEuro(Math.min(totalInvested, 5000))}/5.000 €`,
+      lockedHint: "Continua fino a 5.000 € di capitale aggiornato.",
     },
     {
       id: "capital_10000",
-      title: "Base solida",
-      description: "Hai superato 10.000 EUR di capitale aggiornato. Ora il percorso e concreto.",
+      title: "Patrimonio in costruzione",
+      description: "Hai superato 10.000 €: ora il percorso è concreto e misurabile.",
       unlocked: totalInvested >= 10000,
+      tier: "capitale",
+      icon: "💎",
+      progress: capitalProgress(10000),
+      target: 10000,
+      progressLabel: `${formatEuro(Math.min(totalInvested, 10000))}/10.000 €`,
+      lockedHint: "Continua fino a 10.000 € di capitale aggiornato.",
+    },
+    {
+      id: "capital_25000",
+      title: "Capitale solido",
+      description: "Hai superato 25.000 €: il tuo percorso inizia ad avere una massa importante.",
+      unlocked: totalInvested >= 25000,
+      tier: "capitale",
+      icon: "🧱",
+      progress: capitalProgress(25000),
+      target: 25000,
+      progressLabel: `${formatEuro(Math.min(totalInvested, 25000))}/25.000 €`,
+      lockedHint: "Continua fino a 25.000 € di capitale aggiornato.",
+    },
+    {
+      id: "capital_50000",
+      title: "Traguardo importante",
+      description: "Hai superato 50.000 €: costanza e metodo stanno diventando patrimonio reale.",
+      unlocked: totalInvested >= 50000,
+      tier: "capitale",
+      icon: "🏦",
+      progress: capitalProgress(50000),
+      target: 50000,
+      progressLabel: `${formatEuro(Math.min(totalInvested, 50000))}/50.000 €`,
+      lockedHint: "Continua fino a 50.000 € di capitale aggiornato.",
+    },
+    {
+      id: "capital_100000",
+      title: "Sei cifre raggiunte",
+      description: "Hai superato 100.000 €: questo è un traguardo che merita orgoglio e lucidità.",
+      unlocked: totalInvested >= 100000,
+      tier: "capitale",
+      icon: "👑",
+      progress: capitalProgress(100000),
+      target: 100000,
+      progressLabel: `${formatEuro(Math.min(totalInvested, 100000))}/100.000 €`,
+      lockedHint: "Continua fino a 100.000 € di capitale aggiornato.",
+    },
+    {
+      id: "capital_goal_reached",
+      title: "Obiettivo personale raggiunto",
+      description: "Hai raggiunto l'obiettivo che ti eri dato. Complimenti: questo traguardo racconta costanza, pazienza e metodo.",
+      unlocked: goalTarget > 0 && totalInvested >= goalTarget,
+      tier: "capitale",
+      icon: "🎯",
+      progress: goalTarget > 0 ? capitalProgress(goalTarget) : 0,
+      target: goalTarget > 0 ? goalTarget : 1,
+      progressLabel: goalTarget > 0 ? `${formatEuro(Math.min(totalInvested, goalTarget))}/${formatEuro(goalTarget)}` : "obiettivo non impostato",
+      lockedHint: goalTarget > 0 ? `Continua fino al tuo obiettivo personale: ${formatEuro(goalTarget)}.` : "Imposta un obiettivo personale nella sezione Obiettivo.",
+    },
+    {
+      id: "awareness_first_action",
+      title: "Occhio allenato",
+      description: "Hai completato la prima azione di consapevolezza: meno sprechi, piu controllo.",
+      unlocked: awarenessActionsCompleted >= 1,
+      tier: "consapevolezza",
+      icon: "👀",
+      progress: clamp(awarenessActionsCompleted, 1),
+      target: 1,
+      progressLabel: `${clamp(awarenessActionsCompleted, 1)}/1`,
+      lockedHint: "Completa una azione nella sezione Consapevolezza > Risparmio.",
+    },
+    {
+      id: "awareness_50_month",
+      title: "Cacciatore di sprechi",
+      description: "Hai liberato almeno 50 € al mese: piccole decisioni, grande differenza nel tempo.",
+      unlocked: monthlyFreedByAwareness >= 50,
+      tier: "consapevolezza",
+      icon: "🕵️",
+      progress: clamp(monthlyFreedByAwareness, 50),
+      target: 50,
+      progressLabel: `${formatEuro(Math.min(monthlyFreedByAwareness, 50))}/50 € mese`,
+      lockedHint: "Completa azioni di risparmio fino a liberare 50 € al mese.",
+    },
+    {
+      id: "awareness_150_month",
+      title: "Budget sveglio",
+      description: "Hai liberato almeno 150 € al mese: ora il tuo PAC puo respirare davvero.",
+      unlocked: monthlyFreedByAwareness >= 150,
+      tier: "consapevolezza",
+      icon: "💡",
+      progress: clamp(monthlyFreedByAwareness, 150),
+      target: 150,
+      progressLabel: `${formatEuro(Math.min(monthlyFreedByAwareness, 150))}/150 € mese`,
+      lockedHint: "Continua con le azioni di consapevolezza fino a 150 € al mese.",
+    },
+    {
+      id: "vehicle_checker",
+      title: "Auto sotto controllo",
+      description: "Hai usato il controllo auto: non guardi solo la rata, guardi il costo reale.",
+      unlocked: vehicleAnalysisUsed,
+      tier: "consapevolezza",
+      icon: "🚗",
+      progress: vehicleAnalysisUsed ? 1 : 0,
+      target: 1,
+      progressLabel: vehicleAnalysisUsed ? "analisi fatta" : "da fare",
+      lockedHint: "Apri Consapevolezza > Auto e controlla costo reale e maxi rata.",
+    },
+    {
+      id: "mortgage_checker",
+      title: "Casa con lucidita",
+      description: "Hai usato lo stress test mutuo: prima capisci il rischio, poi decidi.",
+      unlocked: mortgageAnalysisUsed,
+      tier: "consapevolezza",
+      icon: "🏠",
+      progress: mortgageAnalysisUsed ? 1 : 0,
+      target: 1,
+      progressLabel: mortgageAnalysisUsed ? "stress test fatto" : "da fare",
+      lockedHint: "Apri Consapevolezza > Mutuo e valuta rata, interessi e stress test.",
+    },
+    {
+      id: "fraud_shield",
+      title: "Scudo anti-truffa",
+      description: "Hai completato il test anti-truffe: fermarsi prima di cliccare e gia protezione.",
+      unlocked: fraudChecksCompleted >= 3,
+      tier: "consapevolezza",
+      icon: "🛡️",
+      progress: clamp(fraudChecksCompleted, 3),
+      target: 3,
+      progressLabel: `${clamp(fraudChecksCompleted, 3)}/3 segnali`,
+      lockedHint: "Apri Consapevolezza > Anti-truffe e valuta almeno 3 segnali di rischio.",
+    },
+    {
+      id: "fraud_all_scenarios",
+      title: "Mente anti-truffa",
+      description: "Hai risposto almeno una volta a tutti gli scenari del mini gioco. Ora riconosci molti schemi diversi, anche quelli meno ovvi.",
+      unlocked: scamScenarioPoolSize > 0 && scamAnsweredScenarioCount >= scamScenarioPoolSize,
+      tier: "consapevolezza",
+      icon: "🧠",
+      progress: clamp(scamAnsweredScenarioCount, scamScenarioPoolSize),
+      target: scamScenarioPoolSize,
+      progressLabel: `${clamp(scamAnsweredScenarioCount, scamScenarioPoolSize)}/${scamScenarioPoolSize} scenari`,
+      lockedHint: `Gioca ancora: hai visto ${clamp(scamAnsweredScenarioCount, scamScenarioPoolSize)}/${scamScenarioPoolSize} scenari anti-truffa.`,
+    },
+    {
+      id: "fraud_10_perfect_games",
+      title: "Occhio infallibile",
+      description: "Hai completato 10 partite anti-truffa senza errori. La prudenza sta diventando un riflesso.",
+      unlocked: scamPerfectGames >= 10,
+      tier: "consapevolezza",
+      icon: "🎯",
+      progress: clamp(scamPerfectGames, 10),
+      target: 10,
+      progressLabel: `${clamp(scamPerfectGames, 10)}/10 partite perfette`,
+      lockedHint: `Completa 10 partite senza errori. Partite perfette: ${clamp(scamPerfectGames, 10)}/10.`,
     },
     {
       id: "all_categories",
       title: "Modello operativo",
-      description: "Hai attivato le aree previste dal modello: il sistema e piu completo.",
+      description: "Hai registrato almeno una categoria del modello: il sistema è vivo.",
       unlocked: activeCategories >= 1,
+      tier: "inizio",
+      icon: "📊",
+      progress: clamp(activeCategories, 1),
+      target: 1,
+      progressLabel: `${clamp(activeCategories, 1)}/1`,
+      lockedHint: "Registra il primo investimento nella dashboard.",
     },
   ];
 }
 
+function buildInvestorTitles(params: {
+  badges: Badge[];
+  currentStreak: number;
+  totalInvested: number;
+  goalTarget: number;
+  activeCategories: number;
+  setupCompleted: boolean;
+}): InvestorTitle[] {
+  const { badges, currentStreak, totalInvested, activeCategories, setupCompleted } = params;
+  const unlockedCount = badges.filter((badge) => badge.unlocked).length;
+  const hasBadge = (id: string) => badges.some((badge) => badge.id === id && badge.unlocked);
+  const clamp = (value: number, target: number) => Math.min(Math.max(value, 0), target);
+
+  return [
+    {
+      id: "explorer",
+      title: "Esploratore finanziario",
+      subtitle: "Hai iniziato a orientarti",
+      description: "Hai fatto il primo passo: ora il piano non è più un'idea vaga, ma una strada da seguire.",
+      icon: "🧭",
+      unlocked: hasBadge("first_step"),
+      progress: hasBadge("first_step") ? 1 : 0,
+      target: 1,
+      progressLabel: hasBadge("first_step") ? "1/1" : "0/1",
+      nextHint: "Completa il questionario e sblocca il tuo modello.",
+    },
+    {
+      id: "rookie",
+      title: "Investitore alle prime armi",
+      subtitle: "Hai trasformato la teoria in azione",
+      description: "Non stai solo leggendo: hai iniziato a costruire il tuo percorso con dati e azioni concrete.",
+      icon: "🌱",
+      unlocked: hasBadge("all_categories") || hasBadge("pac_started"),
+      progress: hasBadge("all_categories") || hasBadge("pac_started") ? 1 : 0,
+      target: 1,
+      progressLabel: hasBadge("all_categories") || hasBadge("pac_started") ? "azione fatta" : "azione mancante",
+      nextHint: "Registra il primo investimento o completa il primo mese di PAC.",
+    },
+    {
+      id: "steady",
+      title: "Investitore costante",
+      subtitle: "Il metodo sta diventando abitudine",
+      description: "Tre mesi consecutivi non sono fortuna: sono il segnale che stai costruendo disciplina.",
+      icon: "🔥",
+      unlocked: currentStreak >= 3,
+      progress: clamp(currentStreak, 3),
+      target: 3,
+      progressLabel: `${clamp(currentStreak, 3)}/3 mesi`,
+      nextHint: "Mantieni il PAC per 3 mesi consecutivi.",
+    },
+    {
+      id: "aware_manager",
+      title: "Gestore consapevole",
+      subtitle: "Sai tenere il piano sotto controllo",
+      description: "Hai setup, capitale registrato e strumenti attivi: il portafoglio non è più improvvisato.",
+      icon: "🛡️",
+      unlocked: setupCompleted && activeCategories >= 1 && totalInvested >= 1000,
+      progress: clamp((setupCompleted ? 1 : 0) + (activeCategories >= 1 ? 1 : 0) + (totalInvested >= 1000 ? 1 : 0), 3),
+      target: 3,
+      progressLabel: `${clamp((setupCompleted ? 1 : 0) + (activeCategories >= 1 ? 1 : 0) + (totalInvested >= 1000 ? 1 : 0), 3)}/3 basi`,
+      nextHint: "Completa il setup, registra una categoria e aggiorna almeno 1.000 € di capitale.",
+    },
+    {
+      id: "builder",
+      title: "Costruttore di patrimonio",
+      subtitle: "Il percorso è concreto",
+      description: "Il capitale cresce e il metodo regge: stai costruendo una base che può durare nel tempo.",
+      icon: "🏗️",
+      unlocked: totalInvested >= 5000 && currentStreak >= 3,
+      progress: clamp((totalInvested >= 5000 ? 1 : 0) + (currentStreak >= 3 ? 1 : 0), 2),
+      target: 2,
+      progressLabel: `${clamp((totalInvested >= 5000 ? 1 : 0) + (currentStreak >= 3 ? 1 : 0), 2)}/2 traguardi`,
+      nextHint: "Raggiungi 5.000 € aggiornati e mantieni almeno 3 mesi consecutivi.",
+    },
+    {
+      id: "disciplined",
+      title: "Investitore disciplinato",
+      subtitle: "Hai costruito identità, non solo risultati",
+      description: "Dodici mesi di continuità: il piano è diventato parte del tuo comportamento.",
+      icon: "🏆",
+      unlocked: currentStreak >= 12 || unlockedCount >= 9,
+      progress: clamp(Math.max(currentStreak, unlockedCount), 12),
+      target: 12,
+      progressLabel: currentStreak >= 12 ? "12/12 mesi" : `${clamp(unlockedCount, 12)}/12 progressi`,
+      nextHint: "Proteggi la continuità fino a 12 mesi o completa la maggior parte dei badge.",
+    },
+  ];
+}
 
 function getGoalStorageKey(userId: string, portfolioKey: FinalPortfolioKey) {
   return `${getPrefix(userId)}-goal-${portfolioKey}`;
@@ -949,6 +1874,68 @@ function getRetakeStorageKey(userId: string) {
 
 function getProgressStorageKey(userId: string, portfolioKey: FinalPortfolioKey) {
   return `${getPrefix(userId)}-progress-start-${portfolioKey}`;
+}
+
+function getBadgeVaultStorageKey(userId: string, portfolioKey: FinalPortfolioKey) {
+  return `${getPrefix(userId)}-badge-vault-${portfolioKey}`;
+}
+
+function getCelebrationSnapshotKey(userId: string, portfolioKey: FinalPortfolioKey) {
+  return `${getPrefix(userId)}-celebration-snapshot-${portfolioKey}`;
+}
+
+function getPersonalGoalCelebrationStateKey(userId: string, portfolioKey: FinalPortfolioKey) {
+  return `${getPrefix(userId)}-personal-goal-celebration-state-${portfolioKey}`;
+}
+
+function getScamAnsweredStorageKey(userId: string) {
+  return `${getPrefix(userId)}-scam-answered-scenarios`;
+}
+
+function getScamPerfectGamesStorageKey(userId: string) {
+  return `${getPrefix(userId)}-scam-perfect-games`;
+}
+
+type PersonalGoalCelebrationState = {
+  target: number;
+  wasReached: boolean;
+  confirmed: boolean;
+  droppedBelowAfterConfirmed: boolean;
+  lastCurrentValue: number;
+  confirmedAt?: string;
+};
+
+function readPersonalGoalCelebrationState(key: string): PersonalGoalCelebrationState | null {
+  if (typeof window === "undefined" || !key) return null;
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as PersonalGoalCelebrationState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePersonalGoalCelebrationState(key: string, state: PersonalGoalCelebrationState) {
+  if (typeof window === "undefined" || !key) return;
+  window.localStorage.setItem(key, JSON.stringify(state));
+}
+
+function readStringArrayFromStorage(key: string): string[] {
+  if (typeof window === "undefined" || !key) return [];
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStringArrayToStorage(key: string, values: string[]) {
+  if (typeof window === "undefined" || !key) return;
+  window.localStorage.setItem(key, JSON.stringify(Array.from(new Set(values))));
 }
 
 function clearSupabaseAuthStorage() {
@@ -970,7 +1957,7 @@ function clearSupabaseAuthStorage() {
 
 async function safeLocalSignOut() {
   try {
-    await safeLocalSignOut();
+    await supabase.auth.signOut({ scope: "local" });
   } catch (error) {
     console.warn("Logout locale Supabase ignorato:", error);
   }
@@ -986,6 +1973,8 @@ const [authReady, setAuthReady] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [authConfirmPassword, setAuthConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [profileResetLoading, setProfileResetLoading] = useState(false);
@@ -1012,9 +2001,85 @@ const [authReady, setAuthReady] = useState(false);
   });
   const [purchase, setPurchase] = useState<PurchaseState>({ unlocked: false, email: "", paidAmount: 0 });
   const [showProUpgradeModal, setShowProUpgradeModal] = useState(false);
+  const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
+  const [goalCelebration, setGoalCelebration] = useState<CelebrationEvent | null>(null);
+  const [persistedBadgeIds, setPersistedBadgeIds] = useState<string[]>([]);
+  const celebrationInitialSyncRef = useRef<Record<string, boolean>>({});
+  const awarenessTabLoadedRef = useRef(false);
+  const pacHistoryLoadKeyRef = useRef<string | null>(null);
+  const pacHistoryRequestIdRef = useRef(0);
+  const lastScamPerfectGameSignatureRef = useRef<string | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [customInstruments, setCustomInstruments] = useState<CustomInstrument[]>([]);
+  const [customInstrumentDraft, setCustomInstrumentDraft] = useState({
+    category: "Azioni Globali" as StrumentiCategory,
+    name: "",
+    isin: "",
+    note: "",
+  });
+  const [customInstrumentMessage, setCustomInstrumentMessage] = useState("");
   const [checklistState, setChecklistState] = useState<Record<string, boolean>>({});
+  const [guideActionVisited, setGuideActionVisited] = useState<Record<string, boolean>>({});
   const [pacHistory, setPacHistory] = useState<PacMonth[]>([]);
+  const [awarenessTab, setAwarenessTab] = useState<AwarenessTab>("risparmio");
+  const [completedAwarenessActions, setCompletedAwarenessActions] = useState<Record<string, boolean>>({});
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
+  const [shoppingDraft, setShoppingDraft] = useState({
+    name: "",
+    category: "Frutta e verdura" as ShoppingCategory,
+    estimatedPrice: "",
+    isExtra: false,
+  });
+  const [shoppingMessage, setShoppingMessage] = useState("");
+  const [shoppingLoading, setShoppingLoading] = useState(false);
+  const [showShoppingResetConfirm, setShowShoppingResetConfirm] = useState(false);
+  const [isSmartShoppingOpen, setIsSmartShoppingOpen] = useState(false);
+  const [vehiclePrice, setVehiclePrice] = useState("25000");
+  const [vehicleDownPayment, setVehicleDownPayment] = useState("3000");
+  const [vehicleMonthlyPayment, setVehicleMonthlyPayment] = useState("299");
+  const [vehicleTaeg, setVehicleTaeg] = useState("7.5");
+  const [vehicleTan, setVehicleTan] = useState("8.99");
+  const [vehicleTotalCredit, setVehicleTotalCredit] = useState("");
+  const [vehicleScrappage, setVehicleScrappage] = useState("no");
+  const [vehicleDurationMonths, setVehicleDurationMonths] = useState("36");
+  const [vehicleBalloonPayment, setVehicleBalloonPayment] = useState("12000");
+  const [vehicleRefinanceMonths, setVehicleRefinanceMonths] = useState("36");
+  const [vehicleRefinanceRate, setVehicleRefinanceRate] = useState("9");
+  const [vehicleInsuranceYearly, setVehicleInsuranceYearly] = useState("900");
+  const [vehicleMaintenanceYearly, setVehicleMaintenanceYearly] = useState("600");
+  const [vehicleRoadTaxYearly, setVehicleRoadTaxYearly] = useState("250");
+  const [vehicleTyresYearly, setVehicleTyresYearly] = useState("250");
+  const [vehicleMonthlyIncome, setVehicleMonthlyIncome] = useState("2200");
+  const [vehicleKmLimit, setVehicleKmLimit] = useState("10000");
+  const [vehicleKmExpected, setVehicleKmExpected] = useState("15000");
+  const [mortgageHomePrice, setMortgageHomePrice] = useState("250000");
+  const [mortgageDownPayment, setMortgageDownPayment] = useState("50000");
+  const [mortgagePrincipal, setMortgagePrincipal] = useState("200000");
+  const [mortgageRate, setMortgageRate] = useState("3.5");
+  const [mortgageYears, setMortgageYears] = useState("25");
+  const [mortgageRateType, setMortgageRateType] = useState("fisso");
+  const [mortgageCapRate, setMortgageCapRate] = useState("5.5");
+  const [mortgageDeclaredPayment, setMortgageDeclaredPayment] = useState("");
+  const [mortgageMonthlyIncome, setMortgageMonthlyIncome] = useState("2800");
+  const [mortgageInitialCosts, setMortgageInitialCosts] = useState("14000");
+  const [mortgageRecurringYearly, setMortgageRecurringYearly] = useState("2200");
+  const [mortgageCondoMonthly, setMortgageCondoMonthly] = useState("120");
+  const [mortgageUtilitiesMonthly, setMortgageUtilitiesMonthly] = useState("180");
+  const [mortgageInsuranceYearly, setMortgageInsuranceYearly] = useState("350");
+  const [mortgageMaintenanceYearly, setMortgageMaintenanceYearly] = useState("1200");
+  const [mortgageOtherDebtsMonthly, setMortgageOtherDebtsMonthly] = useState("0");
+  const [mortgageFixedExpensesMonthly, setMortgageFixedExpensesMonthly] = useState("1000");
+  const [mortgageLiquidAfterPurchase, setMortgageLiquidAfterPurchase] = useState("15000");
+  const [mortgageEmergencyMonths, setMortgageEmergencyMonths] = useState("6");
+  const [fraudAnswers, setFraudAnswers] = useState<Record<string, boolean>>({});
+  const [fraudContext, setFraudContext] = useState("sms");
+  const [scamGameQuestions, setScamGameQuestions] = useState<ScamScenario[]>([]);
+  const [scamGameIndex, setScamGameIndex] = useState(0);
+  const [scamGameAnswers, setScamGameAnswers] = useState<Array<{ id: string; correct: boolean; userChoice: "trust" | "verify" }>>([]);
+  const [scamSelectedChoice, setScamSelectedChoice] = useState<"trust" | "verify" | null>(null);
+  const [scamGameSessionId, setScamGameSessionId] = useState(0);
+  const [scamAnsweredScenarioIds, setScamAnsweredScenarioIds] = useState<string[]>([]);
+  const [scamPerfectGames, setScamPerfectGames] = useState(0);
   const [pacJustCompleted, setPacJustCompleted] = useState(false);
   const [checkedPacAllocations, setCheckedPacAllocations] = useState<Record<string, boolean>>({});
   const [newHolding, setNewHolding] = useState({
@@ -1066,6 +2131,30 @@ const [authReady, setAuthReady] = useState(false);
   const isCorePlan = purchase.unlocked && purchase.plan === "core";
   const paidAmount = purchase.paidAmount ?? (purchase.plan === "core" ? 29 : purchase.plan === "pro" ? 59 : 0);
   const proPriceToPay = Math.max(59 - paidAmount, 0);
+
+  const allInstrumentsByCategory = useMemo<Record<StrumentiCategory, InstrumentOption[]>>(() => {
+    const merged = Object.fromEntries(
+      Object.entries(strumentiLibrary).map(([category, rows]) => [
+        category,
+        rows.map((row) => ({ ...row, source: "program" as const })),
+      ])
+    ) as Record<StrumentiCategory, InstrumentOption[]>;
+
+    customInstruments.forEach((instrument) => {
+      merged[instrument.category] = [
+        ...(merged[instrument.category] || []),
+        {
+          id: instrument.id,
+          name: instrument.name,
+          isin: instrument.isin,
+          note: instrument.note,
+          source: "custom",
+        },
+      ];
+    });
+
+    return merged;
+  }, [customInstruments]);
 
   useEffect(() => {
     let mounted = true;
@@ -1143,6 +2232,8 @@ const [authReady, setAuthReady] = useState(false);
 
     loadUserProfile(user);
     loadHoldingsFromDb(user);
+    loadCustomInstrumentsFromDb(user);
+    loadShoppingItemsFromDb(user);
   }, [user]);
 
   useEffect(() => {
@@ -1155,6 +2246,28 @@ const [authReady, setAuthReady] = useState(false);
       setStep("dashboard");
     }
   }, [purchase.unlocked, purchase.plan, step]);
+
+  // Mantiene la schermata selezionata stabile anche dopo refresh sessione,
+  // inattivita o cambio scheda del browser. La navigazione cambia solo quando
+  // l'utente clicca volontariamente un pulsante/menu oppure quando esce dal paywall.
+  useEffect(() => {
+    if (!user || !purchase.unlocked) return;
+    localStorage.setItem(`soldi-semplici-last-step-${user.id}`, step);
+  }, [step, user, purchase.unlocked]);
+
+  useEffect(() => {
+    if (!user) return;
+    const savedAwarenessTab = localStorage.getItem(`soldi-semplici-awareness-tab-${user.id}`) as AwarenessTab | null;
+    if (savedAwarenessTab && ["risparmio", "auto", "mutuo", "truffe"].includes(savedAwarenessTab)) {
+      setAwarenessTab(savedAwarenessTab);
+    }
+    awarenessTabLoadedRef.current = true;
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !awarenessTabLoadedRef.current) return;
+    localStorage.setItem(`soldi-semplici-awareness-tab-${user.id}`, awarenessTab);
+  }, [user, awarenessTab]);
 
   useEffect(() => {
     if (!user) return;
@@ -1240,10 +2353,8 @@ const [authReady, setAuthReady] = useState(false);
     );
   }, [user, goalLoaded, selectedPortfolio.key, goalCurrentValue]);
 
-  useEffect(() => {
-    if (!user) return;
-    loadPacHistoryFromDb(user);
-  }, [user, selectedPortfolio.key]);
+  // Il caricamento PAC viene gestito dall'effetto sopra che inizializza i mesi recenti.
+  // Evitiamo un secondo fetch identico perché in sviluppo Next/React può creare richieste sovrapposte.
 
   // soldi-semplici-scroll-top-key
   useEffect(() => {
@@ -1253,6 +2364,417 @@ const [authReady, setAuthReady] = useState(false);
       }, 60);
     }
   }, [step]);
+
+
+  const completedAwarenessList = awarenessActions.filter((action) => completedAwarenessActions[action.id]);
+  const monthlyFreedByAwareness = completedAwarenessList.reduce((sum, action) => sum + action.estimatedSavingMonthly, 0);
+  const yearlyFreedByAwareness = completedAwarenessList.reduce((sum, action) => sum + action.estimatedSavingYearly, 0);
+  const shoppingTotalEstimated = shoppingItems.reduce((sum, item) => sum + Number(item.estimatedPrice || 0), 0);
+  const shoppingExtraEstimated = shoppingItems
+    .filter((item) => item.isExtra)
+    .reduce((sum, item) => sum + Number(item.estimatedPrice || 0), 0);
+  const shoppingCheckedCount = shoppingItems.filter((item) => item.isChecked).length;
+  const shoppingRemainingCount = Math.max(0, shoppingItems.length - shoppingCheckedCount);
+  const shoppingAllChecked = shoppingItems.length > 0 && shoppingCheckedCount === shoppingItems.length;
+  const sortedAwarenessActions = [...awarenessActions].sort((a, b) => awarenessScore(b) - awarenessScore(a));
+
+  const vehicle = {
+    price: safeNumber(vehiclePrice),
+    downPayment: safeNumber(vehicleDownPayment),
+    monthlyPayment: safeNumber(vehicleMonthlyPayment),
+    taeg: safeNumber(vehicleTaeg),
+    tan: safeNumber(vehicleTan),
+    totalCredit: safeNumber(vehicleTotalCredit),
+    hasScrappage: vehicleScrappage === "si",
+    durationMonths: Math.max(safeNumber(vehicleDurationMonths), 1),
+    balloonPayment: safeNumber(vehicleBalloonPayment),
+    insuranceYearly: safeNumber(vehicleInsuranceYearly),
+    maintenanceYearly: safeNumber(vehicleMaintenanceYearly),
+    roadTaxYearly: safeNumber(vehicleRoadTaxYearly),
+    tyresYearly: safeNumber(vehicleTyresYearly),
+    monthlyIncome: safeNumber(vehicleMonthlyIncome),
+    kmLimit: safeNumber(vehicleKmLimit),
+    kmExpected: safeNumber(vehicleKmExpected),
+  };
+  const vehicleOwnershipYears = vehicle.durationMonths / 12;
+  const vehicleRegularInstallmentMonths = vehicle.balloonPayment > 0 ? Math.max(vehicle.durationMonths - 1, 1) : vehicle.durationMonths;
+  const vehicleFinancedAmount = Math.max(vehicle.price - vehicle.downPayment, 0);
+  const vehicleCreditAmountForCalculation = vehicle.totalCredit > 0 ? vehicle.totalCredit : vehicleFinancedAmount;
+  const vehicleMonthlyTaegRate = vehicle.taeg > 0 ? vehicle.taeg / 100 / 12 : 0;
+  const vehicleEstimatedMonthlyPaymentFromTaeg = (() => {
+    if (vehicle.price <= 0 || vehicle.durationMonths <= 0 || vehicle.taeg <= 0) return 0;
+    const principal = vehicleCreditAmountForCalculation;
+    const balloon = Math.max(vehicle.balloonPayment, 0);
+    if (vehicleMonthlyTaegRate === 0) return Math.max((principal - balloon) / vehicleRegularInstallmentMonths, 0);
+    const balloonDiscountFactor = Math.pow(1 + vehicleMonthlyTaegRate, -vehicle.durationMonths);
+    const installmentDiscountFactor = Math.pow(1 + vehicleMonthlyTaegRate, -vehicleRegularInstallmentMonths);
+    const numerator = (principal - balloon * balloonDiscountFactor) * vehicleMonthlyTaegRate;
+    const denominator = 1 - installmentDiscountFactor;
+    return Math.max(numerator / denominator, 0);
+  })();
+  const vehicleHasDeclaredPayment = vehicle.monthlyPayment > 0;
+  const vehicleHasTaegEstimate = vehicleEstimatedMonthlyPaymentFromTaeg > 0;
+  const vehicleMonthlyPaymentDifference = vehicleHasDeclaredPayment && vehicleHasTaegEstimate
+    ? Math.abs(vehicle.monthlyPayment - vehicleEstimatedMonthlyPaymentFromTaeg)
+    : 0;
+  const vehicleMonthlyPaymentDifferenceRounded = Math.round(vehicleMonthlyPaymentDifference * 100) / 100;
+  const vehiclePaymentCheckStatus = !vehicleHasDeclaredPayment && vehicleHasTaegEstimate
+    ? "stimata"
+    : vehicleHasDeclaredPayment && !vehicleHasTaegEstimate
+    ? "solo_rata"
+    : vehicleHasDeclaredPayment && vehicleHasTaegEstimate && vehicleMonthlyPaymentDifference <= 0.01
+    ? "coincide"
+    : vehicleHasDeclaredPayment && vehicleHasTaegEstimate && vehicleMonthlyPaymentDifference < 5
+    ? "coerente"
+    : vehicleHasDeclaredPayment && vehicleHasTaegEstimate && vehicle.monthlyPayment < vehicleEstimatedMonthlyPaymentFromTaeg
+    ? "alert_rata_bassa"
+    : vehicleHasDeclaredPayment && vehicleHasTaegEstimate && vehicle.monthlyPayment > vehicleEstimatedMonthlyPaymentFromTaeg
+    ? "alert_rata_alta"
+    : "incompleto";
+  const vehicleEffectiveMonthlyPayment = vehicleHasDeclaredPayment
+    ? Math.max(vehicle.monthlyPayment, vehicleEstimatedMonthlyPaymentFromTaeg || 0)
+    : vehicleEstimatedMonthlyPaymentFromTaeg;
+  const vehiclePaymentUsedLabel = vehicleHasDeclaredPayment && vehicleHasTaegEstimate && vehicleEstimatedMonthlyPaymentFromTaeg > vehicle.monthlyPayment + 5
+    ? "rata stimata dal TAEG"
+    : vehicleHasDeclaredPayment
+    ? "rata dichiarata"
+    : vehicleHasTaegEstimate
+    ? "rata stimata dal TAEG"
+    : "rata non disponibile";
+  const vehicleTotalPaidFinancing = vehicle.downPayment + vehicleEffectiveMonthlyPayment * vehicleRegularInstallmentMonths + vehicle.balloonPayment;
+  const vehicleExtraCost = vehicleTotalPaidFinancing - vehicle.price;
+  const vehicleRunningCostsYearly = vehicle.insuranceYearly + vehicle.maintenanceYearly + vehicle.roadTaxYearly + vehicle.tyresYearly;
+  const vehicleRunningCostsMonthly = vehicleRunningCostsYearly / 12;
+  const vehicleHiddenCosts = vehicleRunningCostsYearly * vehicleOwnershipYears;
+  const vehicleRealTotalCost = vehicleTotalPaidFinancing + vehicleHiddenCosts;
+  const vehicleRealMonthlyCost = vehicleRealTotalCost / vehicle.durationMonths;
+  const vehicleRealYearlyCost = vehicleRealMonthlyCost * 12;
+  const vehicleCashMonthlyCost = vehicleEffectiveMonthlyPayment + vehicleRunningCostsMonthly;
+  const vehicleBalloonMonthlyReserve = vehicle.balloonPayment > 0 ? vehicle.balloonPayment / vehicle.durationMonths : 0;
+  const vehicleDownPaymentMonthlyWeight = vehicle.downPayment > 0 ? vehicle.downPayment / vehicle.durationMonths : 0;
+  const vehicleRemainingDebtRatio = vehicle.price > 0 ? vehicle.balloonPayment / vehicle.price : 0;
+  const vehiclePaidBeforeBalloonRatio =
+    vehicle.price > 0 ? (vehicle.downPayment + vehicleEffectiveMonthlyPayment * vehicleRegularInstallmentMonths) / vehicle.price : 0;
+  const vehicleIncomeRatio = vehicle.monthlyIncome > 0 ? vehicleRealMonthlyCost / vehicle.monthlyIncome : 0;
+  const vehicleGuaranteedRiskScore =
+    (vehicle.kmExpected > vehicle.kmLimit && vehicle.kmLimit > 0 ? 2 : 0) +
+    (vehicleRemainingDebtRatio > 0.4 ? 2 : 0) +
+    (vehicle.downPayment < vehicle.price * 0.1 ? 1 : 0) +
+    (vehicleIncomeRatio > 0.2 ? 2 : vehicleIncomeRatio > 0.15 ? 1 : 0) +
+    (vehiclePaymentCheckStatus === "alert_rata_bassa" ? 2 : vehiclePaymentCheckStatus === "alert_rata_alta" ? 1 : 0);
+  const vehicleRiskLevel = vehicleGuaranteedRiskScore >= 4 ? "alto" : vehicleGuaranteedRiskScore >= 2 ? "medio" : "basso";
+  const vehiclePaymentCheckTitle =
+    vehiclePaymentCheckStatus === "coincide"
+      ? "Rata e TAEG coincidono"
+      : vehiclePaymentCheckStatus === "coerente"
+      ? "Rata coerente con il TAEG"
+      : vehiclePaymentCheckStatus === "alert_rata_bassa"
+      ? "Attenzione: la rata potrebbe non raccontare tutto"
+      : vehiclePaymentCheckStatus === "alert_rata_alta"
+      ? "Verifica il preventivo"
+      : vehiclePaymentCheckStatus === "stimata"
+      ? "Rata stimata dal TAEG"
+      : vehiclePaymentCheckStatus === "solo_rata"
+      ? "Stima basata sulla rata dichiarata"
+      : "Inserisci rata o TAEG";
+  const vehiclePaymentCheckMessage =
+    vehiclePaymentCheckStatus === "coincide"
+      ? "La rata dichiarata e la rata calcolata dal TAEG coincidono. Il preventivo risulta piu chiaro e leggibile."
+      : vehiclePaymentCheckStatus === "coerente"
+      ? `La differenza tra rata dichiarata e rata stimata dal TAEG e inferiore a 5 euro (${formatEuro(vehicleMonthlyPaymentDifferenceRounded)}). Il dato e coerente.`
+      : vehiclePaymentCheckStatus === "alert_rata_bassa"
+      ? `La rata dichiarata e piu bassa della stima calcolata dal TAEG. Potrebbero esserci costi, servizi o condizioni non evidenti nella rata comunicata. Rata dichiarata: ${formatEuro(vehicle.monthlyPayment)}/mese. Rata stimata: circa ${formatEuro(vehicleEstimatedMonthlyPaymentFromTaeg)}/mese.`
+      : vehiclePaymentCheckStatus === "alert_rata_alta"
+      ? `La rata dichiarata e piu alta della stima basata sul TAEG. Potrebbero essere inclusi servizi, assicurazioni, accessori o condizioni particolari. Rata dichiarata: ${formatEuro(vehicle.monthlyPayment)}/mese. Rata stimata: circa ${formatEuro(vehicleEstimatedMonthlyPaymentFromTaeg)}/mese.`
+      : vehiclePaymentCheckStatus === "stimata"
+      ? `Hai inserito il TAEG ma non la rata. L'app stima una rata di circa ${formatEuro(vehicleEstimatedMonthlyPaymentFromTaeg)}/mese: usala come riferimento indicativo prima di confrontarla con il preventivo ufficiale.`
+      : vehiclePaymentCheckStatus === "solo_rata"
+      ? "Abbiamo usato la rata che hai inserito. Per una verifica piu completa, cerca anche il TAEG nel preventivo: e il dato piu utile per leggere il costo reale del finanziamento."
+      : "Per una stima utile inserisci almeno la rata mensile oppure il TAEG indicato nel preventivo.";
+  const vehiclePaymentCheckTone = vehiclePaymentCheckStatus === "alert_rata_bassa" || vehiclePaymentCheckStatus === "alert_rata_alta"
+    ? "amber"
+    : vehiclePaymentCheckStatus === "incompleto"
+    ? "slate"
+    : "emerald";
+
+  const vehicleMonthlyTanRate = vehicle.tan > 0 ? vehicle.tan / 100 / 12 : 0;
+  const vehicleHasBalloonPayment = vehicle.balloonPayment > 0;
+  const vehicleInsidePaymentAvailable = vehicleHasDeclaredPayment && vehicleCreditAmountForCalculation > 0 && (vehicleHasBalloonPayment || vehicle.tan > 0);
+
+  // Se c'e una maxi rata finale, usiamo quella come riferimento principale:
+  // indica quanta parte del debito resta ancora da gestire alla scadenza.
+  // In questo caso la quota capitale media e piu utile della quota capitale del primo mese.
+  const vehicleAverageCapitalFromBalloon = vehicleHasBalloonPayment
+    ? Math.max((vehicleCreditAmountForCalculation - vehicle.balloonPayment) / vehicleRegularInstallmentMonths, 0)
+    : 0;
+  const vehicleFirstMonthInterestByTan = vehicleMonthlyTanRate > 0 ? vehicleCreditAmountForCalculation * vehicleMonthlyTanRate : 0;
+  const vehicleFirstMonthCapitalByTan = vehicleHasDeclaredPayment
+    ? Math.max(vehicle.monthlyPayment - vehicleFirstMonthInterestByTan, 0)
+    : vehicleHasTaegEstimate
+    ? Math.max(vehicleEstimatedMonthlyPaymentFromTaeg - vehicleFirstMonthInterestByTan, 0)
+    : 0;
+  const vehicleInsidePaymentCapital = vehicleHasBalloonPayment
+    ? Math.min(vehicleAverageCapitalFromBalloon, vehicle.monthlyPayment || vehicleEstimatedMonthlyPaymentFromTaeg || 0)
+    : vehicleFirstMonthCapitalByTan;
+  const vehicleInsidePaymentInterestAndCosts = vehicleHasDeclaredPayment
+    ? Math.max(vehicle.monthlyPayment - vehicleInsidePaymentCapital, 0)
+    : vehicleHasTaegEstimate
+    ? Math.max(vehicleEstimatedMonthlyPaymentFromTaeg - vehicleInsidePaymentCapital, 0)
+    : vehicleFirstMonthInterestByTan;
+  const vehicleInsidePaymentInterestRatio = vehicleHasDeclaredPayment && vehicle.monthlyPayment > 0
+    ? vehicleInsidePaymentInterestAndCosts / vehicle.monthlyPayment
+    : 0;
+  const vehicleInsidePaymentCapitalRatio = vehicleHasDeclaredPayment && vehicle.monthlyPayment > 0
+    ? vehicleInsidePaymentCapital / vehicle.monthlyPayment
+    : 0;
+  const vehicleFirstMonthInterest = vehicleInsidePaymentInterestAndCosts;
+  const vehicleFirstMonthCapital = vehicleInsidePaymentCapital;
+  const vehicleFirstMonthInterestRatio = vehicleInsidePaymentInterestRatio;
+  const vehicleFirstMonthCapitalRatio = vehicleInsidePaymentCapitalRatio;
+  const vehicleDeclaredPaymentsBeforeBalloon = vehicleHasDeclaredPayment ? vehicle.monthlyPayment * vehicleRegularInstallmentMonths : 0;
+  const vehicleDebtAfterInstallmentsEstimate = (() => {
+    if (vehicleCreditAmountForCalculation <= 0 || !vehicleHasDeclaredPayment) return 0;
+    if (vehicleHasBalloonPayment) return vehicle.balloonPayment;
+    if (vehicleMonthlyTanRate <= 0) return 0;
+    let debt = vehicleCreditAmountForCalculation;
+    for (let month = 0; month < vehicleRegularInstallmentMonths; month += 1) {
+      const interest = debt * vehicleMonthlyTanRate;
+      const capital = Math.max(vehicle.monthlyPayment - interest, 0);
+      debt = Math.max(debt - capital, 0);
+    }
+    return debt;
+  })();
+  const vehicleBalloonIsHigh = vehicleRemainingDebtRatio > 0.4;
+  const vehicleScrappageMessage = vehicle.hasScrappage
+    ? "Hai indicato che l'offerta prevede rottamazione. Lo sconto iniziale puo rendere il prezzo piu interessante, ma non elimina il costo del finanziamento: confronta sempre prezzo scontato, importo totale dovuto, rata finale e TAEG."
+    : null;
+  const vehicleBalloonExplanation = vehicleBalloonIsHigh
+    ? "La rata finale rappresenta una parte importante del prezzo. La rata mensile puo sembrare leggera, ma una quota rilevante del costo resta concentrata alla fine: dovrai pagarla, rifinanziarla oppure gestire restituzione o sostituzione secondo contratto."
+    : null;
+  const vehicleInsidePaymentMessage = vehicleInsidePaymentAvailable
+    ? vehicleHasBalloonPayment
+      ? `Su una rata mensile di ${formatEuro(vehicle.monthlyPayment)}, circa ${formatEuro(vehicleInsidePaymentCapital)} stanno riducendo il debito principale sull'auto, mentre circa ${formatEuro(vehicleInsidePaymentInterestAndCosts)} coprono interessi, costi finanziari, servizi o altre componenti del contratto. Questo succede perche una parte molto importante del capitale resta concentrata nella rata finale: alla scadenza dovrai ancora gestire circa ${formatEuro(vehicle.balloonPayment)}.`
+      : vehicleFirstMonthCapitalRatio < 0.4
+      ? "Nella prima parte del finanziamento la rata sta riducendo poco il debito sull'auto: una quota importante puo essere assorbita da interessi e costi finanziari, mentre una parte rilevante del capitale resta da gestire alla scadenza."
+      : "La rata riduce una quota significativa del debito, ma controlla comunque totale dovuto e condizioni del contratto."
+    : "Inserisci rata dichiarata e importo finanziato. Se c'e una maxi rata finale, inseriscila: rende questa lettura molto piu vicina alla realta. Se non c'e maxi rata, inserisci anche il TAN.";
+  const vehicleRefinance = {
+    amount: vehicle.balloonPayment,
+    months: Math.max(safeNumber(vehicleRefinanceMonths), 1),
+    rate: safeNumber(vehicleRefinanceRate),
+  };
+  const vehicleRefinanceMonthlyRate = vehicleRefinance.rate > 0 ? vehicleRefinance.rate / 100 / 12 : 0;
+  const vehicleRefinanceMonthlyPayment = (() => {
+    if (!vehicleHasBalloonPayment || vehicleRefinance.amount <= 0 || vehicleRefinance.months <= 0) return 0;
+    if (vehicleRefinanceMonthlyRate === 0) return vehicleRefinance.amount / vehicleRefinance.months;
+    return vehicleRefinance.amount * vehicleRefinanceMonthlyRate / (1 - Math.pow(1 + vehicleRefinanceMonthlyRate, -vehicleRefinance.months));
+  })();
+  const vehicleRefinanceTotalPaid = vehicleRefinanceMonthlyPayment * vehicleRefinance.months;
+  const vehicleRefinanceExtraCost = Math.max(vehicleRefinanceTotalPaid - vehicleRefinance.amount, 0);
+  const vehicleRefinancePaymentChange = vehicleHasDeclaredPayment ? vehicleRefinanceMonthlyPayment - vehicle.monthlyPayment : 0;
+  const vehicleRefinanceAvailable = vehicleHasBalloonPayment && vehicleRefinanceMonthlyPayment > 0;
+  const vehicleRefinanceMessage = vehicleRefinanceAvailable
+    ? `Se alla scadenza non paghi la maxi rata in un'unica soluzione, potresti dover rifinanziare circa ${formatEuro(vehicleRefinance.amount)}. Con i dati inseriti, la nuova rata stimata sarebbe circa ${formatEuro(vehicleRefinanceMonthlyPayment)}/mese per ${vehicleRefinance.months} mesi. Questo aiuta a capire che la maxi rata non sparisce: se la rifinanzi, diventa un nuovo debito e puo portare a rate piu alte e nuovi interessi.`
+    : "Inserisci una maxi rata finale per stimare cosa potrebbe succedere se dovessi rifinanziarla invece di pagarla subito.";
+
+  const vehicleAlerts = [
+    vehicleRemainingDebtRatio > 0.4 ? "Maxi rata alta: una parte importante del costo resta concentrata alla fine del finanziamento." : null,
+    vehicleFirstMonthCapitalRatio > 0 && vehicleFirstMonthCapitalRatio < 0.4 ? "Quota capitale bassa: le rate mensili stanno riducendo poco il debito principale." : null,
+    vehicle.hasScrappage ? "Offerta con rottamazione: verifica bene condizioni, cumulabilita e prezzo senza incentivo." : null,
+    vehicle.downPayment < vehicle.price * 0.1 ? "Anticipo basso: rischi di finanziare quasi tutto il bene." : null,
+    vehicleIncomeRatio > 0.2
+      ? "Costo auto molto pesante rispetto al reddito."
+      : vehicleIncomeRatio > 0.15
+        ? "Costo auto da monitorare: puo comprimere risparmio e PAC."
+        : null,
+    vehicle.kmExpected > vehicle.kmLimit && vehicle.kmLimit > 0
+      ? "Attenzione ai km: superare il limite puo ridurre il valore garantito."
+      : null,
+  ].filter(Boolean) as string[];
+
+  const mortgage = {
+    homePrice: safeNumber(mortgageHomePrice),
+    downPayment: safeNumber(mortgageDownPayment),
+    principal: safeNumber(mortgagePrincipal),
+    annualRate: safeNumber(mortgageRate),
+    years: Math.max(safeNumber(mortgageYears), 1),
+    rateType: mortgageRateType,
+    capRate: safeNumber(mortgageCapRate),
+    declaredPayment: safeNumber(mortgageDeclaredPayment),
+    monthlyIncome: safeNumber(mortgageMonthlyIncome),
+    initialCosts: safeNumber(mortgageInitialCosts),
+    recurringYearly: safeNumber(mortgageRecurringYearly),
+    condoMonthly: safeNumber(mortgageCondoMonthly),
+    utilitiesMonthly: safeNumber(mortgageUtilitiesMonthly),
+    insuranceYearly: safeNumber(mortgageInsuranceYearly),
+    maintenanceYearly: safeNumber(mortgageMaintenanceYearly),
+    otherDebtsMonthly: safeNumber(mortgageOtherDebtsMonthly),
+    fixedExpensesMonthly: safeNumber(mortgageFixedExpensesMonthly),
+    liquidAfterPurchase: safeNumber(mortgageLiquidAfterPurchase),
+    emergencyMonths: Math.max(safeNumber(mortgageEmergencyMonths), 1),
+  };
+  const mortgageSuggestedPrincipal = Math.max(mortgage.homePrice - mortgage.downPayment, 0);
+  const mortgagePrincipalForCalc = mortgage.principal > 0 ? mortgage.principal : mortgageSuggestedPrincipal;
+  const mortgageEstimatedPayment = calcMortgagePayment(mortgagePrincipalForCalc, mortgage.annualRate, mortgage.years);
+  const mortgageUsesDeclaredPayment = mortgage.declaredPayment > 0;
+  const mortgageMonthlyPayment = mortgageUsesDeclaredPayment ? mortgage.declaredPayment : mortgageEstimatedPayment;
+  const mortgageMonths = mortgage.years * 12;
+  const mortgageTotalPaid = mortgageMonthlyPayment * mortgageMonths;
+  const mortgageTotalInterest = Math.max(mortgageTotalPaid - mortgagePrincipalForCalc, 0);
+  const mortgageRecurringMonthly = mortgage.recurringYearly / 12 + mortgage.condoMonthly + mortgage.utilitiesMonthly + mortgage.insuranceYearly / 12 + mortgage.maintenanceYearly / 12;
+  const mortgageRealMonthlyHomeCost = mortgageMonthlyPayment + mortgageRecurringMonthly;
+  const mortgageInitialCostsMonthly = mortgage.initialCosts / mortgageMonths;
+  const mortgageRealMonthlyWithInitialCosts = mortgageRealMonthlyHomeCost + mortgageInitialCostsMonthly;
+  const mortgageFrontCashNeeded = mortgage.downPayment + mortgage.initialCosts;
+  const mortgageRealTotalHomeCost = mortgageTotalPaid + mortgage.initialCosts + mortgageRecurringMonthly * mortgageMonths;
+  const mortgagePaymentIncomeRatio = mortgage.monthlyIncome > 0 ? mortgageMonthlyPayment / mortgage.monthlyIncome : 0;
+  const mortgageHomeIncomeRatio = mortgage.monthlyIncome > 0 ? mortgageRealMonthlyHomeCost / mortgage.monthlyIncome : 0;
+  const mortgageDebtIncomeRatio = mortgage.monthlyIncome > 0 ? (mortgageMonthlyPayment + mortgage.otherDebtsMonthly) / mortgage.monthlyIncome : 0;
+  const mortgageMonthlyMargin = mortgage.monthlyIncome - mortgage.fixedExpensesMonthly - mortgage.otherDebtsMonthly - mortgageRealMonthlyHomeCost;
+  const mortgageEmergencyNeeded = (mortgage.fixedExpensesMonthly + mortgage.otherDebtsMonthly + mortgageRealMonthlyHomeCost) * mortgage.emergencyMonths;
+  const mortgageEmergencyGap = mortgage.liquidAfterPurchase - mortgageEmergencyNeeded;
+  const mortgageSustainabilityLevel = mortgageHomeIncomeRatio > 0.45 || mortgageMonthlyMargin < 0
+    ? "alto"
+    : mortgageHomeIncomeRatio > 0.35 || mortgageDebtIncomeRatio > 0.4
+    ? "medio"
+    : "buono";
+  const mortgageSustainabilityText = mortgageSustainabilityLevel === "buono"
+    ? "Il mutuo sembra sostenibile rispetto ai dati inseriti. Mantieni comunque un fondo emergenza adeguato."
+    : mortgageSustainabilityLevel === "medio"
+    ? "Il mutuo assorbe una parte importante del reddito. Prima di firmare, controlla bene margine mensile e liquidita residua."
+    : "Il mutuo puo diventare pesante: lascia poco spazio a imprevisti, spese familiari o cali di reddito.";
+  const mortgageTrafficLight = mortgageSustainabilityLevel === "buono"
+    ? {
+        label: "Verde",
+        title: "Sembra sostenibile",
+        shortText: "La rata e il costo reale della casa sembrano gestibili rispetto al reddito inserito.",
+        advice: "Buon segnale: continua comunque a proteggere il fondo emergenza e non consumare tutta la liquidita per comprare casa.",
+        dotClass: "bg-emerald-500",
+        badgeClass: "border-emerald-200 bg-emerald-100 text-emerald-800",
+      }
+    : mortgageSustainabilityLevel === "medio"
+    ? {
+        label: "Giallo",
+        title: "Da valutare con attenzione",
+        shortText: "Il mutuo puo essere gestibile, ma sta assorbendo una parte importante del reddito.",
+        advice: "Prima di firmare, controlla bene margine mensile, fondo emergenza, costi iniziali e cosa succede negli stress test.",
+        dotClass: "bg-amber-500",
+        badgeClass: "border-amber-200 bg-amber-100 text-amber-800",
+      }
+    : {
+        label: "Rosso",
+        title: "Potenzialmente rischioso",
+        shortText: "Il costo della casa lascia poco margine per imprevisti, spese familiari o cali di reddito.",
+        advice: "Valuta una rata piu bassa, piu anticipo, una durata diversa o una casa meno costosa. Non ignorare questo segnale.",
+        dotClass: "bg-red-500",
+        badgeClass: "border-red-200 bg-red-100 text-red-800",
+      };
+  const mortgageIsFixedRate = mortgage.rateType === "fisso";
+  const mortgageIsVariableRate = mortgage.rateType === "variabile";
+  const mortgageIsCapRate = mortgage.rateType === "cap";
+  const mortgageHasValidCap = mortgageIsCapRate && mortgage.capRate > 0;
+  const mortgageStressIntroText = mortgageIsFixedRate
+    ? "Con un tasso fisso la rata e piu prevedibile. Qui lo stress test serve soprattutto a capire se il mutuo resta sostenibile se diminuisce il reddito o aumentano le spese familiari."
+    : mortgageIsVariableRate
+    ? "Con un tasso variabile la rata puo aumentare. Guarda con attenzione gli scenari +1%, +2% e +3%: ti aiutano a capire se il mutuo resta gestibile anche in caso di aumento dei tassi."
+    : "Il cap limita il tasso massimo, ma non significa che la rata non possa salire. Controlla la rata stimata al cap: e quella che devi riuscire a sostenere nello scenario peggiore previsto dal contratto.";
+  const mortgageStressAdvice = mortgageIsFixedRate
+    ? "Per un fisso, la domanda principale non e se il tasso sale: e se il tuo bilancio regge anche con meno reddito, piu spese o imprevisti. Proteggi soprattutto margine mensile e fondo emergenza."
+    : mortgageIsVariableRate
+    ? "Per un variabile, non guardare solo la rata iniziale. Chiediti: se la rata salisse di 100, 200 o 300 euro, riusciresti comunque a vivere, risparmiare e gestire imprevisti?"
+    : mortgageHasValidCap
+    ? `Con il cap inserito, lo scenario peggiore contrattuale e circa ${mortgage.capRate}%. Non basta che la rata iniziale sia comoda: devi poter sostenere anche la rata al cap.`
+    : "Hai scelto variabile con cap: inserisci il tasso massimo previsto dal contratto per vedere la rata massima stimata. Senza quel dato, il cap resta una protezione teorica ma non misurabile.";
+  const mortgageStressTests = [1, 2, 3].map((shock) => {
+    const rawRate = mortgage.annualRate + shock;
+    const appliedRate = mortgageHasValidCap ? Math.min(rawRate, mortgage.capRate) : rawRate;
+    const isCapped = mortgageHasValidCap && rawRate > mortgage.capRate;
+    const payment = calcMortgagePayment(mortgagePrincipalForCalc, appliedRate, mortgage.years);
+    const ratio = mortgage.monthlyIncome > 0 ? payment / mortgage.monthlyIncome : 0;
+    const realRatio = mortgage.monthlyIncome > 0 ? (payment + mortgageRecurringMonthly) / mortgage.monthlyIncome : 0;
+    return {
+      shock,
+      rawRate,
+      appliedRate,
+      isCapped,
+      payment,
+      ratio,
+      realRatio,
+      risk: realRatio > 0.45 ? "alto" : realRatio > 0.35 ? "medio" : "basso",
+    };
+  });
+  const mortgageCapPayment = mortgageHasValidCap ? calcMortgagePayment(mortgagePrincipalForCalc, mortgage.capRate, mortgage.years) : 0;
+  const mortgageCapRealRatio = mortgage.monthlyIncome > 0 ? (mortgageCapPayment + mortgageRecurringMonthly) / mortgage.monthlyIncome : 0;
+  const mortgageCapRisk = mortgageCapRealRatio > 0.45 ? "alto" : mortgageCapRealRatio > 0.35 ? "medio" : "basso";
+  const mortgageIncomeStressTests = [10, 20].map((drop) => {
+    const stressedIncome = mortgage.monthlyIncome * (1 - drop / 100);
+    const ratio = stressedIncome > 0 ? mortgageRealMonthlyHomeCost / stressedIncome : 0;
+    return { drop, stressedIncome, ratio, risk: ratio > 0.45 ? "alto" : ratio > 0.35 ? "medio" : "basso" };
+  });
+  const mortgageExpenseStress = mortgage.monthlyIncome > 0 ? (mortgageRealMonthlyHomeCost + 200) / mortgage.monthlyIncome : 0;
+
+  const fraudQuestions = [
+    { id: "urgency", text: "Ti chiedono di agire subito?", weight: 1 },
+    { id: "unknown_link", text: "C'e un link o numero non verificato?", weight: 1 },
+    { id: "credentials", text: "Ti chiedono codici, password o documenti?", weight: 2 },
+    { id: "guaranteed_gain", text: "Promettono guadagni sicuri o molto alti?", weight: 2 },
+    { id: "outside_payment", text: "Ti chiedono di pagare fuori da canali ufficiali?", weight: 2 },
+    { id: "pressure", text: "La comunicazione ti mette paura o pressione?", weight: 1 },
+  ];
+  const fraudRiskScore = fraudQuestions.reduce((sum, q) => sum + (fraudAnswers[q.id] ? q.weight : 0), 0);
+  const fraudRiskLevel = fraudRiskScore >= 5 ? "alto" : fraudRiskScore >= 3 ? "medio" : "basso";
+  const fraudPrimaryAction =
+    fraudRiskLevel === "alto"
+      ? "Non procedere. Verifica tramite canale ufficiale."
+      : fraudRiskLevel === "medio"
+        ? "Fermati e verifica prima di continuare."
+        : "Resta prudente e controlla comunque i dettagli.";
+
+  const currentScamScenario = scamGameQuestions[scamGameIndex];
+  const scamGameComplete = scamGameQuestions.length > 0 && scamGameAnswers.length === scamGameQuestions.length && scamSelectedChoice === null;
+  const scamScore = scamGameAnswers.filter((answer) => answer.correct).length;
+  const scamGameResultSignature = scamGameComplete ? `${scamGameSessionId}:${scamGameAnswers.map((answer) => `${answer.id}:${answer.correct ? "1" : "0"}`).join("|")}` : "";
+  const scamAnsweredScenarioCount = scamAnsweredScenarioIds.length;
+  const scamScenarioPoolSize = scamScenarioPool.length;
+  const scamEncounteredFlags = Array.from(
+    new Set(
+      scamGameAnswers
+        .map((answer) => scamGameQuestions.find((question) => question.id === answer.id))
+        .filter(Boolean)
+        .flatMap((question) => question?.redFlags ?? [])
+    )
+  );
+
+  function startScamGame() {
+    setScamGameSessionId((prev) => prev + 1);
+    setScamGameQuestions(pickScamGameQuestions(scamScenarioPool, 5));
+    setScamGameIndex(0);
+    setScamGameAnswers([]);
+    setScamSelectedChoice(null);
+  }
+
+  function answerScamScenario(choice: "trust" | "verify") {
+    if (!currentScamScenario || scamSelectedChoice) return;
+
+    const correct = currentScamScenario.isRisky ? choice === "verify" : choice === "trust";
+    setScamSelectedChoice(choice);
+    setScamGameAnswers((prev) => [
+      ...prev,
+      { id: currentScamScenario.id, correct, userChoice: choice },
+    ]);
+    setScamAnsweredScenarioIds((prev) => {
+      const next = Array.from(new Set([...prev, currentScamScenario.id]));
+      if (scamAnsweredStorageKey) writeStringArrayToStorage(scamAnsweredStorageKey, next);
+      return next;
+    });
+  }
+
+  function goToNextScamScenario() {
+    if (scamGameIndex < scamGameQuestions.length - 1) {
+      setScamGameIndex((prev) => prev + 1);
+      setScamSelectedChoice(null);
+    }
+  }
 
   const currentQuestionData = questions[currentQuestion];
   const hasAnsweredCurrent = currentQuestion < questions.length && answers[currentQuestion] !== -1;
@@ -1314,6 +2836,7 @@ const [authReady, setAuthReady] = useState(false);
   }, [targetCoverage]);
 
   const rebalancePacNumber = Math.max(0, Number(rebalancePacAmount || 0));
+  const REBALANCE_TOLERANCE_PERCENT = 1;
 
   const rebalanceCurrentByCategory = useMemo(() => {
     const grouped: Partial<Record<StrumentiCategory, number>> = {};
@@ -1331,10 +2854,13 @@ const [authReady, setAuthReady] = useState(false);
   const rebalanceCoverage = useMemo(() => {
     return selectedPortfolio.composition.map((item) => {
       const currentAmount = rebalanceCurrentByCategory[item.category] || 0;
-      const currentPercentage = rebalanceTotalInvested > 0 ? Math.round((currentAmount / rebalanceTotalInvested) * 100) : 0;
+      const currentPercentageRaw = rebalanceTotalInvested > 0 ? (currentAmount / rebalanceTotalInvested) * 100 : 0;
+      const currentPercentage = Number(currentPercentageRaw.toFixed(1));
       const targetAmountNow = rebalanceTotalInvested * (item.percentage / 100);
       const amountGapNow = targetAmountNow - currentAmount;
-      const delta = currentPercentage - item.percentage;
+      const rawDelta = currentPercentageRaw - item.percentage;
+      const preciseDelta = Number(rawDelta.toFixed(1));
+      const delta = Math.abs(rawDelta) <= REBALANCE_TOLERANCE_PERCENT ? 0 : preciseDelta;
 
       return {
         label: item.label,
@@ -1344,6 +2870,7 @@ const [authReady, setAuthReady] = useState(false);
         currentAmount,
         targetAmountNow,
         amountGapNow,
+        preciseDelta,
         delta,
       };
     });
@@ -1351,10 +2878,10 @@ const [authReady, setAuthReady] = useState(false);
 
   const rebalanceBiggestGap = useMemo(() => {
     if (rebalanceCoverage.length === 0) return null;
-    return [...rebalanceCoverage].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
+    return [...rebalanceCoverage].sort((a, b) => Math.abs(b.preciseDelta) - Math.abs(a.preciseDelta))[0];
   }, [rebalanceCoverage]);
 
-  const totalRebalanceAbsoluteDrift = rebalanceCoverage.reduce((sum, item) => sum + Math.abs(item.delta), 0);
+  const totalRebalanceAbsoluteDrift = Number(rebalanceCoverage.reduce((sum, item) => sum + Math.abs(item.delta), 0).toFixed(1));
 
   const automaticRebalance = useMemo(() => {
     type RebalancePlanItem = (typeof rebalanceCoverage)[number] & {
@@ -1362,66 +2889,70 @@ const [authReady, setAuthReady] = useState(false);
       monthlyAmount: number;
       roundedAmount: number;
       totalAmount: number;
+      exactTotalAmount: number;
+      role: "correzione" | "mantenimento";
     };
 
     if (rebalanceTotalInvested <= 0 || rebalancePacNumber <= 0) {
-      return { months: 0, feasible: false, plan: [] as RebalancePlanItem[] };
+      return { months: 0, feasible: false, plan: [] as RebalancePlanItem[], totalCorrectionAmount: 0 };
     }
 
+    const buildPlanForMonths = (months: number, feasible: boolean) => {
+      const totalNewCapital = rebalancePacNumber * months;
+      const futureTotal = rebalanceTotalInvested + totalNewCapital;
+
+      const requiredToReachTarget = rebalanceCoverage.map((item) => {
+        const targetAmountAtFutureTotal = futureTotal * (item.targetPercentage / 100);
+        const requiredAmount = Math.max(0, targetAmountAtFutureTotal - item.currentAmount);
+        return { ...item, requiredAmount };
+      });
+
+      const correctionItems = requiredToReachTarget.filter((item) => item.requiredAmount > 0.5);
+      const maintenanceItems = requiredToReachTarget.filter((item) => item.requiredAmount <= 0.5);
+      const totalCorrectionAmount = correctionItems.reduce((sum, item) => sum + item.requiredAmount, 0);
+      const remainingCapital = Math.max(0, totalNewCapital - totalCorrectionAmount);
+      const maintenanceTargetTotal = maintenanceItems.reduce((sum, item) => sum + item.targetPercentage, 0);
+
+      const plan = requiredToReachTarget
+        .map((item) => {
+          const correctionAmount = item.requiredAmount > 0.5 ? item.requiredAmount : 0;
+          const maintenanceAmount = item.requiredAmount <= 0.5 && remainingCapital > 0
+            ? remainingCapital * (maintenanceTargetTotal > 0 ? item.targetPercentage / maintenanceTargetTotal : item.targetPercentage / 100)
+            : 0;
+          const exactTotalAmount = correctionAmount + maintenanceAmount;
+          const monthlyAmount = exactTotalAmount / months;
+          const suggestedPercentage = rebalancePacNumber > 0 ? Math.round((monthlyAmount / rebalancePacNumber) * 100) : 0;
+
+          return {
+            ...item,
+            suggestedPercentage,
+            monthlyAmount,
+            roundedAmount: Math.round(monthlyAmount / 5) * 5,
+            totalAmount: monthlyAmount * months,
+            exactTotalAmount,
+            role: correctionAmount > 0 ? "correzione" as const : "mantenimento" as const,
+          };
+        })
+        .filter((item) => item.exactTotalAmount > 0.5 || item.roundedAmount > 0)
+        .sort((a, b) => (a.role === b.role ? Math.abs(b.preciseDelta) - Math.abs(a.preciseDelta) : a.role === "correzione" ? -1 : 1));
+
+      return { months, feasible, plan, totalCorrectionAmount };
+    };
+
     for (let months = 1; months <= 60; months += 1) {
-      const futureTotal = rebalanceTotalInvested + rebalancePacNumber * months;
-      const gaps = rebalanceCoverage
-        .map((item) => ({
-          ...item,
-          gapAfterPac: futureTotal * (item.targetPercentage / 100) - item.currentAmount,
-        }))
-        .filter((item) => item.gapAfterPac > 0);
-      const totalGap = gaps.reduce((sum, item) => sum + item.gapAfterPac, 0);
+      const totalNewCapital = rebalancePacNumber * months;
+      const futureTotal = rebalanceTotalInvested + totalNewCapital;
+      const totalRequiredToReachTarget = rebalanceCoverage.reduce((sum, item) => {
+        const targetAmountAtFutureTotal = futureTotal * (item.targetPercentage / 100);
+        return sum + Math.max(0, targetAmountAtFutureTotal - item.currentAmount);
+      }, 0);
 
-      if (totalGap > 0 && rebalancePacNumber * months >= totalGap) {
-        const plan = gaps
-          .map((item) => {
-            const weight = item.gapAfterPac / totalGap;
-            const monthlyAmount = rebalancePacNumber * weight;
-            return {
-              ...item,
-              suggestedPercentage: Math.round(weight * 100),
-              monthlyAmount,
-              roundedAmount: Math.round(monthlyAmount / 5) * 5,
-              totalAmount: monthlyAmount * months,
-            };
-          })
-          .filter((item) => item.suggestedPercentage > 0);
-
-        return { months, feasible: true, plan };
+      if (totalRequiredToReachTarget <= totalNewCapital + 0.5) {
+        return buildPlanForMonths(months, true);
       }
     }
 
-    const futureTotal = rebalanceTotalInvested + rebalancePacNumber * 60;
-    const gaps = rebalanceCoverage
-      .map((item) => ({
-        ...item,
-        gapAfterPac: futureTotal * (item.targetPercentage / 100) - item.currentAmount,
-      }))
-      .filter((item) => item.gapAfterPac > 0);
-    const totalGap = gaps.reduce((sum, item) => sum + item.gapAfterPac, 0);
-    const plan = (totalGap > 0 ? gaps : rebalanceCoverage)
-      .map((item) => {
-        const gap = "gapAfterPac" in item ? item.gapAfterPac : 0;
-        const safeGap = Number(gap) || 0;
-              const weight = totalGap > 0 ? safeGap / totalGap : item.targetPercentage / 100;
-        const monthlyAmount = rebalancePacNumber * weight;
-        return {
-          ...item,
-          suggestedPercentage: Math.round(weight * 100),
-          monthlyAmount,
-          roundedAmount: Math.round(monthlyAmount / 5) * 5,
-          totalAmount: monthlyAmount * 60,
-        };
-      })
-      .filter((item) => item.suggestedPercentage > 0);
-
-    return { months: 60, feasible: false, plan };
+    return buildPlanForMonths(60, false);
   }, [rebalanceCoverage, rebalancePacNumber, rebalanceTotalInvested]);
 
   const rebalancePlan = automaticRebalance.plan;
@@ -1435,10 +2966,10 @@ const [authReady, setAuthReady] = useState(false);
 
   const rebalanceStatus = rebalanceTotalInvested <= 0
     ? "Inserisci i valori attuali dei tuoi asset per vedere lo scostamento dal modello."
-    : totalRebalanceAbsoluteDrift <= 10
-    ? "Il portafoglio e abbastanza vicino al modello: puoi continuare con il PAC ordinario o fare solo piccoli aggiustamenti."
+    : totalRebalanceAbsoluteDrift === 0
+    ? "Il portafoglio e in linea: gli scostamenti entro l'1% per asset sono normali. Se vuoi essere molto preciso, sotto trovi comunque come orientare il prossimo PAC."
     : automaticRebalance.feasible
-    ? `Il portafoglio si e allontanato dal modello: con il PAC indicato puoi simulare un rientro graduale in circa ${automaticRebalance.months} ${automaticRebalance.months === 1 ? "mese" : "mesi"}.`
+    ? `Il portafoglio si e allontanato dal modello: con il PAC indicato puoi simulare un rientro graduale verso le percentuali esatte in circa ${automaticRebalance.months} ${automaticRebalance.months === 1 ? "mese" : "mesi"}.`
     : "Il portafoglio si e allontanato dal modello: con il PAC indicato il rientro richiede molto tempo, quindi valuta anche le alternative educative sotto.";
 
   const exitInvestedNumber = Math.max(0, Number(exitInvestedAmount || 0));
@@ -1600,59 +3131,107 @@ const [authReady, setAuthReady] = useState(false);
   }> = {
     graduale: {
       title: "Uscita graduale",
-      plain: "Vendi il capitale a piccole rate invece di fare una vendita unica. Serve a non dipendere troppo dal prezzo di un solo giorno.",
-      when: ["Hai un obiettivo vicino", "Vuoi ridurre stress e rischio di timing", "Preferisci una procedura semplice"],
-      steps: [
-        `Definisci il capitale da proteggere: oggi stai simulando ${formatEuro(exitCurrentNumber)}.`,
-        `Dividi l'uscita in ${exitMonthsNumber} ${exitMonthsNumber === 1 ? "mese" : "mesi"}.`,
-        `Vendi circa ${formatEuro(exitMonthlySale)} al mese.`,
-        "Sposta il ricavato verso liquidita o strumenti piu difensivi.",
-        "A fine periodo rivaluta se fermarti, continuare o lasciare investita una quota.",
+      plain: "Vendi una parte alla volta, invece di uscire tutto in un solo giorno. E la strategia piu semplice quando vuoi trasformare gli investimenti in soldi disponibili senza dipendere dal prezzo di una singola giornata.",
+      when: [
+        "Ti serviranno i soldi nei prossimi mesi o nei prossimi anni",
+        "Vuoi ridurre il rischio senza prendere una decisione brusca",
+        "Preferisci una procedura facile da seguire: una quota al mese e poi controllo",
       ],
-      pros: ["Molto comprensibile", "Riduce il rischio di vendere tutto nel momento sbagliato", "Abbassa la pressione emotiva"],
-      cons: ["Se il mercato sale potresti vendere troppo presto", "Se il mercato scende vendi comunque una quota", "Ogni vendita puo generare tasse sulle plusvalenze"],
+      steps: [
+        `Scegli quale capitale vuoi rendere disponibile: nella simulazione stai usando ${formatEuro(exitCurrentNumber)}.`,
+        `Decidi in quanti mesi uscire: ora hai impostato ${exitMonthsNumber} ${exitMonthsNumber === 1 ? "mese" : "mesi"}.`,
+        `Vendi circa ${formatEuro(exitMonthlySale)} al mese, senza farti guidare dalle notizie del giorno.`,
+        "Dopo ogni vendita, sposta il denaro verso liquidita o strumenti piu prudenti se quei soldi ti servono davvero.",
+        "Alla fine del periodo controlla: hai ancora bisogno di uscire oppure puoi lasciare investita una parte?",
+      ],
+      pros: [
+        "E facile da capire e da mettere in pratica",
+        "Riduce il rischio di vendere tutto in una giornata sfavorevole",
+        "Aiuta a non farsi prendere dal panico quando il mercato oscilla",
+      ],
+      cons: [
+        "Se il mercato sale, potresti aver venduto una parte troppo presto",
+        "Se il mercato scende, continui comunque a vendere una quota",
+        "Ogni vendita puo generare tasse, costi o conseguenze fiscali da verificare",
+      ],
     },
     regole: {
       title: "Uscita a regole",
-      plain: "Prima decidi le condizioni, poi segui il piano. E utile se vuoi evitare decisioni impulsive davanti a salite o discese forti.",
-      when: ["Hai gia un buon guadagno", "Accetti una strategia piu tecnica", "Vuoi proteggere risultati senza uscire subito da tutto"],
-      steps: [
-        "Definisci una soglia di guadagno, per esempio +30%.",
-        "Definisci una soglia di protezione, per esempio -10% dal massimo raggiunto.",
-        `Se la regola scatta, valuta una vendita parziale: con i dati attuali il 25% vale circa ${formatEuro(exitRuleSaleAmount)}.`,
-        "Dopo la vendita sposta la parte uscita in strumenti piu difensivi.",
-        "Controlla le regole una volta al mese, non ogni giorno.",
+      plain: "Decidi prima cosa fare e poi segui le regole. Serve quando vuoi evitare scelte impulsive: non vendi per paura e non resti investito solo per avidita.",
+      when: [
+        "Hai gia ottenuto un buon risultato e vuoi proteggerne una parte",
+        "Vuoi una procedura scritta prima, non decisa nel momento di stress",
+        "Accetti una strategia un po piu tecnica, ma ancora gestibile",
       ],
-      pros: ["Riduce emotivita", "Protegge parte dei guadagni", "Si adatta meglio ai movimenti del mercato"],
-      cons: ["Richiede disciplina", "E piu complessa per un neofita", "Puo generare vendite e tassazione"],
+      steps: [
+        "Scrivi una regola semplice, per esempio: vendo una parte se il portafoglio scende troppo dal massimo raggiunto.",
+        "Decidi quanto vendere se la regola scatta: una quota parziale e spesso piu prudente di una vendita totale.",
+        `Con i dati attuali, una vendita parziale del 25% vale circa ${formatEuro(exitRuleSaleAmount)}.`,
+        "Dopo la vendita, sposta la parte uscita verso liquidita o strumenti piu prudenti.",
+        "Controlla le regole una volta al mese: guardarle ogni giorno aumenta solo ansia e confusione.",
+      ],
+      pros: [
+        "Riduce le decisioni emotive",
+        "Ti obbliga a sapere prima cosa farai se il mercato cambia",
+        "Puo proteggere parte dei guadagni senza chiudere tutto il piano",
+      ],
+      cons: [
+        "Richiede disciplina: la regola funziona solo se la rispetti",
+        "E meno immediata per chi e alle prime armi",
+        "Puo generare vendite non necessarie se le soglie sono scelte male",
+      ],
     },
     obiettivo: {
       title: "Uscita per obiettivo",
-      plain: "La domanda non e quanto puo salire ancora il mercato, ma se hai raggiunto il motivo per cui investivi.",
-      when: ["Hai una spesa concreta", "Vuoi proteggere una cifra precisa", "Non vuoi inseguire rendimento infinito"],
-      steps: [
-        `Imposta il target: ora e ${formatEuro(exitGoalNumber)}.`,
-        `Controlla la distanza: sei circa al ${exitNearGoal}% dell'obiettivo.`,
-        "Se sei lontano, continua il piano senza forzare l'uscita.",
-        "Se sei vicino, riduci progressivamente il rischio.",
-        "Se hai raggiunto il target, valuta uscita graduale o vendita finale.",
+      plain: "Parti dal motivo per cui stavi investendo. Se quei soldi servono per un obiettivo reale, la priorita diventa proteggerli, non cercare il massimo rendimento possibile.",
+      when: [
+        "Hai una spesa concreta: casa, famiglia, studio, progetto o sicurezza",
+        "Vuoi proteggere una cifra precisa invece di inseguire sempre nuovi guadagni",
+        "L'obiettivo e vicino e non vuoi rischiare di perderlo per un ribasso improvviso",
       ],
-      pros: ["Facile da capire", "Collega gli investimenti alla vita reale", "Evita di rischiare soldi gia necessari"],
-      cons: ["Puo ignorare il momento di mercato", "Potresti uscire troppo presto", "La vendita finale puo concentrare tasse in un unico momento"],
+      steps: [
+        `Scrivi la cifra obiettivo: ora hai impostato ${formatEuro(exitGoalNumber)}.`,
+        `Confrontala con il valore attuale: sei circa al ${exitNearGoal}% dell'obiettivo.`,
+        "Se sei lontano, continua il piano senza forzare l'uscita.",
+        "Se sei vicino, riduci progressivamente il rischio e prepara liquidita.",
+        "Se hai raggiunto l'obiettivo, valuta uscita graduale o vendita finale solo per la parte che ti serve.",
+      ],
+      pros: [
+        "E molto intuitiva: collega l'investimento alla vita reale",
+        "Evita di rischiare soldi che ti servono davvero",
+        "Aiuta a smettere di inseguire rendimento quando il traguardo e gia vicino",
+      ],
+      cons: [
+        "Potresti uscire mentre il mercato continua a salire",
+        "Richiede chiarezza sull'obiettivo: se non sai cosa vuoi, e difficile applicarla",
+        "Una vendita finale troppo grande puo concentrare tasse e decisioni in un solo momento",
+      ],
     },
     bucket: {
       title: "Bucket strategy 3%",
-      plain: "Dividi il capitale in due contenitori: una parte difensiva da cui prelevare e una parte investita che puo continuare a crescere.",
-      when: ["Vuoi una rendita", "Hai un orizzonte lungo", "Vuoi evitare di vendere azioni nei ribassi"],
-      steps: [
-        `Rialloca in modo piu difensivo: esempio ${formatEuro(exitSafeBucket)} in parte prudente e ${formatEuro(exitInvestedBucket)} ancora investiti.`,
-        `Imposta un prelievo prudente: circa ${formatEuro(exitAnnualWithdrawal)} all'anno, pari al 3% del capitale simulato.`,
-        "Se l'azionario cresce molto, vendi una parte dei guadagni e ricarica la parte difensiva.",
-        "Se l'azionario scende, evita di venderlo e preleva dalla parte obbligazionaria o liquida.",
-        "Ogni anno controlla se il 3% e ancora sostenibile e se i bucket sono da ribilanciare.",
+      plain: "Dividi il capitale in due contenitori: una parte prudente da cui prelevare e una parte ancora investita. Serve quando vuoi usare il capitale nel tempo, non solo venderlo tutto.",
+      when: [
+        "Vuoi creare una rendita o prelevare denaro in modo regolare",
+        "Hai ancora un orizzonte lungo per una parte del capitale",
+        "Vuoi evitare di vendere azioni proprio nei momenti di mercato negativo",
       ],
-      pros: ["Adatta a chi vuole rendita", "Riduce il rischio di vendere azioni nei ribassi", "Lascia una parte del capitale investita"],
-      cons: ["Il 3% non e garantito", "Richiede manutenzione annuale", "Il capitale puo comunque oscillare o ridursi"],
+      steps: [
+        `Separa una parte piu prudente: esempio ${formatEuro(exitSafeBucket)} in liquidita/strumenti difensivi e ${formatEuro(exitInvestedBucket)} ancora investiti.`,
+        `Imposta un prelievo prudente: circa ${formatEuro(exitAnnualWithdrawal)} all'anno, pari al 3% del capitale simulato.`,
+        "Quando la parte investita cresce molto, puoi vendere una quota e ricaricare il contenitore prudente.",
+        "Quando il mercato scende, preleva dalla parte prudente e lascia respirare la parte investita.",
+        "Una volta all'anno controlla se il 3% e ancora sostenibile e se i due contenitori sono da ribilanciare.",
+      ],
+      pros: [
+        "E adatta a chi vuole usare il capitale nel tempo",
+        "Riduce il rischio di vendere asset rischiosi durante i ribassi",
+        "Lascia una parte del capitale ancora investita per il lungo periodo",
+      ],
+      cons: [
+        "Il 3% e una regola prudente, non una garanzia",
+        "Richiede controllo periodico e un po di organizzazione",
+        "Il capitale puo comunque oscillare o ridursi se i mercati o i prelievi pesano troppo",
+      ],
     },
   };
 
@@ -1772,6 +3351,13 @@ const [authReady, setAuthReady] = useState(false);
   const checkedAllocationCount = monthlyAllocationPlan.filter((item) => checkedPacAllocations[item.category]).length;
   const allocationChecklistComplete =
     monthlyAllocationPlan.length > 0 && checkedAllocationCount === monthlyAllocationPlan.length;
+
+  const monthlyAllocationAlignedCount = monthlyAllocationPlan.filter((item) => {
+    const investedAmount = investedByCategory[item.category] || 0;
+    return item.roundedAmount > 0 && Math.abs(investedAmount - item.roundedAmount) <= 1;
+  }).length;
+  const monthlyAllocationIsAligned =
+    monthlyAllocationPlan.length > 0 && monthlyAllocationAlignedCount === monthlyAllocationPlan.length;
 
   useEffect(() => {
     setCheckedPacAllocations({});
@@ -1929,16 +3515,133 @@ const [authReady, setAuthReady] = useState(false);
     : hasStartedPac
     ? "Non spezzare la catena: completa il PAC mensile e mantieni vivo il ritmo."
     : "Il primo PAC e il passaggio chiave: da qui il piano smette di essere teoria e diventa abitudine.";
-  const badges = buildBadges({
+  const dashboardOverallProgress = Math.round(
+    (checklistPercent + (holdings.length > 0 ? 100 : 0) + (currentMonthCompleted ? 100 : 0) + Math.min(100, currentStreak * 33)) / 4
+  );
+  const dashboardNextActionTitle = !setupCompleted
+    ? "Completa la guida operativa"
+    : holdings.length === 0
+    ? "Registra il primo investimento"
+    : !currentMonthCompleted
+    ? "Chiudi il PAC del mese"
+    : "Mantieni il ritmo";
+  const dashboardNextActionText = !setupCompleted
+    ? "Prima rendi chiari i passaggi: modello, cifra mensile, strumenti e metodo. Dopo la dashboard diventa davvero utile."
+    : holdings.length === 0
+    ? "Aggiungi il primo investimento per trasformare il piano da teoria a percorso monitorabile."
+    : !currentMonthCompleted
+    ? "Segna il PAC solo dopo aver completato il versamento o verificato che l'automatismo sia partito."
+    : `Hai chiuso ${currentMonthLabel}. Ora controlla il piano senza inseguire il mercato.`;
+  const dashboardNextActionLabel = !setupCompleted
+    ? "Continua il percorso"
+    : holdings.length === 0
+    ? "Aggiungi investimento"
+    : !currentMonthCompleted
+    ? "Completa il mese"
+    : "Vai al controllo mensile";
+  const awarenessActionsCompleted = completedAwarenessList.length;
+  const fraudChecksCompleted = Object.values(fraudAnswers).filter(Boolean).length;
+  const vehicleAnalysisUsed = safeNumber(vehiclePrice) > 0 && (safeNumber(vehicleMonthlyPayment) > 0 || safeNumber(vehicleTaeg) > 0) && safeNumber(vehicleDurationMonths) > 0;
+  const mortgageAnalysisUsed = safeNumber(mortgagePrincipal) > 0 && safeNumber(mortgageRate) > 0 && safeNumber(mortgageYears) > 0;
+
+  const userId = user?.id || "";
+  const badgeVaultStorageKey = userId ? getBadgeVaultStorageKey(userId, selectedPortfolio.key) : "";
+  const celebrationSnapshotKey = userId ? getCelebrationSnapshotKey(userId, selectedPortfolio.key) : "";
+  const personalGoalCelebrationStateKey = userId ? getPersonalGoalCelebrationStateKey(userId, selectedPortfolio.key) : "";
+  const scamAnsweredStorageKey = userId ? getScamAnsweredStorageKey(userId) : "";
+  const scamPerfectGamesStorageKey = userId ? getScamPerfectGamesStorageKey(userId) : "";
+
+  useEffect(() => {
+    if (!userId) {
+      setScamAnsweredScenarioIds([]);
+      setScamPerfectGames(0);
+      lastScamPerfectGameSignatureRef.current = null;
+      return;
+    }
+
+    setScamAnsweredScenarioIds(readStringArrayFromStorage(scamAnsweredStorageKey));
+    const savedPerfectGames = Number(window.localStorage.getItem(scamPerfectGamesStorageKey) || "0");
+    setScamPerfectGames(Number.isFinite(savedPerfectGames) ? savedPerfectGames : 0);
+    lastScamPerfectGameSignatureRef.current = null;
+  }, [userId, scamAnsweredStorageKey, scamPerfectGamesStorageKey]);
+
+  useEffect(() => {
+    if (!scamPerfectGamesStorageKey || !scamGameComplete || !scamGameResultSignature) return;
+    if (lastScamPerfectGameSignatureRef.current === scamGameResultSignature) return;
+
+    lastScamPerfectGameSignatureRef.current = scamGameResultSignature;
+    if (scamScore !== scamGameQuestions.length) return;
+
+    setScamPerfectGames((prev) => {
+      const next = prev + 1;
+      window.localStorage.setItem(scamPerfectGamesStorageKey, String(next));
+      return next;
+    });
+  }, [scamPerfectGamesStorageKey, scamGameComplete, scamGameResultSignature, scamScore, scamGameQuestions.length]);
+
+  const rawBadges = buildBadges({
     purchaseUnlocked: purchase.unlocked,
     checklistCompleted: completedInitialChecklist,
     totalChecklist: initialChecklistItems.length,
     pacHistory,
     totalInvested: goalCurrentNumber,
+    goalTarget: goalTargetNumber,
     activeCategories: dashboardBreakdown.length,
+    awarenessActionsCompleted,
+    monthlyFreedByAwareness,
+    fraudChecksCompleted,
+    scamAnsweredScenarioCount,
+    scamScenarioPoolSize,
+    scamPerfectGames,
+    vehicleAnalysisUsed,
+    mortgageAnalysisUsed,
   });
-  const unlockedBadges = badges.filter((b) => b.unlocked);
-  const nextBadge = badges.find((badge) => !badge.unlocked) || null;
+
+  const persistedBadgeIdSet = new Set(persistedBadgeIds);
+  const badges = rawBadges.map((badge) => {
+    if (badge.unlocked || !persistedBadgeIdSet.has(badge.id)) return badge;
+
+    return {
+      ...badge,
+      unlocked: true,
+      progress: badge.target,
+      progressLabel: "raggiunto",
+    };
+  });
+  const badgeDisplayOrder = [
+    "first_step",
+    "system_on",
+    "awareness_first_action",
+    "awareness_50_month",
+    "awareness_150_month",
+    "vehicle_checker",
+    "mortgage_checker",
+    "fraud_shield",
+    "fraud_all_scenarios",
+    "fraud_10_perfect_games",
+    "all_categories",
+    "pac_started",
+    "streak_3",
+    "streak_6",
+    "capital_1000",
+    "capital_5000",
+    "capital_10000",
+    "capital_25000",
+    "capital_50000",
+    "capital_100000",
+    "capital_goal_reached",
+    "streak_12",
+    "restart",
+  ];
+
+  const orderedBadges = [...badges].sort((a, b) => {
+    const aIndex = badgeDisplayOrder.indexOf(a.id);
+    const bIndex = badgeDisplayOrder.indexOf(b.id);
+    return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+  });
+
+  const unlockedBadges = orderedBadges.filter((b) => b.unlocked);
+  const nextBadge = orderedBadges.find((badge) => !badge.unlocked) || null;
   const nextBadgeAction =
     nextBadge?.id === "first_step"
       ? "Completa il questionario per ricevere il tuo piano."
@@ -1957,10 +3660,217 @@ const [authReady, setAuthReady] = useState(false);
       : nextBadge?.id === "capital_5000"
       ? `Continua a costruire: mancano ${formatEuro(Math.max(0, 5000 - goalCurrentNumber))} a Costruttore di capitale.`
       : nextBadge?.id === "capital_10000"
-      ? `Continua a costruire: mancano ${formatEuro(Math.max(0, 10000 - goalCurrentNumber))} a Base solida.`
+      ? `Continua a costruire: mancano ${formatEuro(Math.max(0, 10000 - goalCurrentNumber))} a Patrimonio in costruzione.`
+      : nextBadge?.id === "capital_25000"
+      ? `Continua a costruire: mancano ${formatEuro(Math.max(0, 25000 - goalCurrentNumber))} a Capitale solido.`
+      : nextBadge?.id === "capital_50000"
+      ? `Continua a costruire: mancano ${formatEuro(Math.max(0, 50000 - goalCurrentNumber))} a Traguardo importante.`
+      : nextBadge?.id === "capital_100000"
+      ? `Continua a costruire: mancano ${formatEuro(Math.max(0, 100000 - goalCurrentNumber))} a Sei cifre raggiunte.`
+      : nextBadge?.id === "capital_goal_reached"
+      ? goalTargetNumber > 0
+        ? `Manca ${formatEuro(Math.max(0, goalTargetNumber - goalCurrentNumber))} al tuo obiettivo personale.`
+        : "Imposta un obiettivo personale per sbloccare il badge finale Capitale."
+      : nextBadge?.id === "awareness_first_action"
+      ? "Completa una azione nella sezione Consapevolezza per sbloccare Occhio allenato."
+      : nextBadge?.id === "awareness_50_month"
+      ? `Libera ancora ${formatEuro(Math.max(0, 50 - monthlyFreedByAwareness))} al mese con le azioni di consapevolezza.`
+      : nextBadge?.id === "awareness_150_month"
+      ? `Libera ancora ${formatEuro(Math.max(0, 150 - monthlyFreedByAwareness))} al mese per sbloccare Budget sveglio.`
+      : nextBadge?.id === "vehicle_checker"
+      ? "Usa il controllo Auto per capire costo reale, maxi rata e impatto sul reddito."
+      : nextBadge?.id === "mortgage_checker"
+      ? "Usa lo stress test Mutuo per vedere rata, interessi e margine di sicurezza."
+      : nextBadge?.id === "fraud_shield"
+      ? `Valuta ancora ${Math.max(0, 3 - fraudChecksCompleted)} segnali nel test Anti-truffe.`
+      : nextBadge?.id === "fraud_all_scenarios"
+      ? `Gioca ancora al mini gioco Anti-truffe: hai visto ${Math.min(scamAnsweredScenarioCount, scamScenarioPool.length)}/${scamScenarioPool.length} scenari.`
+      : nextBadge?.id === "fraud_10_perfect_games"
+      ? `Completa 10 partite senza errori. Partite perfette: ${Math.min(scamPerfectGames, 10)}/10.`
       : nextBadge?.id === "all_categories"
       ? "Registra almeno una categoria del modello per renderlo operativo."
       : "Hai sbloccato tutti i badge disponibili in questa fase.";
+
+  const investorTitles = buildInvestorTitles({
+    badges,
+    currentStreak,
+    totalInvested: goalCurrentNumber,
+    goalTarget: goalTargetNumber,
+    activeCategories: dashboardBreakdown.length,
+    setupCompleted,
+  });
+  const unlockedInvestorTitles = investorTitles.filter((title) => title.unlocked);
+  const currentInvestorTitle = unlockedInvestorTitles[unlockedInvestorTitles.length - 1] || investorTitles[0];
+  const nextInvestorTitle = investorTitles.find((title) => !title.unlocked) || null;
+  const nextTitleProgressPercent = nextInvestorTitle
+    ? Math.round((nextInvestorTitle.progress / Math.max(nextInvestorTitle.target, 1)) * 100)
+    : 100;
+  const unlockedBadgeSignature = unlockedBadges.map((badge) => badge.id).join("|");
+  const currentTitleId = currentInvestorTitle?.id || "none";
+  const hasReachedPersonalGoal = goalTargetNumber > 0 && goalCurrentNumber >= goalTargetNumber;
+  const currentUnlockedBadgeIds = rawBadges.filter((badge) => badge.unlocked).map((badge) => badge.id);
+  const currentUnlockedBadgeSignature = currentUnlockedBadgeIds.join("|");
+
+  const showPersonalGoalCelebration = (dismissedKey: string) => {
+    setGoalCelebration((current) => {
+      if (current?.dismissedKey === dismissedKey) return current;
+
+      return {
+        kind: "goal",
+        icon: "🎯",
+        title: "Hai raggiunto qualcosa di importante",
+        subtitle:
+          "Questo non è solo un numero. È disciplina, costanza e scelte fatte bene nel tempo. Hai trasformato un obiettivo in un risultato concreto, passo dopo passo. Grazie per averci scelto come compagno di viaggio: questo traguardo è tuo, e siamo davvero orgogliosi di averti accompagnato fin qui.",
+        dismissedKey,
+      };
+    });
+  };
+
+  const replayPersonalGoalCelebration = () => {
+    if (!personalGoalCelebrationStateKey) return;
+    showPersonalGoalCelebration(personalGoalCelebrationStateKey);
+  };
+
+  useEffect(() => {
+    if (!badgeVaultStorageKey) {
+      setPersistedBadgeIds([]);
+      return;
+    }
+
+    setPersistedBadgeIds(readStringArrayFromStorage(badgeVaultStorageKey));
+  }, [badgeVaultStorageKey]);
+
+  useEffect(() => {
+    if (!userId || !authReady || !goalLoaded || !badgeVaultStorageKey || !celebrationSnapshotKey) return;
+
+    const sessionKey = `${userId}-${selectedPortfolio.key}`;
+    const firstSyncForThisSession = !celebrationInitialSyncRef.current[sessionKey];
+    const savedBadgeIds = readStringArrayFromStorage(badgeVaultStorageKey);
+    const savedBadgeSet = new Set(savedBadgeIds);
+    const newlyUnlockedBadgeIds = currentUnlockedBadgeIds.filter((id) => !savedBadgeSet.has(id));
+    const mergedBadgeIds = Array.from(new Set([...savedBadgeIds, ...currentUnlockedBadgeIds]));
+
+    if (mergedBadgeIds.length !== savedBadgeIds.length) {
+      writeStringArrayToStorage(badgeVaultStorageKey, mergedBadgeIds);
+      setPersistedBadgeIds(mergedBadgeIds);
+    }
+
+    const savedSnapshotRaw = window.localStorage.getItem(celebrationSnapshotKey);
+    const savedSnapshot = savedSnapshotRaw
+      ? (() => {
+          try {
+            return JSON.parse(savedSnapshotRaw) as { title?: string };
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+
+    const currentSnapshot = {
+      badges: mergedBadgeIds,
+      title: currentTitleId,
+    };
+
+    const storedGoalState = readPersonalGoalCelebrationState(personalGoalCelebrationStateKey);
+    const targetChanged = Boolean(storedGoalState && storedGoalState.target !== goalTargetNumber);
+    const shouldShowGoalCelebration =
+      hasReachedPersonalGoal &&
+      goalTargetNumber > 0 &&
+      (!storedGoalState || targetChanged || !storedGoalState.confirmed || storedGoalState.droppedBelowAfterConfirmed);
+
+    if (goalTargetNumber > 0) {
+      if (hasReachedPersonalGoal) {
+        if (shouldShowGoalCelebration) {
+          writePersonalGoalCelebrationState(personalGoalCelebrationStateKey, {
+            target: goalTargetNumber,
+            wasReached: true,
+            confirmed: false,
+            droppedBelowAfterConfirmed: false,
+            lastCurrentValue: goalCurrentNumber,
+          });
+          window.localStorage.setItem(celebrationSnapshotKey, JSON.stringify(currentSnapshot));
+          showPersonalGoalCelebration(personalGoalCelebrationStateKey);
+          celebrationInitialSyncRef.current[sessionKey] = true;
+          return;
+        }
+
+        if (!storedGoalState || storedGoalState.lastCurrentValue !== goalCurrentNumber || storedGoalState.droppedBelowAfterConfirmed) {
+          writePersonalGoalCelebrationState(personalGoalCelebrationStateKey, {
+            target: goalTargetNumber,
+            wasReached: true,
+            confirmed: storedGoalState?.confirmed ?? true,
+            droppedBelowAfterConfirmed: false,
+            lastCurrentValue: goalCurrentNumber,
+            confirmedAt: storedGoalState?.confirmedAt,
+          });
+        }
+      } else if (storedGoalState?.confirmed && storedGoalState.wasReached && !storedGoalState.droppedBelowAfterConfirmed) {
+        writePersonalGoalCelebrationState(personalGoalCelebrationStateKey, {
+          ...storedGoalState,
+          droppedBelowAfterConfirmed: true,
+          lastCurrentValue: goalCurrentNumber,
+        });
+      }
+    }
+
+    if (firstSyncForThisSession) {
+      celebrationInitialSyncRef.current[sessionKey] = true;
+      window.localStorage.setItem(celebrationSnapshotKey, JSON.stringify(currentSnapshot));
+      return;
+    }
+
+    const previousTitle = savedSnapshot?.title;
+    const titleChanged = Boolean(previousTitle && previousTitle !== currentTitleId && currentInvestorTitle?.unlocked);
+
+    window.localStorage.setItem(celebrationSnapshotKey, JSON.stringify(currentSnapshot));
+
+    if (goalCelebration) return;
+
+    if (titleChanged && currentInvestorTitle) {
+      setCelebration({
+        kind: "title",
+        icon: currentInvestorTitle.icon,
+        title: currentInvestorTitle.title,
+        subtitle: currentInvestorTitle.subtitle,
+      });
+      return;
+    }
+
+    const newBadge = orderedBadges.find((badge) => newlyUnlockedBadgeIds.includes(badge.id));
+    if (newBadge) {
+      setCelebration({
+        kind: "badge",
+        icon: newBadge.icon,
+        title: newBadge.title,
+        subtitle: newBadge.description,
+      });
+    }
+  }, [
+    authReady,
+    userId,
+    goalLoaded,
+    selectedPortfolio.key,
+    badgeVaultStorageKey,
+    celebrationSnapshotKey,
+    personalGoalCelebrationStateKey,
+    currentUnlockedBadgeSignature,
+    currentTitleId,
+    currentInvestorTitle?.id,
+    hasReachedPersonalGoal,
+    goalTargetNumber,
+    goalCurrentNumber,
+    goalCelebration,
+  ]);
+
+  useEffect(() => {
+    if (!celebration || celebration.kind === "goal") return;
+
+    const autoCloseTimer = window.setTimeout(() => {
+      setCelebration((current) => (current === celebration ? null : current));
+    }, 4200);
+
+    return () => window.clearTimeout(autoCloseTimer);
+  }, [celebration]);
 
   const reminderCards = useMemo(() => {
     const reminders: {
@@ -2072,6 +3982,10 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     if (authMode === "register") {
+      if (authPassword !== authConfirmPassword) {
+        setAuthMessage("Le password non coincidono.");
+        return;
+      }
       const emailRedirectTo =
         typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
 
@@ -2177,33 +4091,327 @@ const [authReady, setAuthReady] = useState(false);
     }
   }
 
+  async function loadCustomInstrumentsFromDb(currentUser: User) {
+    const { data, error } = await supabase
+      .from("user_custom_instruments")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Errore caricamento strumenti personali:", error.message);
+      setCustomInstrumentMessage("Non riesco a caricare gli strumenti personali. Controlla la tabella Supabase user_custom_instruments.");
+      return;
+    }
+
+    const mapped: CustomInstrument[] = (data || []).map((row: any) => ({
+      id: String(row.id),
+      category: row.category as StrumentiCategory,
+      name: row.name || row.asset_name || "Strumento personale",
+      isin: row.isin || "",
+      note: row.note || "",
+    }));
+
+    setCustomInstruments(mapped);
+  }
+
+  async function addCustomInstrument() {
+    if (!user) return;
+
+    const name = customInstrumentDraft.name.trim();
+    const isin = customInstrumentDraft.isin.trim().toUpperCase();
+    const note = customInstrumentDraft.note.trim();
+
+    if (!name || !isin) {
+      setCustomInstrumentMessage("Inserisci almeno nome strumento e ISIN / ticker.");
+      return;
+    }
+
+    setCustomInstrumentMessage("");
+
+    const { data, error } = await supabase
+      .from("user_custom_instruments")
+      .insert({
+        user_id: user.id,
+        category: customInstrumentDraft.category,
+        name,
+        isin,
+        note: note || null,
+        created_at: new Date().toISOString(),
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("Errore salvataggio strumento personale:", error.message);
+      setCustomInstrumentMessage("Errore nel salvataggio. Verifica la tabella Supabase user_custom_instruments e le policy RLS.");
+      return;
+    }
+
+    const created: CustomInstrument = {
+      id: String(data.id),
+      category: data.category as StrumentiCategory,
+      name: data.name || name,
+      isin: data.isin || isin,
+      note: data.note || "",
+    };
+
+    setCustomInstruments((prev) => [...prev, created]);
+    setCustomInstrumentDraft((prev) => ({ ...prev, name: "", isin: "", note: "" }));
+    setCustomInstrumentMessage("Strumento personale aggiunto. Ora lo trovi anche nella Dashboard, dentro Aggiungi investimento.");
+  }
+
+  async function deleteCustomInstrument(id: string) {
+    if (!user) return;
+
+    const instrument = customInstruments.find((item) => item.id === id);
+    if (!instrument) return;
+
+    const confirmed = window.confirm(`Eliminare lo strumento personale "${instrument.name}"? Gli investimenti già registrati non verranno cancellati.`);
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from("user_custom_instruments")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Errore eliminazione strumento personale:", error.message);
+      setCustomInstrumentMessage("Non riesco a eliminare lo strumento. Controlla le policy RLS su Supabase.");
+      return;
+    }
+
+    setCustomInstruments((prev) => prev.filter((item) => item.id !== id));
+
+    if (newHolding.strumentiName === instrument.name && newHolding.isin === instrument.isin) {
+      const fallback = strumentiLibrary[instrument.category][0];
+      setNewHolding((prev) => ({
+        ...prev,
+        category: instrument.category,
+        strumentiName: fallback.name,
+        isin: fallback.isin,
+      }));
+    }
+
+    setCustomInstrumentMessage("Strumento personale eliminato.");
+  }
+
+  function mapShoppingRow(row: any): ShoppingItem {
+    return {
+      id: String(row.id),
+      name: row.name || "Prodotto",
+      category: (row.category || "Altro") as ShoppingCategory,
+      estimatedPrice: Number(row.estimated_price || 0),
+      isExtra: !!row.is_extra,
+      isChecked: !!row.is_checked,
+      isCustom: !!row.is_custom,
+    };
+  }
+
+  async function loadShoppingItemsFromDb(currentUser: User) {
+    const { data, error } = await supabase
+      .from("user_shopping_items")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Errore caricamento lista spesa:", error.message);
+      setShoppingMessage("Non riesco a caricare la lista spesa. Controlla la tabella Supabase user_shopping_items.");
+      return;
+    }
+
+    setShoppingItems((data || []).map(mapShoppingRow));
+  }
+
+  async function createShoppingItem(input: { name: string; category: ShoppingCategory; estimatedPrice?: number; isExtra?: boolean; isCustom?: boolean }) {
+    if (!user) return;
+
+    const name = input.name.trim();
+    if (!name) {
+      setShoppingMessage("Inserisci il nome del prodotto.");
+      return;
+    }
+
+    setShoppingLoading(true);
+    setShoppingMessage("");
+
+    const { data, error } = await supabase
+      .from("user_shopping_items")
+      .insert({
+        user_id: user.id,
+        name,
+        category: input.category,
+        estimated_price: Number(input.estimatedPrice || 0),
+        is_extra: !!input.isExtra,
+        is_checked: false,
+        is_custom: !!input.isCustom,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select("*")
+      .single();
+
+    setShoppingLoading(false);
+
+    if (error) {
+      console.error("Errore salvataggio prodotto spesa:", error.message);
+      setShoppingMessage("Errore nel salvataggio. Verifica la tabella Supabase user_shopping_items e le policy RLS.");
+      return;
+    }
+
+    setShoppingItems((prev) => [...prev, mapShoppingRow(data)]);
+  }
+
+  async function addShoppingPreset(product: ShoppingPreset) {
+    await createShoppingItem({
+      name: product.name,
+      category: product.category,
+      estimatedPrice: product.estimatedPrice,
+      isExtra: !!product.isExtra,
+      isCustom: false,
+    });
+  }
+
+  async function addCustomShoppingItem() {
+    const price = Number(String(shoppingDraft.estimatedPrice).replace(",", "."));
+    await createShoppingItem({
+      name: shoppingDraft.name,
+      category: shoppingDraft.category,
+      estimatedPrice: Number.isFinite(price) ? Math.max(0, price) : 0,
+      isExtra: shoppingDraft.isExtra,
+      isCustom: true,
+    });
+
+    setShoppingDraft((prev) => ({ ...prev, name: "", estimatedPrice: "", isExtra: false }));
+  }
+
+  async function toggleShoppingItem(item: ShoppingItem) {
+    if (!user) return;
+
+    const nextChecked = !item.isChecked;
+    setShoppingItems((prev) => prev.map((current) => (current.id === item.id ? { ...current, isChecked: nextChecked } : current)));
+
+    const { error } = await supabase
+      .from("user_shopping_items")
+      .update({ is_checked: nextChecked, updated_at: new Date().toISOString() })
+      .eq("id", item.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Errore aggiornamento prodotto spesa:", error.message);
+      setShoppingItems((prev) => prev.map((current) => (current.id === item.id ? item : current)));
+      setShoppingMessage("Non riesco ad aggiornare il prodotto. Riprova tra poco.");
+    }
+  }
+
+  async function deleteShoppingItem(item: ShoppingItem) {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("user_shopping_items")
+      .delete()
+      .eq("id", item.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Errore eliminazione prodotto spesa:", error.message);
+      setShoppingMessage("Non riesco a eliminare il prodotto. Riprova tra poco.");
+      return;
+    }
+
+    setShoppingItems((prev) => prev.filter((current) => current.id !== item.id));
+  }
+
+  async function resetShoppingList() {
+    if (!user) return;
+
+    setShoppingLoading(true);
+    const { error } = await supabase
+      .from("user_shopping_items")
+      .delete()
+      .eq("user_id", user.id);
+
+    setShoppingLoading(false);
+    setShowShoppingResetConfirm(false);
+
+    if (error) {
+      console.error("Errore reset lista spesa:", error.message);
+      setShoppingMessage("Non riesco ad azzerare la lista. Riprova tra poco.");
+      return;
+    }
+
+    setShoppingItems([]);
+    setShoppingMessage("Lista azzerata. Puoi prepararne una nuova partendo dai prodotti comuni.");
+  }
+
   async function loadPacHistoryFromDb(currentUser = user) {
     if (!currentUser) return;
+
+    const portfolioKey = selectedPortfolio.key;
+    const loadKey = `${currentUser.id}:${portfolioKey}`;
+
+    // Evita richieste duplicate sullo stesso utente/portafoglio.
+    // In modalità sviluppo React/Next può rieseguire gli effetti e far partire due fetch identici.
+    if (pacHistoryLoadKeyRef.current === loadKey) return;
+
+    pacHistoryLoadKeyRef.current = loadKey;
+    const requestId = pacHistoryRequestIdRef.current + 1;
+    pacHistoryRequestIdRef.current = requestId;
 
     const recentMonths = generateRecentMonths(12).map((month) => ({
       month,
       completed: false,
     }));
 
-    const { data, error } = await supabase
-      .from("user_pac_history")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .eq("portfolio_key", selectedPortfolio.key);
+    try {
+      const { data, error } = await supabase
+        .from("user_pac_history")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .eq("portfolio_key", portfolioKey);
 
-    if (error) {
-      console.error("Errore caricamento PAC:", error.message);
+      // Se nel frattempo è partita una richiesta più recente, questa risposta non aggiorna lo stato.
+      if (requestId !== pacHistoryRequestIdRef.current) return;
+
+      if (error) {
+        const message = String(error.message || "");
+
+        // Questo errore può comparire con richieste sovrapposte in sviluppo.
+        // Non è un errore funzionale dei dati: manteniamo lo stato locale senza bloccare l'app.
+        if (message.includes("Lock broken") || message.includes("AbortError")) {
+          console.warn("Caricamento PAC ignorato perché una richiesta più recente lo ha sostituito.");
+          return;
+        }
+
+        console.error("Errore caricamento PAC:", message);
+        setPacHistory(recentMonths);
+        return;
+      }
+
+      const mergedHistory = recentMonths.map((month) => {
+        const found = data?.find((row: any) => row.month_key === month.month);
+        return found ? { ...month, completed: !!found.completed } : month;
+      });
+
+      setPacHistory(mergedHistory);
+      localStorage.setItem(getPacStorageKey(currentUser.id, portfolioKey), JSON.stringify(mergedHistory));
+    } catch (error: any) {
+      const message = String(error?.message || error || "");
+
+      if (message.includes("Lock broken") || message.includes("AbortError")) {
+        console.warn("Caricamento PAC ignorato perché una richiesta più recente lo ha sostituito.");
+        return;
+      }
+
+      console.error("Errore caricamento PAC:", message);
       setPacHistory(recentMonths);
-      return;
+    } finally {
+      if (pacHistoryLoadKeyRef.current === loadKey) {
+        pacHistoryLoadKeyRef.current = null;
+      }
     }
-
-    const mergedHistory = recentMonths.map((month) => {
-      const found = data?.find((row: any) => row.month_key === month.month);
-      return found ? { ...month, completed: !!found.completed } : month;
-    });
-
-    setPacHistory(mergedHistory);
-    localStorage.setItem(getPacStorageKey(currentUser.id, selectedPortfolio.key), JSON.stringify(mergedHistory));
   }
 
   async function savePacMonthToDb(monthKey: string, completed: boolean) {
@@ -2469,14 +4677,45 @@ const [authReady, setAuthReady] = useState(false);
       }
 
       if (savedPortfolio) {
-        setStep(paidUnlocked ? "dashboard" : "portfolio");
+        const savedStep = localStorage.getItem(`soldi-semplici-last-step-${currentUser.id}`) as AppStep | null;
+        const allowedPaidSteps: AppStep[] = ["portfolio", "guide", "dashboard", "awareness", "strumentis", "rebalance", "exit"];
+        const shouldAutoRoute = ["home", "quiz", "preview", "paywall", "onboarding"].includes(step);
+
+        if (paidUnlocked && savedStep && allowedPaidSteps.includes(savedStep)) {
+          setStep(savedStep);
+        } else if (shouldAutoRoute) {
+          setStep(paidUnlocked ? "dashboard" : "portfolio");
+        }
       }
     }
+  }
+
+  function hasCompletedQuizOrPlan() {
+    return Boolean(purchase.selectedPortfolio) || answers.every((answer) => answer !== -1);
+  }
+
+  function goToSafeHome() {
+    if (purchase.unlocked) {
+      setStep("dashboard");
+      return;
+    }
+
+    if (hasCompletedQuizOrPlan()) {
+      setStep("portfolio");
+      return;
+    }
+
+    setStep("home");
   }
 
   function startQuizFlow() {
     if (purchase.unlocked) {
       setShowRetakeWarning(true);
+      return;
+    }
+
+    if (hasCompletedQuizOrPlan()) {
+      setStep("portfolio");
       return;
     }
 
@@ -2527,7 +4766,7 @@ const [authReady, setAuthReady] = useState(false);
 
   function previousQuestion() {
     if (currentQuestion === 0) {
-      setStep("home");
+      goToSafeHome();
       return;
     }
     setCurrentQuestion((prev) => prev - 1);
@@ -2621,7 +4860,7 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   function updateCategory(category: StrumentiCategory) {
-    const firstStrumenti = strumentiLibrary[category][0];
+    const firstStrumenti = allInstrumentsByCategory[category]?.[0] || strumentiLibrary[category][0];
     setNewHolding({
       category,
       strumentiName: firstStrumenti.name,
@@ -2703,14 +4942,19 @@ const [authReady, setAuthReady] = useState(false);
     const actions: Record<string, { label: string; onClick: () => void } | null> = {
       broker: null,
       strumenti: null,
-      percentuali: { label: "Calcola quote PAC", onClick: () => goToDashboardSection("pac-mensile") },
+      percentuali: { label: "Calcola quote PAC", onClick: () => goToDashboardSection("aggiungi-investimento") },
       pac_start: { label: "Segna PAC del mese", onClick: () => goToDashboardSection("azione-del-mese") },
       controllo: { label: "Apri controllo mensile", onClick: () => goToDashboardSection("pac-mensile") },
       rebalance: { label: "Controlla ripartizione", onClick: () => goToDashboardSection("ripartizione-attuale") },
-      aggiorna_capitale: { label: "Aggiorna capitale", onClick: () => goToDashboardSection("obiettivo") },
+      aggiorna_capitale: { label: "Aggiorna capitale", onClick: () => goToDashboardSection("obiettivo-personale") },
     };
 
     return actions[id] || null;
+  }
+
+  function handleGuideToolAction(itemId: string, action: { label: string; onClick: () => void }) {
+    setGuideActionVisited((prev) => ({ ...prev, [itemId]: true }));
+    action.onClick();
   }
 
   function clearLocalProfileData(currentUser: User) {
@@ -2778,6 +5022,7 @@ const [authReady, setAuthReady] = useState(false);
       supabase.from("user_pac_history").delete().eq("user_id", user.id),
       supabase.from("user_checklist").delete().eq("user_id", user.id),
       supabase.from("user_goals").delete().eq("user_id", user.id),
+      supabase.from("user_custom_instruments").delete().eq("user_id", user.id),
     ]);
 
     // Seconda protezione per i test: se la DELETE del profilo non passa per policy/RLS,
@@ -2837,7 +5082,7 @@ const [authReady, setAuthReady] = useState(false);
                 Inizia a investire ogni mese, senza complicarti la vita.
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                Ti guidiamo passo passo: dal primo PAC alla gestione del portafoglio, fino alle strategie di uscita quando sarà il momento.
+                Ti guidiamo passo passo: dal primo Piano di Accumulo (PAC) alla gestione del portafoglio, fino alle strategie di uscita quando sarà il momento.
               </p>
 
               <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -2874,12 +5119,14 @@ const [authReady, setAuthReady] = useState(false);
                 </p>
               </div>
 
-              <div className="mt-6 flex rounded-2xl bg-slate-100 p-1">
+              <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
                 <button
                   type="button"
                   onClick={() => setAuthMode("register")}
-                  className={`flex-1 rounded-xl px-4 py-3 text-sm font-medium transition ${
-                    authMode === "register" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                  className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                    authMode === "register"
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "bg-white text-slate-600 hover:bg-slate-50"
                   }`}
                 >
                   Inizia gratis
@@ -2887,8 +5134,10 @@ const [authReady, setAuthReady] = useState(false);
                 <button
                   type="button"
                   onClick={() => setAuthMode("login")}
-                  className={`flex-1 rounded-xl px-4 py-3 text-sm font-medium transition ${
-                    authMode === "login" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                  className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                    authMode === "login"
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "bg-white text-slate-600 hover:bg-slate-50"
                   }`}
                 >
                   Ho già un account
@@ -2909,18 +5158,53 @@ const [authReady, setAuthReady] = useState(false);
 
                 <div>
                   <label className="text-sm font-medium text-slate-700">Password</label>
-                  <input
-                    type="password"
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    placeholder="Inserisci la password"
-                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
-                  />
+                  <div className="mt-2 relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      placeholder="Inserisci la password"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-12 outline-none transition focus:border-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-700"
+                    >
+                      {showPassword ? "Nascondi" : "Mostra"}
+                    </button>
+                  </div>
                 </div>
 
+                {authMode === "register" && (
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Conferma password</label>
+                    <div className="mt-2 relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={authConfirmPassword}
+                        onChange={(e) => setAuthConfirmPassword(e.target.value)}
+                        placeholder="Ripeti la password"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-12 outline-none transition focus:border-slate-400"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {authMessage && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                    {authMessage}
+                  <div
+                    className={`rounded-2xl border p-4 text-sm leading-6 ${
+                      authMessage.toLowerCase().includes("email") || authMessage.toLowerCase().includes("registrazione")
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm"
+                        : "border-red-200 bg-red-50 text-red-800"
+                    }`}
+                  >
+                    <p className="font-semibold">
+                      {authMessage.toLowerCase().includes("email") || authMessage.toLowerCase().includes("registrazione")
+                        ? "Controlla la tua email"
+                        : "Attenzione"}
+                    </p>
+                    <p className="mt-1">{authMessage}</p>
                   </div>
                 )}
 
@@ -2928,7 +5212,7 @@ const [authReady, setAuthReady] = useState(false);
                   type="button"
                   onClick={handleAuthSubmit}
                   disabled={authLoading}
-                  className="w-full rounded-xl bg-slate-900 px-6 py-3 font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                  className="w-full rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {authLoading ? "Attendi..." : authMode === "login" ? "Accedi" : "Crea account e inizia gratis"}
                 </button>
@@ -2936,7 +5220,7 @@ const [authReady, setAuthReady] = useState(false);
                 <button
                   type="button"
                   onClick={clearBrokenSession}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 active:scale-95"
                 >
                   Pulisci sessione locale
                 </button>
@@ -2954,15 +5238,35 @@ const [authReady, setAuthReady] = useState(false);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
+      <CelebrationOverlay
+        celebration={goalCelebration || celebration}
+        onClose={() => {
+          if (goalCelebration?.kind === "goal" && goalCelebration.dismissedKey) {
+            writePersonalGoalCelebrationState(goalCelebration.dismissedKey, {
+              target: goalTargetNumber,
+              wasReached: true,
+              confirmed: true,
+              droppedBelowAfterConfirmed: false,
+              lastCurrentValue: goalCurrentNumber,
+              confirmedAt: new Date().toISOString(),
+            });
+            setGoalCelebration(null);
+            return;
+          }
+
+          setCelebration(null);
+        }}
+      />
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
         <TopBar
           step={step}
           unlocked={purchase.unlocked}
           isProPlan={isProPlan}
           userEmail={user.email || ""}
-          onGoHome={() => setStep("home")}
+          onGoHome={goToSafeHome}
           onGoPortfolio={() => setStep("portfolio")}
           onGoGuide={() => setStep("guide")}
+          onGoAwareness={() => setStep("awareness")}
           onGoStrumentis={() => setStep("strumentis")}
           onGoDashboard={() => setStep("dashboard")}
           onGoRebalance={() => {
@@ -3003,16 +5307,16 @@ const [authReady, setAuthReady] = useState(false);
                   </p>
                 )}
               </div>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button
                   onClick={cancelProUpgrade}
-                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-xl border border-gray-300 bg-white px-5 py-3 font-semibold text-gray-800 transition hover:bg-gray-50 active:scale-95"
                 >
-                  Resto sul Core
+                  Resta sul Core
                 </button>
                 <button
                   onClick={() => unlockPlan("pro")}
-                  className="rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white transition hover:bg-slate-800"
+                  className="rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95"
                 >
                   {isCorePlan ? "Continua e paga " + proPriceToPay + " EUR" : "Continua con Pro"}
                 </button>
@@ -3059,18 +5363,18 @@ const [authReady, setAuthReady] = useState(false);
                 </div>
               </div>
 
-              <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white">
+              <div className="mt-8 rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-slate-50 p-6 shadow-sm">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">Percorso consigliato</p>
-                    <h2 className="mt-2 text-2xl font-bold tracking-tight">Una cosa alla volta: test, modello, primo PAC.</h2>
-                    <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Percorso consigliato</p>
+                    <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Una cosa alla volta: test, modello, primo PAC.</h2>
+                    <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">
                       Le funzioni restano disponibili, ma il percorso principale e sempre uno: capire il metodo e completare il primo investimento mensile.
                     </p>
                   </div>
                   <button
-                    onClick={() => purchase.unlocked ? setStep("dashboard") : startQuizFlow()}
-                    className="rounded-2xl bg-white px-6 py-4 text-base font-semibold text-slate-900 transition hover:bg-slate-100"
+                    onClick={() => purchase.unlocked ? setStep("dashboard") : hasCompletedQuizOrPlan() ? setStep("portfolio") : startQuizFlow()}
+                    className="rounded-xl bg-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
                   >
                     {purchase.unlocked ? "Vai alla checklist" : "Inizia il percorso guidato"}
                   </button>
@@ -3174,7 +5478,7 @@ const [authReady, setAuthReady] = useState(false);
                       onClick={() => selectAnswer(index)}
                       className={`w-full rounded-2xl border p-4 text-left transition ${
                         selected
-                          ? "border-slate-900 bg-slate-100 text-slate-900"
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm"
                           : "border-slate-200 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-50"
                       }`}
                     >
@@ -3187,14 +5491,14 @@ const [authReady, setAuthReady] = useState(false);
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
                 <button
                   onClick={previousQuestion}
-                  className="rounded-xl border border-slate-200 px-6 py-3 font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-xl border border-gray-300 bg-white px-5 py-3 font-semibold text-gray-800 transition hover:bg-gray-50 active:scale-95"
                 >
                   Indietro
                 </button>
                 <button
                   onClick={nextQuestion}
                   disabled={!hasAnsweredCurrent}
-                  className="rounded-xl bg-slate-900 px-6 py-3 font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {currentQuestion === questions.length - 1 ? "Vedi anteprima" : "Continua"}
                 </button>
@@ -3217,12 +5521,6 @@ const [authReady, setAuthReady] = useState(false);
                       </p>
                     </div>
 
-                    <button
-                      onClick={startFreePlan}
-                      className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 lg:mt-2"
-                    >
-                      Continua gratis e configura il PAC
-                    </button>
                   </div>
 
                   <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">{scoreResult.portfolio.intro}</p>
@@ -3264,6 +5562,14 @@ const [authReady, setAuthReady] = useState(false);
                 <p className="mt-2 text-sm leading-6 text-slate-600">{LEGAL_DISCLAIMER}</p>
               </div>
 
+              <div className="mt-8 flex justify-end">
+                <button
+                  onClick={startFreePlan}
+                  className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
+                >
+                  Continua gratis e configura il PAC
+                </button>
+              </div>
 
             </div>
           </section>
@@ -3280,7 +5586,7 @@ const [authReady, setAuthReady] = useState(false);
                     <span className="mt-2 block">Ora seguilo con un metodo.</span>
                   </h2>
                   <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
-                    Hai costruito il tuo modello gratuito. Ora puoi trasformarlo in una guida pratica da seguire ogni mese, con strumenti semplici per capire cosa fare, quando controllare il portafoglio e come preparare l'uscita.
+                    Hai già fatto il passo più difficile: hai costruito il tuo modello. Ora puoi trasformarlo in una guida pratica da seguire ogni mese, con strumenti semplici per capire cosa fare, quando controllare il portafoglio e come preparare l'uscita.
                   </p>
                   <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
                     <p className="text-sm font-bold text-amber-900">Il rischio non è partire. È abbandonare il metodo.</p>
@@ -3291,7 +5597,7 @@ const [authReady, setAuthReady] = useState(false);
                     </ul>
                   </div>
                 </div>
-                <div className="bg-slate-900 p-8 text-white md:p-10">
+                <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 p-8 text-white md:p-10 shadow-inner">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">La logica e semplice</p>
                   <div className="mt-6 space-y-5">
                     <div className="rounded-2xl bg-white/10 p-5">
@@ -3332,7 +5638,7 @@ const [authReady, setAuthReady] = useState(false);
                 </div>
                 <button
                   onClick={() => unlockPlan("core")}
-                  className="mt-8 w-full rounded-xl bg-slate-900 px-6 py-3 font-semibold text-white transition hover:bg-slate-800"
+                  className="mt-8 w-full rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
                 >
                   Inizia a gestire il tuo piano - 29 EUR/anno
                 </button>
@@ -3404,46 +5710,53 @@ const [authReady, setAuthReady] = useState(false);
 
         {step === "portfolio" && (
           <section className="space-y-6">
-            <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="overflow-hidden rounded-[2rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-slate-50 p-8 shadow-sm">
+              <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
                 <div className="max-w-3xl">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Modello assegnato</p>
-                      <h2 className="mt-3 text-4xl font-bold tracking-tight">{selectedPortfolio.title}</h2>
-                      <p className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-                        {selectedPortfolio.shortTitle} - {selectedPortfolio.badge}
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={async () => {
-                        if (purchase.unlocked) {
-                          setStep("guide");
-                        } else {
-                          await trackEvent("click_paywall", { source: "portfolio_top_cta" });
-                          setStep("paywall");
-                        }
-                      }}
-                      className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 lg:mt-2"
-                    >
-                      {purchase.unlocked ? "Vai alla guida operativa" : "Accedi alle funzioni complete"}
-                    </button>
+                  <div>
+                    <p className="inline-flex rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 shadow-sm">
+                      Modello assegnato gratuitamente
+                    </p>
+                    <h2 className="mt-4 text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">{selectedPortfolio.title}</h2>
+                    <p className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800">
+                      {selectedPortfolio.shortTitle} - {selectedPortfolio.badge}
+                    </p>
                   </div>
 
-                  <p className="mt-5 text-lg leading-8 text-slate-600">{selectedPortfolio.intro}</p>
+                  <p className="mt-6 text-lg leading-8 text-slate-700">{selectedPortfolio.intro}</p>
                   <p className="mt-4 text-base leading-7 text-slate-600">{selectedPortfolio.whyItFits}</p>
+
+                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-emerald-100 bg-white/80 p-4 shadow-sm">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Metodo</p>
+                      <p className="mt-1 text-sm font-bold text-slate-950">PAC mensile</p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-white/80 p-4 shadow-sm">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Focus</p>
+                      <p className="mt-1 text-sm font-bold text-slate-950">Continuità</p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-white/80 p-4 shadow-sm">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Obiettivo</p>
+                      <p className="mt-1 text-sm font-bold text-slate-950">Non improvvisare</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="w-full max-w-xl">
+                <div className="rounded-[2rem] border border-white bg-white/80 p-5 shadow-sm">
                   <PortfolioPieChart composition={selectedPortfolio.composition} />
                 </div>
               </div>
 
-              <div className="mt-8 grid gap-4 md:grid-cols-3">
-                <MetricCard label="Rendimento medio" value={selectedPortfolio.historical.average} />
-                <MetricCard label="Peggior drawdown" value={selectedPortfolio.historical.maxDrawdown} />
-                <MetricCard label="Tempo recupero" value={selectedPortfolio.historical.recovery} />
+              <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Cosa ricevi gratis</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Un modello educativo completo: composizione, rischio storico, punti di attenzione e simulazione del percorso.
+                </p>
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  <MetricCard label="Rendimento medio" value={selectedPortfolio.historical.average} />
+                  <MetricCard label="Peggior drawdown" value={selectedPortfolio.historical.maxDrawdown} />
+                  <MetricCard label="Tempo recupero" value={selectedPortfolio.historical.recovery} />
+                </div>
               </div>
 
               <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -3472,7 +5785,7 @@ const [authReady, setAuthReady] = useState(false);
                 <ol className="mt-4 space-y-3 text-sm leading-7 text-slate-700">
                   {selectedPortfolio.pacGuide.map((stepText, index) => (
                     <li key={stepText} className="flex gap-3">
-                      <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                      <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs font-semibold text-white shadow-sm">
                         {index + 1}
                       </span>
                       <span>{stepText}</span>
@@ -3553,7 +5866,7 @@ const [authReady, setAuthReady] = useState(false);
                   onClick={() => setStep("guide")}
                   className="mt-5 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
                 >
-                  Vai alla guida operativa
+                  Attiva il mio piano
                 </button>
               </div>
             )}
@@ -3573,6 +5886,22 @@ const [authReady, setAuthReady] = useState(false);
                 <MetricCard label="25 anni" value={selectedPortfolio.growthProjection.twentyFive} />
                 <MetricCard label="30 anni" value={selectedPortfolio.growthProjection.thirty} />
               </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={async () => {
+                  if (purchase.unlocked) {
+                    setStep("guide");
+                  } else {
+                    await trackEvent("click_paywall", { source: "portfolio_bottom_cta" });
+                    setStep("paywall");
+                  }
+                }}
+                className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
+              >
+                {purchase.unlocked ? "Attiva il mio piano" : "Accedi alle funzioni complete"}
+              </button>
             </div>
           </section>
         )}
@@ -3594,7 +5923,7 @@ const [authReady, setAuthReady] = useState(false);
                 </button>
                 <button
                   onClick={() => setStep("strumentis")}
-                  className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   Vai agli strumenti
                 </button>
@@ -3608,20 +5937,34 @@ const [authReady, setAuthReady] = useState(false);
                   <h3 className="text-2xl font-bold tracking-tight text-emerald-950">{nextGuideItem.title}</h3>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">{nextGuideItem.description}</p>
                   <div className="mt-5 flex flex-wrap gap-3">
-                    {nextGuideAction && (
-                      <button
-                        onClick={nextGuideAction.onClick}
-                        className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                      >
-                        {nextGuideAction.label}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => toggleChecklist(nextGuideItem.id)}
-                      className="rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
-                    >
-                      Segna come completato
-                    </button>
+                    {(() => {
+                      const hasRequiredAction = Boolean(nextGuideAction && !guideActionVisited[nextGuideItem.id]);
+                      const completeButtonClass = hasRequiredAction
+                        ? "rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        : "rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700";
+
+                      return (
+                        <>
+                          {nextGuideAction && (
+                            <button
+                              onClick={() => handleGuideToolAction(nextGuideItem.id, nextGuideAction)}
+                              className={hasRequiredAction
+                                ? "rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                                : "rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                              }
+                            >
+                              {nextGuideAction.label}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => toggleChecklist(nextGuideItem.id)}
+                            className={completeButtonClass}
+                          >
+                            Segna come completato
+                          </button>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               ) : (
@@ -3680,6 +6023,8 @@ const [authReady, setAuthReady] = useState(false);
                   onToggle={toggleChecklist}
                   getToolAction={getChecklistToolAction}
                   nextItemId={nextGuideItem?.id}
+                  actionVisited={guideActionVisited}
+                  onToolActionClick={handleGuideToolAction}
                 />
                 <ChecklistGroup
                   title="Mantenimento nel tempo"
@@ -3689,6 +6034,8 @@ const [authReady, setAuthReady] = useState(false);
                   onToggle={toggleChecklist}
                   getToolAction={getChecklistToolAction}
                   nextItemId={nextGuideItem?.id}
+                  actionVisited={guideActionVisited}
+                  onToolActionClick={handleGuideToolAction}
                 />
               </div>
 
@@ -3704,38 +6051,174 @@ const [authReady, setAuthReady] = useState(false);
         {step === "strumentis" && (
           <section className="space-y-6">
             <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <h2 className="text-3xl font-bold tracking-tight">Foglio strumenti con ISIN / esempi</h2>
-              <p className="mt-3 max-w-4xl text-slate-600">
-                Scegli un strumenti per ogni categoria presente nel tuo modello e rispetta le percentuali indicate.
-                Puoi usare anche strumenti diversi da quelli riportati qui, ma devi assicurarti che la tipologia resti la stessa.
-              </p>
-              <button
-                onClick={() => setStep("guide")}
-                className="mt-6 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Torna alla guida operativa
-              </button>
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-700">Strumenti</p>
+                  <h2 className="mt-3 text-3xl font-bold tracking-tight">Foglio strumenti con ISIN / esempi</h2>
+                  <p className="mt-3 max-w-4xl text-slate-600">
+                    Qui trovi gli strumenti educativi suggeriti dal programma e puoi aggiungere quelli personali che usi davvero. Gli strumenti personali salvati qui diventano disponibili anche nella Dashboard, dentro "Aggiungi investimento".
+                  </p>
+                </div>
+                <button
+                  onClick={() => setStep("guide")}
+                  className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700"
+                >
+                  Torna alla guida operativa
+                </button>
+              </div>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="h-3 w-3 rounded-full bg-emerald-600" />
+                    <div>
+                      <p className="text-sm font-bold text-emerald-900">Programma</p>
+                      <p className="text-sm text-emerald-800">Strumenti indicati dall'app come esempi educativi. Non sono eliminabili.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="h-3 w-3 rounded-full bg-indigo-600" />
+                    <div>
+                      <p className="text-sm font-bold text-indigo-900">Personale</p>
+                      <p className="text-sm text-indigo-800">Strumenti aggiunti da te. Puoi eliminarli e selezionarli nella Dashboard.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-indigo-200 bg-white p-6 shadow-sm ring-1 ring-indigo-100">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700">Strumento personale</p>
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Aggiungi uno strumento</h3>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    Inserisci solo strumenti che conosci e che appartengono alla categoria corretta. Questa funzione serve per personalizzare il piano, non per ricevere raccomandazioni di acquisto.
+                  </p>
+                </div>
+                <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-200">
+                  {customInstruments.length} personali
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.2fr_0.9fr_1.2fr_auto] lg:items-end">
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Categoria</label>
+                  <select
+                    value={customInstrumentDraft.category}
+                    onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, category: e.target.value as StrumentiCategory }))}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
+                  >
+                    {Object.keys(strumentiLibrary).map((category) => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Nome strumento</label>
+                  <input
+                    value={customInstrumentDraft.name}
+                    onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="Es. ETF personale"
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700">ISIN / ticker</label>
+                  <input
+                    value={customInstrumentDraft.isin}
+                    onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, isin: e.target.value }))}
+                    placeholder="Es. IE00..."
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Nota opzionale</label>
+                  <input
+                    value={customInstrumentDraft.note}
+                    onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, note: e.target.value }))}
+                    placeholder="Es. broker, TER, motivo"
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addCustomInstrument}
+                  className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700"
+                >
+                  Aggiungi
+                </button>
+              </div>
+
+              {customInstrumentMessage ? (
+                <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+                  {customInstrumentMessage}
+                </p>
+              ) : null}
             </div>
 
             <div className="grid gap-4">
-              {Object.entries(strumentiLibrary).map(([category, rows]) => (
+              {Object.entries(allInstrumentsByCategory).map(([category, rows]) => (
                 <div key={category} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h3 className="text-xl font-semibold">{category}</h3>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <h3 className="text-xl font-semibold">{category}</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {rows.filter((row) => row.source === "program").length} programma · {rows.filter((row) => row.source === "custom").length} personali
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">Programma</span>
+                      <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-indigo-700 ring-1 ring-indigo-200">Personale</span>
+                    </div>
+                  </div>
+
                   <div className="mt-4 overflow-x-auto">
                     <table className="min-w-full border-collapse text-sm">
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-50">
-                          <th className="px-4 py-3 text-left font-semibold">Strumenti</th>
-                          <th className="px-4 py-3 text-left font-semibold">ISIN / esempi</th>
+                          <th className="px-4 py-3 text-left font-semibold">Strumento</th>
+                          <th className="px-4 py-3 text-left font-semibold">ISIN / ticker</th>
+                          <th className="px-4 py-3 text-left font-semibold">Origine</th>
+                          <th className="px-4 py-3 text-left font-semibold">Nota</th>
+                          <th className="px-4 py-3 text-right font-semibold">Azioni</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {rows.map((row) => (
-                          <tr key={`${category}-${row.isin}-${row.name}`} className="border-b border-slate-100">
-                            <td className="px-4 py-3">{row.name}</td>
-                            <td className="px-4 py-3 font-mono text-xs">{row.isin}</td>
-                          </tr>
-                        ))}
+                        {rows.map((row) => {
+                          const isCustom = row.source === "custom";
+                          return (
+                            <tr key={`${row.source}-${row.id || row.isin}-${row.name}`} className="border-b border-slate-100">
+                              <td className="px-4 py-3 font-medium text-slate-900">{row.name}</td>
+                              <td className="px-4 py-3 font-mono text-xs text-slate-600">{row.isin}</td>
+                              <td className="px-4 py-3">
+                                <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ring-1 ${
+                                  isCustom
+                                    ? "bg-indigo-50 text-indigo-700 ring-indigo-200"
+                                    : "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                                }`}>
+                                  {isCustom ? "Personale" : "Programma"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-slate-500">{row.note || "—"}</td>
+                              <td className="px-4 py-3 text-right">
+                                {isCustom && row.id ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteCustomInstrument(row.id!)}
+                                    className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
+                                  >
+                                    Elimina
+                                  </button>
+                                ) : (
+                                  <span className="text-xs font-medium text-slate-400">Bloccato</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -3882,114 +6365,1498 @@ const [authReady, setAuthReady] = useState(false);
                       completeOnboarding();
                     }
                   }}
-                  className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
                 >
-                  {onboardingStep < 2 ? "Continua" : "Vai alla guida operativa"}
+                  {onboardingStep < 2 ? "Continua" : "Attiva il mio piano"}
                 </button>
               </div>
             </div>
           </section>
         )}
 
-        {step === "dashboard" && (
+
+        {step === "awareness" && (
           <section className="space-y-6">
-            <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-3xl">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Percorso guidato</p>
-                  <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Il tuo percorso finanziario guidato</h2>
-                  <p className="mt-4 text-base leading-7 text-slate-600">
-                    Numeri, abitudini e obiettivi nello stesso posto: uno strumento educativo per seguire il metodo nel tempo.
+            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-sm">
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-700">Pacchetto Core</p>
+              <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold tracking-tight text-slate-950 md:text-5xl">Consapevolezza finanziaria</h2>
+                  <p className="mt-4 max-w-4xl text-base leading-7 text-slate-700">
+                    Una sezione pratica per liberare denaro, evitare errori costosi e proteggerti dalle truffe. Non giudica le scelte: mostra costo reale, rischi e alternative.
                   </p>
                 </div>
-
-                <div className="grid w-full max-w-2xl gap-4 md:grid-cols-3">
-                  <PremiumStatCard
-                    eyebrow="Capitale"
-                    value={formatEuro(totalInvested)}
-                    note="Totale registrato"
-                  />
-                  <PremiumStatCard
-                    eyebrow="Modello"
-                    value={selectedPortfolio.shortTitle}
-                    note={selectedPortfolio.badge}
-                  />
-                  <PremiumStatCard
-                    eyebrow="Continuita"
-                    value={`${currentStreak} mesi`}
-                    note="PAC mantenuto"
-                  />
+                <div className="rounded-2xl border border-emerald-200 bg-white p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Risultati tracciati</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">{formatEuro(monthlyFreedByAwareness)}/mese</p>
+                  <p className="mt-1 text-sm text-slate-600">{formatEuro(yearlyFreedByAwareness)} potenziale annuo liberato</p>
                 </div>
               </div>
             </div>
 
-            <div id="prima-volta-qui" className="scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="grid gap-3 md:grid-cols-4">
+              {[
+                { key: "risparmio" as AwarenessTab, title: "Risparmio", subtitle: "Sprechi invisibili" },
+                { key: "auto" as AwarenessTab, title: "Auto", subtitle: "Rata, maxi rata e costo reale" },
+                { key: "mutuo" as AwarenessTab, title: "Mutuo", subtitle: "Rata, interessi e stress test" },
+                { key: "truffe" as AwarenessTab, title: "Anti-truffe", subtitle: "Test rapido di rischio" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setAwarenessTab(tab.key)}
+                  className={`rounded-2xl border p-5 text-left transition ${
+                    awarenessTab === tab.key
+                      ? "border-emerald-300 bg-emerald-50 shadow-sm"
+                      : "border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <p className="font-semibold text-slate-950">{tab.title}</p>
+                  <p className="mt-1 text-sm leading-5 text-slate-600">{tab.subtitle}</p>
+                </button>
+              ))}
+            </div>
+
+            {awarenessTab === "risparmio" && (
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-sm">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Scheda risparmio</p>
+                      <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Libera soldi ogni mese, senza stravolgere la vita</h3>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                        Qui trovi azioni semplici e concrete: meno sprechi, meno costi invisibili, piu denaro disponibile per PAC, obiettivi e serenita. Scegli 2 o 3 azioni sostenibili: la costanza conta piu dei tagli estremi.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-200 bg-white p-4 text-sm shadow-sm">
+                      <p className="font-semibold text-slate-950">Risparmio potenziale liberato</p>
+                      <p className="mt-1 text-2xl font-bold text-emerald-700">{formatEuro(monthlyFreedByAwareness)}/mese</p>
+                      <p className="mt-1 text-slate-600">{formatEuro(yearlyFreedByAwareness)} all'anno se mantieni le azioni completate.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">Da dove iniziare</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        Le card sono ordinate per probabilita di risultato: prima le azioni facili, ricorrenti e con buon impatto. Non devi farle tutte: scegli quelle piu adatte alla tua situazione.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                      <span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700 ring-1 ring-emerald-200">Primary = azione da fare</span>
+                      <span className="rounded-full bg-slate-50 px-3 py-2 text-slate-600 ring-1 ring-slate-200">Secondary = azione gia completata</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[2rem] border border-emerald-200 bg-gradient-to-br from-white via-emerald-50/40 to-white p-5 shadow-sm">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Spesa intelligente</p>
+                      <h4 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Prepara la lista prima di entrare al supermercato</h4>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                        Parti da prodotti comuni, aggiungi quello che ti serve davvero e spunta le voci mentre fai la spesa. Una lista chiara riduce acquisti impulsivi, doppioni e sprechi.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsSmartShoppingOpen((prev) => !prev)}
+                      className={`shrink-0 rounded-xl px-5 py-3 text-sm font-bold transition ${isSmartShoppingOpen ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}
+                    >
+                      {isSmartShoppingOpen ? "Richiudi lista" : "Apri Spesa intelligente"}
+                    </button>
+                  </div>
+
+                  {!isSmartShoppingOpen && (
+                    <div className="mt-5 rounded-2xl border border-emerald-100 bg-white/80 p-4 text-sm leading-6 text-slate-600">
+                      Apri il menu quando vuoi preparare o aggiornare la lista. Quando non ti serve, resta chiusa e non occupa spazio nella scheda Risparmio.
+                    </div>
+                  )}
+
+                  {isSmartShoppingOpen && (
+                    <div className="mt-5">
+                    <div className="grid min-w-[260px] grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-2">
+                      <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Acquistati</p>
+                        <p className="mt-1 text-xl font-black text-slate-950">{shoppingCheckedCount}/{shoppingItems.length}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Da comprare</p>
+                        <p className="mt-1 text-xl font-black text-slate-950">{shoppingRemainingCount}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Totale stimato</p>
+                        <p className="mt-1 text-xl font-black text-emerald-700">{formatEuro(shoppingTotalEstimated)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Extra</p>
+                        <p className="mt-1 text-xl font-black text-indigo-700">{formatEuro(shoppingExtraEstimated)}</p>
+                      </div>
+                    </div>
+
+
+                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                    <strong>Prima regola anti-spreco:</strong> controlla frigo e dispensa prima di aggiungere prodotti. Se lo hai gia in casa, non comprarlo di nuovo.
+                  </div>
+
+                  <div className="mt-5 grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h5 className="text-lg font-black text-slate-950">Prodotti comuni</h5>
+                          <p className="mt-1 text-sm leading-6 text-slate-600">Aggiungi rapidamente prodotti senza marche. Puoi modificare la lista con prodotti personali quando vuoi.</p>
+                        </div>
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">Base</span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {commonShoppingProducts.map((product) => (
+                          <button
+                            key={`${product.category}-${product.name}`}
+                            onClick={() => addShoppingPreset(product)}
+                            disabled={shoppingLoading}
+                            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-50"
+                          >
+                            + {product.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <h5 className="text-lg font-black text-slate-950">Aggiungi prodotto</h5>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">Usalo per prodotti specifici della tua famiglia o per voci che non trovi tra quelle comuni.</p>
+                      <div className="mt-4 grid gap-3 md:grid-cols-[1.1fr_0.8fr_0.6fr]">
+                        <label className="text-sm font-semibold text-slate-700">
+                          Nome prodotto
+                          <input
+                            value={shoppingDraft.name}
+                            onChange={(event) => setShoppingDraft((prev) => ({ ...prev, name: event.target.value }))}
+                            placeholder="Es. caffe, pannolini, detersivo"
+                            className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                          />
+                        </label>
+                        <label className="text-sm font-semibold text-slate-700">
+                          Categoria
+                          <select
+                            value={shoppingDraft.category}
+                            onChange={(event) => setShoppingDraft((prev) => ({ ...prev, category: event.target.value as ShoppingCategory }))}
+                            className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                          >
+                            {shoppingCategories.map((category) => (
+                              <option key={category} value={category}>{category}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-sm font-semibold text-slate-700">
+                          Prezzo stimato
+                          <input
+                            value={shoppingDraft.estimatedPrice}
+                            onChange={(event) => setShoppingDraft((prev) => ({ ...prev, estimatedPrice: event.target.value }))}
+                            inputMode="decimal"
+                            placeholder="0"
+                            className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                          />
+                        </label>
+                      </div>
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <label className="inline-flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
+                          <input
+                            type="checkbox"
+                            checked={shoppingDraft.isExtra}
+                            onChange={(event) => setShoppingDraft((prev) => ({ ...prev, isExtra: event.target.checked }))}
+                            className="h-4 w-4 rounded border-indigo-300 text-indigo-600"
+                          />
+                          Segnalo come extra/sfizio
+                        </label>
+                        <button
+                          onClick={addCustomShoppingItem}
+                          disabled={shoppingLoading || !shoppingDraft.name.trim()}
+                          className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Aggiungi prodotto
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h5 className="text-lg font-black text-slate-950">La tua lista attiva</h5>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                          Spunta ogni voce quando la metti nel carrello. Gli extra restano evidenziati: non sono vietati, ma e meglio vederli separati.
+                        </p>
+                      </div>
+                      {shoppingItems.length > 0 && (
+                        <button
+                          onClick={() => setShowShoppingResetConfirm(true)}
+                          className={`rounded-xl px-5 py-3 text-sm font-bold transition ${shoppingAllChecked ? "bg-emerald-600 text-white hover:bg-emerald-700" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+                        >
+                          {shoppingAllChecked ? "Prepara nuova lista" : "Reset lista"}
+                        </button>
+                      )}
+                    </div>
+
+                    {shoppingMessage && (
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-700">{shoppingMessage}</div>
+                    )}
+
+                    {shoppingItems.length === 0 ? (
+                      <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm leading-6 text-slate-600">
+                        La lista e vuota. Aggiungi qualche prodotto comune oppure crea un prodotto personale.
+                      </div>
+                    ) : (
+                      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+                        {shoppingItems.map((item) => (
+                          <div key={item.id} className={`flex items-center gap-3 rounded-2xl border p-4 transition ${item.isChecked ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
+                            <button
+                              onClick={() => toggleShoppingItem(item)}
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-sm font-black transition ${item.isChecked ? "border-emerald-500 bg-emerald-600 text-white" : "border-slate-300 bg-white text-slate-400 hover:border-emerald-300"}`}
+                              aria-label={item.isChecked ? "Segna come non acquistato" : "Segna come acquistato"}
+                            >
+                              {item.isChecked ? "✓" : ""}
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className={`font-bold ${item.isChecked ? "text-emerald-900 line-through decoration-emerald-500/60" : "text-slate-950"}`}>{item.name}</p>
+                                <span className={`rounded-full px-2 py-1 text-[11px] font-bold ring-1 ${item.isExtra ? "bg-indigo-50 text-indigo-700 ring-indigo-200" : "bg-emerald-50 text-emerald-700 ring-emerald-200"}`}>
+                                  {item.isExtra ? "Extra" : "Necessario"}
+                                </span>
+                                {item.isCustom && <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 ring-1 ring-slate-200">Personale</span>}
+                              </div>
+                              <p className="mt-1 text-xs text-slate-500">{item.category} · stimato {formatEuro(item.estimatedPrice)}</p>
+                            </div>
+                            <button
+                              onClick={() => deleteShoppingItem(item)}
+                              className="rounded-xl px-3 py-2 text-xs font-bold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                            >
+                              Rimuovi
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                    </div>
+                  )}
+                </div>
+
+                {showShoppingResetConfirm && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-600">Conferma reset</p>
+                      <h4 className="mt-2 text-2xl font-black tracking-tight text-slate-950">
+                        {shoppingAllChecked ? "Preparare una nuova lista?" : "Vuoi davvero azzerare la lista?"}
+                      </h4>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">
+                        {shoppingAllChecked
+                          ? "Tutte le voci risultano acquistate. Confermando, svuoti la lista e puoi prepararne una nuova."
+                          : "Ci sono ancora prodotti non completati. Confermando, perderai tutta la lista attiva."}
+                      </p>
+                      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                        <button
+                          onClick={() => setShowShoppingResetConfirm(false)}
+                          className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Annulla
+                        </button>
+                        <button
+                          onClick={resetShoppingList}
+                          disabled={shoppingLoading}
+                          className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          Conferma reset
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {sortedAwarenessActions.map((action, index) => {
+                    const done = !!completedAwarenessActions[action.id];
+                    return (
+                      <div key={action.id} className={`rounded-3xl border p-5 shadow-sm transition ${done ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white hover:border-emerald-200 hover:shadow-md"}`}>
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">#{index + 1}</span>
+                              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">{action.area}</span>
+                              {done && <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">Completata</span>}
+                            </div>
+                            <h4 className="mt-3 text-lg font-bold text-slate-950">{action.title}</h4>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">{action.why}</p>
+                          </div>
+                          <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-4 text-sm">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Impatto stimato</p>
+                            <p className="mt-1 text-lg font-bold text-slate-950">{formatEuro(action.estimatedSavingMonthly)}/mese</p>
+                            <p className="mt-1 text-slate-600">{formatEuro(action.estimatedSavingYearly)}/anno</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+                          <div className="rounded-2xl border border-slate-200 bg-white p-3">Tempo: <strong>{action.minutes} min</strong></div>
+                          <div className="rounded-2xl border border-slate-200 bg-white p-3">Difficolta: <strong>{action.difficulty}/5</strong></div>
+                          <div className="rounded-2xl border border-slate-200 bg-white p-3">Sacrificio: <strong>{action.sacrifice}/5</strong></div>
+                        </div>
+
+                        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm font-semibold text-slate-950">Come metterla in pratica</p>
+                          <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+                            {action.steps.map((stepText, stepIndex) => (
+                              <li key={stepText} className="flex gap-2">
+                                <span className="font-semibold text-emerald-700">{stepIndex + 1}.</span>
+                                <span>{stepText}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          {!done ? (
+                            <button
+                              onClick={() =>
+                                setCompletedAwarenessActions((prev) => ({
+                                  ...prev,
+                                  [action.id]: true,
+                                }))
+                              }
+                              className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                            >
+                              Segna come fatto
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() =>
+                                setCompletedAwarenessActions((prev) => ({
+                                  ...prev,
+                                  [action.id]: false,
+                                }))
+                              }
+                              className="rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                            >
+                              Azione completata
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {awarenessTab === "auto" && (
+              <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+                <div className="space-y-4">
+                  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Motore auto</p>
+                    <h3 className="mt-2 text-2xl font-bold tracking-tight">Quanto ti costa davvero l'auto?</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Inserisci i dati del preventivo. La rata e importante, ma il TAEG aiuta a controllare se il costo del finanziamento e coerente con quello che ti e stato comunicato.
+                    </p>
+
+                    <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+                      <strong>Cos'e il TAEG?</strong> E il costo annuo del finanziamento. Include interessi e diversi costi collegati, come pratiche, incasso rata o servizi obbligatori. Se hai gia la rata, il TAEG serve come controllo intelligente.
+                    </div>
+
+                    <div className="mt-5 space-y-5">
+                      <div>
+                        <p className="text-sm font-bold text-slate-950">1. Dati del finanziamento</p>
+                        <div className="mt-3 grid gap-4 md:grid-cols-2">
+                          {[
+                            ["Prezzo auto", vehiclePrice, setVehiclePrice, "Prezzo totale dell'auto dopo eventuale sconto indicato nel preventivo."],
+                            ["Anticipo", vehicleDownPayment, setVehicleDownPayment, "Quanto paghi subito."],
+                            ["Importo totale del credito", vehicleTotalCredit, setVehicleTotalCredit, "Se il preventivo lo indica, inseriscilo: rende il calcolo piu vicino alla realta. Altrimenti lascia vuoto."],
+                            ["Rata mensile dichiarata", vehicleMonthlyPayment, setVehicleMonthlyPayment, "La rata che vedi nel preventivo."],
+                            ["TAN annuo (%)", vehicleTan, setVehicleTan, "Serve soprattutto se non c'e maxi rata finale. Se c'e maxi rata, il dato finale inserito rende il calcolo piu concreto."],
+                            ["TAEG annuo (%)", vehicleTaeg, setVehicleTaeg, "Dato spesso scritto in piccolo: usalo per controllare il costo reale del finanziamento."],
+                            ["Durata mesi", vehicleDurationMonths, setVehicleDurationMonths, "Per quanti mesi paghi. Se c'e maxi rata finale, includi anche il mese finale."],
+                            ["Maxi rata finale", vehicleBalloonPayment, setVehicleBalloonPayment, "Se non c'e, scrivi 0."],
+                          ].map(([label, value, setter, hint]) => (
+                            <label key={String(label)} className="text-sm font-medium text-slate-700">
+                              {label as string}
+                              <input
+                                value={value as string}
+                                onChange={(e) => (setter as (value: string) => void)(e.target.value)}
+                                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                              />
+                              <span className="mt-1 block text-xs leading-5 text-slate-500">{hint as string}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <label className="text-sm font-medium text-slate-700">
+                            Offerta con rottamazione?
+                            <select
+                              value={vehicleScrappage}
+                              onChange={(e) => setVehicleScrappage(e.target.value)}
+                              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
+                            >
+                              <option value="no">No</option>
+                              <option value="si">Si</option>
+                            </select>
+                          </label>
+                          <p className="mt-2 text-xs leading-5 text-slate-500">
+                            Se scegli Si, l'app ti ricordera di leggere lo sconto come condizione dell'offerta, non come costo cancellato.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-bold text-slate-950">2. Costi ricorrenti</p>
+                        <div className="mt-3 grid gap-4 md:grid-cols-2">
+                          {[
+                            ["Reddito netto mensile", vehicleMonthlyIncome, setVehicleMonthlyIncome, "Serve per capire quanto pesa l'auto sul bilancio."],
+                            ["Assicurazione annua", vehicleInsuranceYearly, setVehicleInsuranceYearly, "RC auto e coperture principali."],
+                            ["Manutenzione annua", vehicleMaintenanceYearly, setVehicleMaintenanceYearly, "Tagliandi, piccoli interventi, imprevisti."],
+                            ["Bollo annuo", vehicleRoadTaxYearly, setVehicleRoadTaxYearly, "Se non lo paghi, scrivi 0."],
+                            ["Gomme / revisione annue", vehicleTyresYearly, setVehicleTyresYearly, "Stima semplice dei costi periodici."],
+                          ].map(([label, value, setter, hint]) => (
+                            <label key={String(label)} className="text-sm font-medium text-slate-700">
+                              {label as string}
+                              <input
+                                value={value as string}
+                                onChange={(e) => (setter as (value: string) => void)(e.target.value)}
+                                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                              />
+                              <span className="mt-1 block text-xs leading-5 text-slate-500">{hint as string}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-bold text-slate-950">3. Uso dell'auto</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">Questi dati servono soprattutto se il contratto ha valore futuro garantito o limiti chilometrici.</p>
+                        <div className="mt-3 grid gap-4 md:grid-cols-2">
+                          {[
+                            ["Km limite annui", vehicleKmLimit, setVehicleKmLimit],
+                            ["Km previsti annui", vehicleKmExpected, setVehicleKmExpected],
+                          ].map(([label, value, setter]) => (
+                            <label key={String(label)} className="text-sm font-medium text-slate-700">
+                              {label as string}
+                              <input
+                                value={value as string}
+                                onChange={(e) => (setter as (value: string) => void)(e.target.value)}
+                                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className={`rounded-3xl border p-6 shadow-sm ${vehiclePaymentCheckTone === "amber" ? "border-amber-200 bg-amber-50" : vehiclePaymentCheckTone === "emerald" ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
+                    <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${vehiclePaymentCheckTone === "amber" ? "text-amber-700" : vehiclePaymentCheckTone === "emerald" ? "text-emerald-700" : "text-slate-500"}`}>Controllo rata e TAEG</p>
+                    <h4 className="mt-2 text-xl font-bold text-slate-950">{vehiclePaymentCheckTitle}</h4>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{vehiclePaymentCheckMessage}</p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      <div className="rounded-2xl bg-white/80 p-4 ring-1 ring-white">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Rata dichiarata</p>
+                        <p className="mt-1 text-lg font-bold text-slate-950">{vehicleHasDeclaredPayment ? `${formatEuro(vehicle.monthlyPayment)}/mese` : "Non inserita"}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/80 p-4 ring-1 ring-white">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Rata da TAEG</p>
+                        <p className="mt-1 text-lg font-bold text-slate-950">{vehicleHasTaegEstimate ? `circa ${formatEuro(vehicleEstimatedMonthlyPaymentFromTaeg)}/mese` : "Non stimabile"}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/80 p-4 ring-1 ring-white">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Differenza</p>
+                        <p className="mt-1 text-lg font-bold text-slate-950">{vehicleHasDeclaredPayment && vehicleHasTaegEstimate ? formatEuro(vehicleMonthlyPaymentDifferenceRounded) : "-"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`rounded-3xl border p-6 shadow-sm ${vehicleFirstMonthCapitalRatio > 0 && vehicleFirstMonthCapitalRatio < 0.4 ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Dentro la rata</p>
+                    <h4 className="mt-2 text-xl font-bold text-slate-950">Quanto della rata sta pagando davvero l'auto?</h4>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{vehicleInsidePaymentMessage}</p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      <div className="rounded-2xl bg-white/80 p-4 ring-1 ring-white">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Interessi e costi medi</p>
+                        <p className="mt-1 text-lg font-bold text-slate-950">{vehicleInsidePaymentAvailable ? `${formatEuro(vehicleInsidePaymentInterestAndCosts)}/mese` : "Non stimabile"}</p>
+                        <p className="mt-1 text-xs text-slate-500">{vehicleInsidePaymentAvailable ? `${Math.round(vehicleInsidePaymentInterestRatio * 100)}% della rata` : "Inserisci rata e importo"}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/80 p-4 ring-1 ring-white">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Quota capitale media</p>
+                        <p className="mt-1 text-lg font-bold text-slate-950">{vehicleInsidePaymentAvailable ? `${formatEuro(vehicleInsidePaymentCapital)}/mese` : "Non stimabile"}</p>
+                        <p className="mt-1 text-xs text-slate-500">{vehicleInsidePaymentAvailable ? `${Math.round(vehicleInsidePaymentCapitalRatio * 100)}% della rata` : "Riduce il debito sull'auto"}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/80 p-4 ring-1 ring-white">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Capitale ancora da gestire</p>
+                        <p className="mt-1 text-lg font-bold text-slate-950">{vehicleInsidePaymentAvailable ? formatEuro(vehicleDebtAfterInstallmentsEstimate) : "Non stimabile"}</p>
+                        <p className="mt-1 text-xs text-slate-500">Alla scadenza del periodo</p>
+                      </div>
+                    </div>
+                    <p className="mt-4 text-xs leading-5 text-slate-500">
+                      Stima educativa: con maxi rata finale usiamo il valore finale inserito per stimare quanto capitale viene davvero ridotto dalle rate mensili. Il piano ufficiale puo distinguere in modo diverso interessi, spese, servizi e imposte: per il dettaglio preciso serve il piano di ammortamento del finanziamento.
+                    </p>
+                  </div>
+
+                  {(vehicleBalloonExplanation || vehicleScrappageMessage) && (
+                    <div className="space-y-3">
+                      {vehicleBalloonExplanation && (
+                        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+                          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">Maxi rata finale</p>
+                          <h4 className="mt-2 text-xl font-bold text-amber-950">La rata mensile non racconta tutto</h4>
+                          <p className="mt-2 text-sm leading-6 text-amber-900">{vehicleBalloonExplanation}</p>
+                        </div>
+                      )}
+                      {vehicleScrappageMessage && (
+                        <div className="rounded-3xl border border-indigo-200 bg-indigo-50 p-6 shadow-sm">
+                          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-700">Rottamazione</p>
+                          <h4 className="mt-2 text-xl font-bold text-indigo-950">Sconto utile, condizioni da leggere bene</h4>
+                          <p className="mt-2 text-sm leading-6 text-indigo-900">{vehicleScrappageMessage}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {vehicleHasBalloonPayment && (
+                    <div className="rounded-3xl border border-orange-200 bg-orange-50 p-6 shadow-sm">
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-orange-700">Se rifinanzi la maxi rata</p>
+                      <h4 className="mt-2 text-xl font-bold text-orange-950">La rata finale puo diventare un secondo finanziamento</h4>
+                      <p className="mt-2 text-sm leading-6 text-orange-900">
+                        {vehicleRefinanceMessage}
+                      </p>
+
+                      <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        <label className="text-sm font-medium text-orange-950">
+                          Durata nuovo finanziamento (mesi)
+                          <input
+                            value={vehicleRefinanceMonths}
+                            onChange={(e) => setVehicleRefinanceMonths(e.target.value)}
+                            className="mt-2 w-full rounded-xl border border-orange-200 bg-white px-4 py-3 outline-none transition focus:border-orange-400"
+                          />
+                          <span className="mt-2 block text-xs leading-5 text-orange-800">Per quanti mesi pensi di rifinanziare la maxi rata.</span>
+                        </label>
+                        <label className="text-sm font-medium text-orange-950">
+                          Tasso stimato nuovo finanziamento (%)
+                          <input
+                            value={vehicleRefinanceRate}
+                            onChange={(e) => setVehicleRefinanceRate(e.target.value)}
+                            className="mt-2 w-full rounded-xl border border-orange-200 bg-white px-4 py-3 outline-none transition focus:border-orange-400"
+                          />
+                          <span className="mt-2 block text-xs leading-5 text-orange-800">Usa un valore prudente: un nuovo finanziamento potrebbe avere condizioni diverse dal primo.</span>
+                        </label>
+                      </div>
+
+                      <div className="mt-5 grid gap-3 md:grid-cols-3">
+                        <div className="rounded-2xl bg-white/85 p-4 ring-1 ring-orange-100">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Importo da rifinanziare</p>
+                          <p className="mt-1 text-lg font-bold text-orange-950">{formatEuro(vehicleRefinance.amount)}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white/85 p-4 ring-1 ring-orange-100">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Nuova rata stimata</p>
+                          <p className="mt-1 text-lg font-bold text-orange-950">{vehicleRefinanceAvailable ? `${formatEuro(vehicleRefinanceMonthlyPayment)}/mese` : "Non stimabile"}</p>
+                          {vehicleRefinanceAvailable && vehicleHasDeclaredPayment && (
+                            <p className="mt-1 text-xs text-orange-800">
+                              {vehicleRefinancePaymentChange > 0
+                                ? `Circa ${formatEuro(vehicleRefinancePaymentChange)} in piu rispetto alla rata iniziale.`
+                                : `Circa ${formatEuro(Math.abs(vehicleRefinancePaymentChange))} in meno rispetto alla rata iniziale.`}
+                            </p>
+                          )}
+                        </div>
+                        <div className="rounded-2xl bg-white/85 p-4 ring-1 ring-orange-100">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Interessi/costi stimati</p>
+                          <p className="mt-1 text-lg font-bold text-orange-950">{vehicleRefinanceAvailable ? formatEuro(vehicleRefinanceExtraCost) : "Non stimabile"}</p>
+                          <p className="mt-1 text-xs text-orange-800">Sul secondo finanziamento</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 rounded-2xl border border-orange-200 bg-white/80 p-4 text-sm leading-6 text-orange-950">
+                        <strong>Messaggio chiave:</strong> se non hai la liquidita per pagare la rata finale, la rata bassa iniziale potrebbe trasformarsi in un nuovo impegno mensile. Questa stima non sostituisce un preventivo ufficiale, ma ti aiuta a capire se la maxi rata finale e davvero sostenibile per te.
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Lettura costo reale</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Questa non e una perizia: distingue il costo mensile che percepisci oggi dal costo reale stimato, cioe quanto pesa l'auto se consideri anche anticipo, costi ricorrenti e maxi rata finale.
+                    </p>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      <PremiumStatCard eyebrow="Costo mensile percepito" value={formatEuro(vehicleCashMonthlyCost)} note="Rata + costi ricorrenti che senti ogni mese" />
+                      <PremiumStatCard eyebrow="Costo reale mensile stimato" value={formatEuro(vehicleRealMonthlyCost)} note={vehicleHasBalloonPayment ? `Include anche circa ${formatEuro(vehicleBalloonMonthlyReserve)}/mese di maxi rata spalmata` : "Include anticipo e costi sul periodo"} />
+                      <PremiumStatCard eyebrow="Costo reale annuo" value={formatEuro(vehicleRealYearlyCost)} note="Quanto pesa in un anno" />
+                      <PremiumStatCard eyebrow="Maxi rata accantonata" value={vehicleHasBalloonPayment ? `${formatEuro(vehicleBalloonMonthlyReserve)}/mese` : "0 €"} note="Quota da considerare se vuoi prepararti alla scadenza" />
+                      <PremiumStatCard eyebrow="Totale finanziamento" value={formatEuro(vehicleTotalPaidFinancing)} note={`Extra vs prezzo: ${formatEuro(vehicleExtraCost)}${vehicle.totalCredit > 0 ? " · credito usato nel calcolo" : ""}`} />
+                      <PremiumStatCard eyebrow="Costi di utilizzo" value={`${formatEuro(vehicleRunningCostsMonthly)}/mese`} note={`Assicurazione, bollo, gomme e manutenzione: ${formatEuro(vehicleHiddenCosts)} nel periodo`} />
+                      <PremiumStatCard eyebrow="Anticipo spalmato" value={formatEuro(vehicleDownPaymentMonthlyWeight)} note="Non esce ogni mese, ma pesa nel costo complessivo" />
+                      <PremiumStatCard eyebrow="Impatto sul reddito" value={`${Math.round(vehicleIncomeRatio * 100)}%`} note="Quanto reddito mensile assorbe l'auto" />
+                    </div>
+                    <div className="mt-5 space-y-3">
+                      {vehicleAlerts.length ? vehicleAlerts.map((alert) => (
+                        <div key={alert} className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
+                          {alert}
+                        </div>
+                      )) : (
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-900">
+                          Nessun alert importante: continua comunque a confrontare alternative, TAEG e condizioni.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h4 className="text-xl font-bold">Scenari da valutare</h4>
+                    <div className="mt-4 grid gap-3">
+                      {[
+                        ["Paghi la maxi rata", "Diventi proprietario, ma devi avere liquidita finale."],
+                        ["Rifinanzi la maxi rata", "Paghi ancora interessi sulla stessa auto."],
+                        ["Cambi auto", "Chiudi un contratto e ne riapri un altro: attenzione al ciclo di debito."],
+                        ["Auto meno costosa", "Stessa mobilita con piu capitale libero per emergenze e PAC."],
+                      ].map(([title, description]) => (
+                        <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="font-semibold text-slate-950">{title}</p>
+                          <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {awarenessTab === "mutuo" && (
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Motore mutuo</p>
+                  <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <h3 className="text-2xl font-bold tracking-tight text-slate-950">Capisci se il mutuo e sostenibile</h3>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                        La rata e solo una parte della storia. Inserisci i dati che conosci: la scheda si aggiorna automaticamente e ti aiuta a capire quanto pesa davvero la casa ogni mese, quanto margine ti resta e cosa succede se tassi, reddito o spese cambiano.
+                      </p>
+                    </div>
+                    <span className={`w-fit rounded-full px-4 py-2 text-xs font-bold ${
+                      mortgageSustainabilityLevel === "buono"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : mortgageSustainabilityLevel === "medio"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-red-100 text-red-700"
+                    }`}>
+                      {mortgageSustainabilityLevel === "buono" ? "Sostenibilita buona" : mortgageSustainabilityLevel === "medio" ? "Da valutare" : "Rischio elevato"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-6 shadow-sm">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Sezione anti-panico</p>
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Prima di vendere per paura, fermati un minuto</h3>
+                  <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-700">
+                    Se vuoi vendere solo perche il mercato e sceso, perche hai letto una notizia negativa o perche tutti sembrano preoccupati, potresti decidere nel momento peggiore. Prima chiediti: il mio obiettivo e cambiato? Mi servono davvero quei soldi ora? Ho un piano per cosa fare dopo la vendita?
+                  </p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700"><strong>Paura</strong><br />Se la scelta nasce dall'ansia, aspetta e rileggi il piano.</div>
+                    <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700"><strong>Bisogno reale</strong><br />Se i soldi servono per un obiettivo concreto, pianifica l'uscita.</div>
+                    <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700"><strong>Metodo</strong><br />Una vendita graduale e spesso piu gestibile di una decisione impulsiva.</div>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+                  <div className="space-y-4">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h4 className="text-lg font-bold text-slate-950">1. Dati principali</h4>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">Inserisci i dati del preventivo. Se hai gia una rata ufficiale, usa quella: sara il dato piu vicino alla realta.</p>
+                      <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        {[
+                          ["Prezzo casa", mortgageHomePrice, setMortgageHomePrice, "Prezzo richiesto per la casa. Non confonderlo con i soldi necessari all'inizio: oltre al prezzo ci sono anticipo, notaio, imposte e altre spese."],
+                          ["Anticipo disponibile", mortgageDownPayment, setMortgageDownPayment, "Piu anticipo metti, meno capitale devi finanziare. Attenzione pero a non svuotare tutta la liquidita: serve margine per imprevisti."],
+                          ["Importo mutuo", mortgagePrincipal, setMortgagePrincipal, "Se hai gia il preventivo della banca, inserisci l'importo esatto. Se lo lasci vuoto, lo stimiamo da prezzo casa meno anticipo."],
+                          ["Durata mutuo (anni)", mortgageYears, setMortgageYears, "Durate piu lunghe abbassano la rata, ma di solito aumentano gli interessi totali pagati nel tempo."],
+                          ["Tasso annuo %", mortgageRate, setMortgageRate, "Serve per stimare la rata quando non hai ancora un preventivo. Se il tasso e variabile, controlla sempre anche lo stress test."],
+                          ["Rata mensile dichiarata", mortgageDeclaredPayment, setMortgageDeclaredPayment, "Se hai una rata ufficiale, inseriscila: e il dato piu concreto. La stima resta utile per capire se il peso sul reddito e sostenibile."],
+                        ].map(([label, value, setter, help]) => (
+                          <label key={String(label)} className="text-sm font-medium text-slate-700">
+                            {label as string}
+                            <input
+                              value={value as string}
+                              onChange={(e) => (setter as (value: string) => void)(e.target.value)}
+                              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                            />
+                            <span className="mt-1 block text-xs leading-5 text-slate-500">{help as string}</span>
+                          </label>
+                        ))}
+
+                        <label className="text-sm font-medium text-slate-700">
+                          Tipo tasso
+                          <select
+                            value={mortgageRateType}
+                            onChange={(e) => setMortgageRateType(e.target.value)}
+                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
+                          >
+                            <option value="fisso">Fisso</option>
+                            <option value="variabile">Variabile</option>
+                            <option value="cap">Variabile con cap</option>
+                          </select>
+                          <span className="mt-1 block text-xs leading-5 text-slate-500">Il tipo di tasso cambia il rischio: fisso significa rata piu prevedibile, variabile significa rata che puo salire, cap significa variabile con un limite massimo.</span>
+                        </label>
+
+                        {mortgageRateType === "cap" && (
+                          <label className="text-sm font-medium text-slate-700">
+                            Tasso massimo / cap (%)
+                            <input
+                              value={mortgageCapRate}
+                              onChange={(e) => setMortgageCapRate(e.target.value)}
+                              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                            />
+                            <span className="mt-1 block text-xs leading-5 text-slate-500">E il tasso massimo che il mutuo puo raggiungere secondo il contratto. Se non lo conosci, cercalo nel preventivo o nel foglio informativo: serve per stimare la rata nello scenario peggiore previsto.</span>
+                          </label>
+                        )}
+                      </div>
+                      <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                        <p className="text-sm font-semibold text-emerald-950">Consiglio semplice</p>
+                        <p className="mt-1 text-sm leading-6 text-emerald-900">
+                          Non scegliere casa guardando solo la rata. Una rata sostenibile deve lasciarti spazio per vivere, risparmiare e gestire imprevisti senza andare in affanno.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h4 className="text-lg font-bold text-slate-950">2. Costi iniziali e costi casa</h4>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">Comprare casa non significa pagare solo anticipo e rata. Inserisci anche i costi che spesso vengono dimenticati.</p>
+                      <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        {[
+                          ["Costi iniziali stimati", mortgageInitialCosts, setMortgageInitialCosts, "Notaio, agenzia, imposte, perizia, istruttoria, trasloco, arredamento e piccoli lavori. Meglio sovrastimare che restare senza liquidita."],
+                          ["Condominio mensile", mortgageCondoMonthly, setMortgageCondoMonthly, "Se non lo conosci, inserisci una stima prudente. Il condominio pesa ogni mese, quindi va considerato nel costo reale della casa."],
+                          ["Utenze mensili", mortgageUtilitiesMonthly, setMortgageUtilitiesMonthly, "Luce, gas, acqua, internet e altre spese ricorrenti. Anche se non sono rata, fanno parte del peso mensile della casa."],
+                          ["Assicurazione annua", mortgageInsuranceYearly, setMortgageInsuranceYearly, "Casa, scoppio/incendio o altre coperture collegate. Alcune possono essere richieste dalla banca."],
+                          ["Manutenzione annua", mortgageMaintenanceYearly, setMortgageMaintenanceYearly, "Piccoli lavori, guasti e manutenzione ordinaria. Una casa costa anche quando non succede nulla di speciale."],
+                          ["Altri costi ricorrenti annui", mortgageRecurringYearly, setMortgageRecurringYearly, "Altre spese ricorrenti non incluse sopra. Usa questo campo per non sottovalutare il costo reale mensile."],
+                        ].map(([label, value, setter, help]) => (
+                          <label key={String(label)} className="text-sm font-medium text-slate-700">
+                            {label as string}
+                            <input
+                              value={value as string}
+                              onChange={(e) => (setter as (value: string) => void)(e.target.value)}
+                              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                            />
+                            <span className="mt-1 block text-xs leading-5 text-slate-500">{help as string}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <p className="text-sm font-semibold text-amber-950">Attenzione ai costi dimenticati</p>
+                        <p className="mt-1 text-sm leading-6 text-amber-900">
+                          Per comprare casa non servono solo anticipo e mutuo. Notaio, imposte, agenzia, trasloco, arredamento e piccoli lavori possono assorbire molta liquidita.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h4 className="text-lg font-bold text-slate-950">3. Reddito, margine e fondo emergenza</h4>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">Qui capisci se il mutuo lascia spazio alla vita normale: spese, imprevisti e sicurezza.</p>
+                      <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        {[
+                          ["Reddito netto mensile familiare", mortgageMonthlyIncome, setMortgageMonthlyIncome, "Somma dei redditi netti reali che entrano ogni mese in famiglia, non il lordo."],
+                          ["Altre rate/debiti mensili", mortgageOtherDebtsMonthly, setMortgageOtherDebtsMonthly, "Auto, prestiti, carte revolving o altri debiti. La banca guarda anche questi, e tu dovresti farlo ancora prima."],
+                          ["Spese fisse mensili", mortgageFixedExpensesMonthly, setMortgageFixedExpensesMonthly, "Spesa, trasporti, scuola, assicurazioni, telefono e costi familiari. Servono per capire quanto margine resta davvero."],
+                          ["Liquidita residua dopo acquisto", mortgageLiquidAfterPurchase, setMortgageLiquidAfterPurchase, "Soldi che ti restano dopo anticipo, notaio, imposte e costi iniziali. Questa e la tua protezione contro gli imprevisti."],
+                          ["Mesi fondo emergenza", mortgageEmergencyMonths, setMortgageEmergencyMonths, "Di solito e prudente mantenere almeno 3-6 mesi di spese essenziali. Se il reddito e variabile, meglio avvicinarsi a 6-12 mesi."],
+                        ].map(([label, value, setter, help]) => (
+                          <label key={String(label)} className="text-sm font-medium text-slate-700">
+                            {label as string}
+                            <input
+                              value={value as string}
+                              onChange={(e) => (setter as (value: string) => void)(e.target.value)}
+                              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                            />
+                            <span className="mt-1 block text-xs leading-5 text-slate-500">{help as string}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-sm font-semibold text-slate-950">Calcolo automatico</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-700">
+                          Non devi premere nessun pulsante: i risultati a destra si aggiornano mentre compili i dati. Se mancano dati importanti, usa i riquadri come guida e completa solo cio che conosci.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Lettura semplice</p>
+                      <h4 className="mt-2 text-xl font-bold text-slate-950">Rata, costo casa e sostenibilita</h4>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        {mortgagePrincipalForCalc <= 0
+                          ? "Inserisci almeno prezzo casa e anticipo, oppure direttamente l'importo del mutuo, per vedere una stima piu utile."
+                          : mortgageUsesDeclaredPayment
+                          ? "Stiamo usando la rata che hai inserito. La stima del tasso resta utile come controllo, ma il dato dichiarato e quello piu concreto."
+                          : "Non hai inserito una rata dichiarata: la rata viene stimata usando importo, tasso e durata."}
+                      </p>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <PremiumStatCard eyebrow={mortgageUsesDeclaredPayment ? "Rata dichiarata" : "Rata stimata"} value={formatEuro(mortgageMonthlyPayment)} note="Quello che paghi alla banca ogni mese" />
+                        <PremiumStatCard eyebrow="Costo reale mensile" value={formatEuro(mortgageRealMonthlyHomeCost)} note="Rata + costi ricorrenti della casa" />
+                        <PremiumStatCard eyebrow="Peso rata/reddito" value={`${Math.round(mortgagePaymentIncomeRatio * 100)}%`} note="Solo rata mutuo" />
+                        <PremiumStatCard eyebrow="Peso casa/reddito" value={`${Math.round(mortgageHomeIncomeRatio * 100)}%`} note="Rata + costi casa" />
+                      </div>
+                    </div>
+
+                    <div className={`rounded-3xl border p-6 shadow-sm ${
+                      mortgageSustainabilityLevel === "buono"
+                        ? "border-emerald-200 bg-emerald-50"
+                        : mortgageSustainabilityLevel === "medio"
+                        ? "border-amber-200 bg-amber-50"
+                        : "border-red-200 bg-red-50"
+                    }`}>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Semaforo mutuo</p>
+                          <h4 className="mt-2 text-xl font-bold text-slate-950">{mortgageTrafficLight.title}</h4>
+                        </div>
+                        <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-bold ${mortgageTrafficLight.badgeClass}`}>
+                          <span className={`h-2.5 w-2.5 rounded-full ${mortgageTrafficLight.dotClass}`} />
+                          {mortgageTrafficLight.label}
+                        </span>
+                      </div>
+
+                      <p className="mt-4 text-sm leading-6 text-slate-700">{mortgageTrafficLight.shortText}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-700">{mortgageTrafficLight.advice}</p>
+
+                      <div className="mt-4 rounded-2xl bg-white/80 p-4">
+                        <p className="text-sm font-semibold text-slate-950">Lettura semplice</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-700">{mortgageSustainabilityText}</p>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <div className="rounded-2xl bg-white/80 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Margine mensile residuo</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-950">{formatEuro(mortgageMonthlyMargin)}</p>
+                          <p className="mt-1 text-xs text-slate-600">Reddito meno spese fisse, altri debiti e costo reale casa.</p>
+                        </div>
+                        <div className="rounded-2xl bg-white/80 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Debiti/reddito</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-950">{Math.round(mortgageDebtIncomeRatio * 100)}%</p>
+                          <p className="mt-1 text-xs text-slate-600">Rata mutuo + altre rate rispetto al reddito.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h4 className="text-xl font-bold text-slate-950">Costi iniziali e fondo emergenza</h4>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">La casa deve essere sostenibile anche dopo il rogito. Non consumare tutta la liquidita per comprare.</p>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <PremiumStatCard eyebrow="Soldi iniziali necessari" value={formatEuro(mortgageFrontCashNeeded)} note="Anticipo + costi iniziali stimati" />
+                        <PremiumStatCard eyebrow="Fondo emergenza consigliato" value={formatEuro(mortgageEmergencyNeeded)} note={`${mortgage.emergencyMonths} mesi di sicurezza`} />
+                      </div>
+                      <div className={`mt-4 rounded-2xl border p-4 ${mortgageEmergencyGap >= 0 ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+                        <p className="text-sm font-semibold text-slate-950">
+                          {mortgageEmergencyGap >= 0 ? "Fondo emergenza adeguato" : "Fondo emergenza da rafforzare"}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-slate-700">
+                          {mortgageEmergencyGap >= 0
+                            ? `Dopo l'acquisto ti resterebbe un margine di circa ${formatEuro(mortgageEmergencyGap)} rispetto al fondo emergenza scelto.`
+                            : `Dopo l'acquisto ti mancherebbero circa ${formatEuro(Math.abs(mortgageEmergencyGap))} per arrivare al fondo emergenza scelto.`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h4 className="text-xl font-bold text-slate-950">Stress test</h4>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">{mortgageStressIntroText}</p>
+                        </div>
+                        <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                          {mortgageRateType === "fisso" ? "Tasso fisso" : mortgageRateType === "variabile" ? "Tasso variabile" : "Variabile con cap"}
+                        </span>
+                      </div>
+
+                      <div className={`mt-4 rounded-2xl border p-4 ${
+                        mortgageRateType === "fisso"
+                          ? "border-emerald-200 bg-emerald-50"
+                          : mortgageRateType === "variabile"
+                          ? "border-amber-200 bg-amber-50"
+                          : "border-indigo-200 bg-indigo-50"
+                      }`}>
+                        <p className="text-sm font-semibold text-slate-950">Consiglio mirato</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-700">{mortgageStressAdvice}</p>
+                      </div>
+
+                      <div className="mt-4 grid gap-3">
+                        {mortgageRateType === "fisso" ? (
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="font-semibold text-slate-950">Rata prevedibile</p>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">Con il tasso fisso, la rata non dovrebbe cambiare per effetto dei tassi. Per questo, in questo caso, lo stress test piu utile riguarda reddito, spese e fondo emergenza.</p>
+                          </div>
+                        ) : (
+                          mortgageStressTests.map((test) => (
+                            <div key={test.shock} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="font-semibold text-slate-950">
+                                  Tasso +{test.shock}% {test.isCapped ? `(limitato dal cap a ${test.appliedRate}%)` : ""}
+                                </p>
+                                <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                  test.risk === "alto" ? "bg-red-100 text-red-700" : test.risk === "medio" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
+                                }`}>
+                                  rischio {test.risk}
+                                </span>
+                              </div>
+                              <p className="mt-2 text-sm text-slate-600">
+                                Rata stimata {formatEuro(test.payment)} - costo casa/reddito {Math.round(test.realRatio * 100)}%
+                              </p>
+                            </div>
+                          ))
+                        )}
+
+                        {mortgageRateType === "cap" && (
+                          <div className={`rounded-2xl border p-4 ${mortgageHasValidCap ? "border-indigo-200 bg-indigo-50" : "border-amber-200 bg-amber-50"}`}>
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="font-semibold text-slate-950">Rata massima stimata al cap</p>
+                              {mortgageHasValidCap && (
+                                <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                  mortgageCapRisk === "alto" ? "bg-red-100 text-red-700" : mortgageCapRisk === "medio" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
+                                }`}>
+                                  rischio {mortgageCapRisk}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-slate-700">
+                              {mortgageHasValidCap
+                                ? `Se il tasso arrivasse al cap del ${mortgage.capRate}%, la rata stimata sarebbe circa ${formatEuro(mortgageCapPayment)}/mese e il costo casa peserebbe circa ${Math.round(mortgageCapRealRatio * 100)}% del reddito.`
+                                : "Inserisci il tasso massimo / cap per vedere la rata nello scenario peggiore previsto dal contratto."}
+                            </p>
+                          </div>
+                        )}
+
+                        {mortgageIncomeStressTests.map((test) => (
+                          <div key={test.drop} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="font-semibold text-slate-950">Reddito -{test.drop}%</p>
+                              <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                test.risk === "alto" ? "bg-red-100 text-red-700" : test.risk === "medio" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
+                              }`}>
+                                rischio {test.risk}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm text-slate-600">
+                              Reddito stimato {formatEuro(test.stressedIncome)} - costo casa/reddito {Math.round(test.ratio * 100)}%
+                            </p>
+                          </div>
+                        ))}
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="font-semibold text-slate-950">Spese +200€/mese</p>
+                          <p className="mt-2 text-sm text-slate-600">Con 200€ di spese in piu, il costo casa peserebbe circa {Math.round(mortgageExpenseStress * 100)}% del reddito.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+                      <h4 className="text-xl font-bold text-emerald-950">Cosa puoi fare ora</h4>
+                      <ul className="mt-3 space-y-2 text-sm leading-6 text-emerald-900">
+                        <li>• Se la rata pesa troppo: aumenta anticipo, riduci budget immobile o allunga la ricerca.</li>
+                        <li>• Se scegli il fisso: concentrati su margine mensile, fondo emergenza e costi iniziali.</li>
+                        <li>• Se scegli il variabile: guarda sempre gli scenari di aumento tasso prima di firmare.</li>
+                        <li>• Se scegli il variabile con cap: controlla la rata massima stimata al cap, non solo la rata iniziale.</li>
+                        <li>• Se i costi iniziali sono sottostimati: crea un fondo extra acquisto prima di firmare.</li>
+                        <li>• Se la liquidita residua e bassa: non consumare tutto l'anticipo, proteggi prima il fondo emergenza.</li>
+                        <li>• Se il tasso non e competitivo: confronta piu banche e ricordati della surroga in futuro.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {awarenessTab === "truffe" && (
+              <div className="space-y-6">
+                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                  <div className="grid gap-0 lg:grid-cols-[1fr_0.9fr]">
+                    <div className="p-6 md:p-8">
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Anti-truffe</p>
+                      <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Riconosci la truffa</h3>
+                      <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                        Allenati con 5 situazioni realistiche pescate da un archivio di 200 casi. Alcune sono truffe, altre sono situazioni normali ma da verificare con calma.
+                      </p>
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        {["SMS", "Telefonate", "Investimenti", "Marketplace", "Di persona", "Affitti", "Lavoro", "Familiari"].map((tag) => (
+                          <span key={tag} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="border-t border-slate-200 bg-slate-50 p-6 md:p-8 lg:border-l lg:border-t-0">
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Regola d'oro</p>
+                      <p className="mt-3 text-lg font-bold leading-7 text-slate-950">
+                        Se qualcuno ti mette fretta, ti chiede codici o promette guadagni sicuri, fermati e verifica da un canale ufficiale.
+                      </p>
+                      <button
+                        onClick={startScamGame}
+                        className="mt-6 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                      >
+                        {scamGameQuestions.length ? "Nuova partita" : "Inizia il gioco"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Mini gioco</p>
+                        <h4 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Mi fido o mi fermo?</h4>
+                      </div>
+                      {scamGameQuestions.length > 0 && (
+                        <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 ring-1 ring-emerald-200">
+                          {scamGameComplete ? `Punteggio ${scamScore}/5` : `Scenario ${scamGameIndex + 1}/5`}
+                        </span>
+                      )}
+                    </div>
+
+                    {!scamGameQuestions.length && (
+                      <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+                        Premi <strong>Inizia il gioco</strong> per ricevere 5 scenari casuali, con almeno un caso piu difficile quando disponibile. Hai gia visto <strong>{scamAnsweredScenarioCount}/{scamScenarioPool.length}</strong> scenari e completato <strong>{scamPerfectGames}</strong> partite senza errori. Dopo ogni risposta vedrai cosa osservare e quale azione sicura scegliere.
+                      </div>
+                    )}
+
+                    {currentScamScenario && !scamGameComplete && (
+                      <div className="mt-6 space-y-5">
+                        <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-6">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Situazione</p>
+                            {currentScamScenario.difficulty && (
+                              <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${
+                                currentScamScenario.difficulty === "difficile"
+                                  ? "bg-amber-50 text-amber-800 ring-amber-200"
+                                  : currentScamScenario.difficulty === "facile"
+                                  ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
+                                  : "bg-slate-100 text-slate-700 ring-slate-200"
+                              }`}>
+                                {currentScamScenario.difficulty === "difficile" ? "Difficile" : currentScamScenario.difficulty === "facile" ? "Facile" : "Media"}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-3 text-lg font-semibold leading-8 text-slate-950">{currentScamScenario.situation}</p>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <button
+                            onClick={() => answerScamScenario("trust")}
+                            disabled={Boolean(scamSelectedChoice)}
+                            className={`rounded-2xl border p-4 text-left transition ${
+                              scamSelectedChoice === "trust"
+                                ? (currentScamScenario.isRisky ? "border-red-300 bg-red-50" : "border-emerald-300 bg-emerald-50")
+                                : "border-slate-200 bg-white hover:bg-slate-50"
+                            }`}
+                          >
+                            <p className="font-bold text-slate-950">Mi fido</p>
+                            <p className="mt-1 text-sm text-slate-600">Sembra abbastanza normale e posso procedere.</p>
+                          </button>
+                          <button
+                            onClick={() => answerScamScenario("verify")}
+                            disabled={Boolean(scamSelectedChoice)}
+                            className={`rounded-2xl border p-4 text-left transition ${
+                              scamSelectedChoice === "verify"
+                                ? (currentScamScenario.isRisky ? "border-emerald-300 bg-emerald-50" : "border-amber-300 bg-amber-50")
+                                : "border-slate-200 bg-white hover:bg-slate-50"
+                            }`}
+                          >
+                            <p className="font-bold text-slate-950">Mi fermo e verifico</p>
+                            <p className="mt-1 text-sm text-slate-600">Non procedo finche non controllo meglio.</p>
+                          </button>
+                        </div>
+
+                        {scamSelectedChoice && (
+                          <div className={`rounded-3xl border p-5 ${
+                            (currentScamScenario.isRisky ? scamSelectedChoice === "verify" : scamSelectedChoice === "trust")
+                              ? "border-emerald-200 bg-emerald-50"
+                              : "border-amber-200 bg-amber-50"
+                          }`}>
+                            <p className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">
+                              {(currentScamScenario.isRisky ? scamSelectedChoice === "verify" : scamSelectedChoice === "trust") ? "Scelta corretta" : "Qui serve attenzione"}
+                            </p>
+                            <h5 className="mt-2 text-xl font-bold text-slate-950">
+                              {currentScamScenario.isRisky ? "Scenario rischioso" : "Scenario probabilmente normale"}
+                            </h5>
+                            <p className="mt-2 text-sm leading-6 text-slate-700">{currentScamScenario.explanation}</p>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {currentScamScenario.redFlags.map((flag) => (
+                                <span key={flag} className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200">{flag}</span>
+                              ))}
+                            </div>
+                            <div className="mt-4 rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700 ring-1 ring-slate-200">
+                              <strong>Azione sicura:</strong> {currentScamScenario.safeAction}
+                            </div>
+                            {scamGameIndex < scamGameQuestions.length - 1 ? (
+                              <button
+                                onClick={goToNextScamScenario}
+                                className="mt-5 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+                              >
+                                Prossimo scenario
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setScamSelectedChoice(null)}
+                                className="mt-5 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+                              >
+                                Vedi riepilogo
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {scamGameComplete && (
+                      <div className="mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
+                        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Riepilogo partita</p>
+                        <h4 className="mt-2 text-3xl font-bold text-emerald-950">Hai riconosciuto {scamScore} scenari su 5</h4>
+                        <p className="mt-3 text-sm leading-6 text-emerald-900">
+                          {scamScore >= 4
+                            ? "Ottimo lavoro: ti sei fermato davanti ai segnali importanti. Continua cosi: la prudenza e una protezione concreta."
+                            : scamScore >= 2
+                              ? "Buon allenamento. Alcune situazioni sono costruite per sembrare credibili: l'obiettivo e imparare a riconoscere i pattern."
+                              : "Non e un problema sbagliare qui: meglio imparare nell'app che davanti a una truffa vera. Ripeti il gioco e osserva i segnali di rischio."}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {scamEncounteredFlags.slice(0, 8).map((flag) => (
+                            <span key={flag} className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">{flag}</span>
+                          ))}
+                        </div>
+                        <button
+                          onClick={startScamGame}
+                          className="mt-5 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+                        >
+                          Gioca di nuovo
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h4 className="text-xl font-bold text-slate-950">Segnali di allarme da ricordare</h4>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">Non devi conoscere tutte le truffe. Devi riconoscere i segnali che tornano spesso.</p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                        {["Urgenza", "Richiesta codici", "Guadagno garantito", "Caparra anticipata", "Contanti", "Link non verificato", "Pressione emotiva", "Segretezza"].map((pattern) => (
+                          <div key={pattern} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-800">
+                            {pattern}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+                      <h4 className="text-xl font-bold text-amber-950">Se hai gia cliccato o pagato</h4>
+                      <ul className="mt-3 space-y-2 text-sm leading-6 text-amber-900">
+                        <li>• Blocca carta o conto dal canale ufficiale.</li>
+                        <li>• Cambia password e attiva autenticazione a due fattori.</li>
+                        <li>• Contatta banca, piattaforma o operatore dal sito ufficiale.</li>
+                        <li>• Conserva messaggi, ricevute e screenshot.</li>
+                        <li>• Valuta denuncia o segnalazione alle autorita competenti.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+                  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Motore anti-truffe</p>
+                    <h3 className="mt-2 text-2xl font-bold tracking-tight">Controlla prima di cliccare o pagare</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Questo motore resta disponibile: seleziona il contesto e spunta i segnali che noti per ottenere una lettura rapida del rischio.
+                    </p>
+
+                    <label className="mt-5 block text-sm font-medium text-slate-700">
+                      Contesto
+                      <select
+                        value={fraudContext}
+                        onChange={(e) => setFraudContext(e.target.value)}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none"
+                      >
+                        <option value="sms">SMS / email banca</option>
+                        <option value="phone">Telefonata sospetta</option>
+                        <option value="investment">Investimento / crypto / trading</option>
+                        <option value="marketplace">Marketplace / acquisto online</option>
+                      </select>
+                    </label>
+
+                    <div className="mt-5 space-y-3">
+                      {fraudQuestions.map((question) => (
+                        <button
+                          key={question.id}
+                          onClick={() => setFraudAnswers((prev) => ({ ...prev, [question.id]: !prev[question.id] }))}
+                          className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-4 text-left text-sm transition ${
+                            fraudAnswers[question.id] ? "border-red-300 bg-red-50" : "border-slate-200 bg-white hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="font-medium text-slate-800">{question.text}</span>
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                            {fraudAnswers[question.id] ? "Si" : "No"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setFraudAnswers({});
+                        setFraudContext("sms");
+                      }}
+                      className="mt-5 w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                    >
+                      Reset motore anti-truffe
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className={`rounded-3xl border p-6 shadow-sm ${
+                      fraudRiskLevel === "alto"
+                        ? "border-red-200 bg-red-50"
+                        : fraudRiskLevel === "medio"
+                          ? "border-amber-200 bg-amber-50"
+                          : "border-emerald-200 bg-emerald-50"
+                    }`}>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em]">Rischio stimato</p>
+                      <h3 className="mt-2 text-4xl font-bold tracking-tight">{fraudRiskLevel.toUpperCase()}</h3>
+                      <p className="mt-3 text-base font-semibold">{fraudPrimaryAction}</p>
+                      <p className="mt-2 text-sm leading-6">Score: {fraudRiskScore}. Contesto: {fraudContext}.</p>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h4 className="text-xl font-bold">Azioni sicure</h4>
+                      <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+                        <li>• Non cliccare link ricevuti via SMS, email o chat.</li>
+                        <li>• Apri solo app e siti ufficiali digitando tu l'indirizzo.</li>
+                        <li>• Non comunicare codici OTP, password o PIN.</li>
+                        <li>• Se parlano di banca, chiama il numero ufficiale dal sito o dalla carta.</li>
+                        <li>• Se promettono guadagni sicuri, fermati: negli investimenti il rischio esiste sempre.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm leading-6 text-slate-600 shadow-sm">
+              <strong>Nota educativa:</strong> le stime sono semplificate e servono per capire ordini di grandezza, rischi e alternative. Non sono preventivi, consulenza finanziaria, consulenza creditizia o valutazioni legali.
+            </div>
+          </section>
+        )}
+
+        {step === "dashboard" && (
+          <section className="space-y-6">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
+                <div className="p-6 md:p-8">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Dashboard</p>
+                  <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Il tuo piano finanziario</h2>
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
+                    Segui i prossimi passi, senza confusione. Questa schermata non deve farti controllare tutto: deve dirti cosa fare adesso.
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                      Profilo: {selectedPortfolio.shortTitle}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+                      {selectedPortfolio.badge}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 bg-slate-50 p-6 md:p-8 lg:border-l lg:border-t-0">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Riepilogo rapido</p>
+                  <div className="mt-5 grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                    <PremiumStatCard
+                      eyebrow="Capitale"
+                      value={formatEuro(totalInvested)}
+                      note="Totale registrato"
+                    />
+                    <PremiumStatCard
+                      eyebrow="Percorso"
+                      value={`${dashboardOverallProgress}%`}
+                      note="Avanzamento"
+                    />
+                    <PremiumStatCard
+                      eyebrow="Continuita"
+                      value={`${currentStreak} mesi`}
+                      note="PAC mantenuto"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-6 shadow-sm md:p-8">
+              <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-center">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Checklist</p>
-                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">La tua checklist: segui questi passi, uno alla volta</h3>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    Tutti gli strumenti sono gia disponibili. Questa è la sezione più importante dopo il piano: ti dice cosa fare, in che ordine e dove cliccare.
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Prossimo passo consigliato</p>
+                  <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">{dashboardNextActionTitle}</h3>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">
+                    {dashboardNextActionText}
+                  </p>
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                    <button
+                      onClick={() => {
+                        if (!setupCompleted) {
+                          setStep("guide");
+                          return;
+                        }
+
+                        if (holdings.length === 0) {
+                          goToDashboardSection("aggiungi-investimento");
+                          return;
+                        }
+
+                        goToDashboardSection("azione-del-mese");
+                      }}
+                      className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                    >
+                      {dashboardNextActionLabel}
+                    </button>
+                    <button
+                      onClick={() => setStep("portfolio")}
+                      className="rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Rivedi il modello
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Percorso completato</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Setup, investimenti, PAC mensile e continuita.</p>
+                    </div>
+                    <p className="text-3xl font-bold tracking-tight text-emerald-700">{dashboardOverallProgress}%</p>
+                  </div>
+                  <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-emerald-600 transition-all duration-1000 ease-out"
+                      style={{ width: `${dashboardOverallProgress}%` }}
+                    />
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-slate-600">
+                    {setupCompleted
+                      ? "La base e pronta. Ora conta mantenere il gesto mensile e aggiornare i dati senza ossessionarsi."
+                      : `Ti mancano ${Math.max(0, initialChecklistItems.length - completedInitialChecklist)} passaggi per completare la guida iniziale.`}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
-                  Guida iniziale: {completedInitialChecklist}/{initialChecklistItems.length}
-                </div>
               </div>
+            </div>
 
-              <div className="mt-6 grid gap-4 lg:grid-cols-5">
-                <GuidedStepCard
-                  number="1"
-                  title="Capisci il modello"
-                  text="Leggi la logica del portafoglio educativo prima di inserire dati."
-                  action="Vai al modello"
-                  done={purchase.unlocked}
-                  onClick={() => setStep("portfolio")}
-                />
-                <GuidedStepCard
-                  number="2"
-                  title="Scegli la cifra mensile"
-                  text="Usa la simulazione per capire una cifra sostenibile, non perfetta."
-                  action="Apri simulazione"
-                  done={Number(portMonthly || 0) > 0}
-                  onClick={() => setStep("portfolio")}
-                />
-                <GuidedStepCard
-                  number="3"
-                  title="Vai alla guida operativa"
-                  text="Prima degli strumenti, segui la guida per capire cosa fare e in che ordine."
-                  action="Apri guida"
-                  done={setupCompleted}
-                  onClick={() => setStep("guide")}
-                />
-                <GuidedStepCard
-                  number="4"
-                  title="Guarda gli strumenti"
-                  text="Vedi categorie ed esempi con ISIN, senza perderti tra troppe scelte."
-                  action="Apri strumenti"
-                  done={checklistState.strumenti || holdings.length > 0}
-                  onClick={() => {
-                    completeChecklistItem("strumenti");
-                    setStep("strumentis");
-                  }}
-                />
-                <GuidedStepCard
-                  number="5"
-                  title="Registra il primo PAC"
-                  text="Inserisci il primo investimento per rendere il piano concreto."
-                  action="Aggiungi investimento"
-                  done={holdings.length > 0}
-                  onClick={() => goToDashboardSection("aggiungi-investimento")}
-                />
-                <GuidedStepCard
-                  number="6"
-                  title="Chiudi il mese"
-                  text="Controlla la ripartizione e segna il PAC del mese come completato."
-                  action="Vai al PAC mensile"
-                  done={currentMonthCompleted}
-                  onClick={() => goToDashboardSection("azione-del-mese")}
-                />
-              </div>
+            <div className="grid gap-4 lg:grid-cols-4">
+              <button
+                onClick={() => setStep("awareness")}
+                className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Core</p>
+                <h3 className="mt-3 text-lg font-bold text-slate-950">Consapevolezza</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Evita errori costosi prima di investire meglio.</p>
+              </button>
+
+              <button
+                onClick={() => goToDashboardSection("aggiungi-investimento")}
+                className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Portafoglio</p>
+                <h3 className="mt-3 text-lg font-bold text-slate-950">Investimenti</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Registra capitale e controlla la ripartizione.</p>
+              </button>
+
+              <button
+                onClick={() => goToDashboardSection("pac-mensile")}
+                className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">PAC</p>
+                <h3 className="mt-3 text-lg font-bold text-slate-950">Guida mensile</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Distribuisci la cifra secondo il modello.</p>
+              </button>
+
+              <button
+                onClick={() => goToDashboardSection("prima-volta-qui")}
+                className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Checklist</p>
+                <h3 className="mt-3 text-lg font-bold text-slate-950">Passi guidati</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Segui l'ordine giusto, uno step alla volta.</p>
+              </button>
+            </div>
+
+            <div id="prima-volta-qui" className="scroll-mt-6 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm md:p-6">
+              {(() => {
+                const guidedSteps = [
+                  {
+                    number: "1",
+                    title: "Capisci il modello",
+                    done: purchase.unlocked,
+                    onClick: () => setStep("portfolio"),
+                  },
+                  {
+                    number: "2",
+                    title: "Scegli la cifra mensile",
+                    done: Number(portMonthly || 0) > 0,
+                    onClick: () => setStep("portfolio"),
+                  },
+                  {
+                    number: "3",
+                    title: "Attiva il mio piano",
+                    done: setupCompleted,
+                    onClick: () => setStep("guide"),
+                  },
+                  {
+                    number: "4",
+                    title: "Guarda gli strumenti",
+                    done: checklistState.strumenti || holdings.length > 0,
+                    onClick: () => {
+                      completeChecklistItem("strumenti");
+                      setStep("strumentis");
+                    },
+                  },
+                  {
+                    number: "5",
+                    title: "Registra il primo PAC",
+                    done: holdings.length > 0,
+                    onClick: () => goToDashboardSection("aggiungi-investimento"),
+                  },
+                  {
+                    number: "6",
+                    title: "Chiudi il mese",
+                    done: currentMonthCompleted,
+                    onClick: () => goToDashboardSection("azione-del-mese"),
+                  },
+                ];
+                const activeGuidedStep = guidedSteps.find((item) => !item.done) || guidedSteps[guidedSteps.length - 1];
+
+                return (
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Guida iniziale</p>
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                          {completedInitialChecklist}/{initialChecklistItems.length} completati
+                        </span>
+                      </div>
+                      <h3 className="mt-2 text-xl font-bold tracking-tight text-slate-900">Rendi il piano davvero tuo</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Prossimo passo: <span className="font-semibold text-slate-900">{activeGuidedStep.title}</span>. Tutto il resto resta disponibile, ma qui vedi solo l'orientamento essenziale.
+                      </p>
+                      <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200">
+                        <div
+                          className="h-full rounded-full bg-emerald-600 transition-all duration-700"
+                          style={{ width: `${checklistPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={activeGuidedStep.onClick}
+                      className="w-full rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 lg:w-auto lg:min-w-[220px]"
+                    >
+                      Vai al prossimo passo
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -4102,7 +7969,7 @@ const [authReady, setAuthReady] = useState(false);
                       className={`rounded-2xl px-6 py-4 text-base font-semibold shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
                         currentMonthCompleted
                           ? "bg-white text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-50"
-                          : "bg-slate-900 text-white hover:bg-slate-800"
+                          : "bg-emerald-600 text-white hover:bg-emerald-700"
                       }`}
                     >
                       {currentMonthCompleted
@@ -4300,7 +8167,7 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div id="obiettivo-personale" className="scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
                 <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -4379,6 +8246,15 @@ const [authReady, setAuthReady] = useState(false);
                     <p className="mt-2 text-xs leading-5 text-slate-500">
                       La stima a fine piano usa solo PAC mensile, anno finale e rendimento stimato. Il capitale aggiornato serve invece per misurare il progresso reale verso il target.
                     </p>
+                    {hasReachedPersonalGoal ? (
+                      <button
+                        type="button"
+                        onClick={replayPersonalGoalCelebration}
+                        className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100"
+                      >
+                        Rivedi celebrazione obiettivo
+                      </button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -4622,12 +8498,18 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
-            <div id="aggiungi-investimento" className="grid scroll-mt-6 gap-6 xl:grid-cols-[0.95fr_1.2fr_1fr]">
+            <div id="aggiungi-investimento" className="grid scroll-mt-6 gap-5 rounded-[2rem] border border-slate-200 bg-slate-50/80 p-4 shadow-sm md:p-5 xl:grid-cols-[1.08fr_1.18fr_0.92fr] xl:items-start">
               <div className="space-y-6">
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h3 className="text-xl font-semibold">Aggiungi investimento</h3>
+                <div className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-md shadow-emerald-100/60 ring-1 ring-emerald-100">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Step 1</p>
+                      <h3 className="mt-2 text-xl font-bold tracking-tight text-slate-900">Aggiungi investimento</h3>
+                    </div>
+                    <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">azione principale</span>
+                  </div>
                   <p className="mt-2 text-sm text-slate-600">
-                    Registra gli strumenti acquistati per avere una dashboard sempre aggiornata.
+                    Registra gli strumenti acquistati: ripartizione e lista si aggiornano subito qui accanto.
                   </p>
 
                   <div className="mt-5 space-y-4">
@@ -4649,14 +8531,16 @@ const [authReady, setAuthReady] = useState(false);
                       <select
                         value={newHolding.strumentiName}
                         onChange={(e) => {
-                          const strumenti = strumentiLibrary[newHolding.category].find((item) => item.name === e.target.value);
+                          const strumenti = allInstrumentsByCategory[newHolding.category].find((item) => item.name === e.target.value);
                           if (!strumenti) return;
                           setNewHolding((prev) => ({ ...prev, strumentiName: strumenti.name, isin: strumenti.isin }));
                         }}
                         className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none"
                       >
-                        {strumentiLibrary[newHolding.category].map((strumenti) => (
-                          <option key={strumenti.isin + strumenti.name} value={strumenti.name}>{strumenti.name}</option>
+                        {allInstrumentsByCategory[newHolding.category].map((strumenti) => (
+                          <option key={`${strumenti.source}-${strumenti.id || strumenti.isin}-${strumenti.name}`} value={strumenti.name}>
+                            {strumenti.name}{strumenti.source === "custom" ? " · personale" : ""}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -4682,15 +8566,15 @@ const [authReady, setAuthReady] = useState(false);
 
                     <button
                       onClick={addHolding}
-                      className="w-full rounded-xl bg-slate-900 px-6 py-3 font-medium text-white transition hover:bg-slate-800"
+                      className="w-full rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700"
                     >
                       Salva investimento
                     </button>
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h3 className="text-xl font-semibold">Lettura rapida</h3>
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold text-slate-900">Lettura rapida</h3>
                   <div className="mt-4 space-y-3">
                     <InsightCard
                       title="Categoria principale"
@@ -4722,11 +8606,12 @@ const [authReady, setAuthReady] = useState(false);
 
               <div className="space-y-6">
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 id="ripartizione-attuale" className="scroll-mt-6 text-xl font-semibold">Ripartizione attuale</h3>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Step 2</p>
+                      <h3 id="ripartizione-attuale" className="mt-2 scroll-mt-6 text-xl font-bold tracking-tight text-slate-900">Ripartizione attuale</h3>
                       <p className="mt-1 text-sm text-slate-600">
-                        Dove si concentra oggi il tuo capitale.
+                        Controlla come cambia il capitale dopo ogni investimento inserito.
                       </p>
                     </div>
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
@@ -4735,8 +8620,8 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
 
                   {dashboardBreakdown.length === 0 ? (
-                    <div className="mt-5 rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">
-                      Aggiungi il primo investimento per vedere la ripartizione del capitale.
+                    <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-500">
+                      Aggiungi il primo investimento: qui comparira la ripartizione automatica del capitale.
                     </div>
                   ) : (
                     <div className="mt-5 space-y-4">
@@ -4765,15 +8650,23 @@ const [authReady, setAuthReady] = useState(false);
                 </div>
 
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h3 id="i-tuoi-investimenti" className="scroll-mt-6 text-xl font-semibold">I tuoi investimenti</h3>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Step 3</p>
+                      <h3 id="i-tuoi-investimenti" className="mt-2 scroll-mt-6 text-xl font-bold tracking-tight text-slate-900">I tuoi investimenti</h3>
+                    </div>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{holdings.length} inseriti</span>
+                  </div>
                   {holdings.length === 0 ? (
-                    <p className="mt-4 text-sm text-slate-500">Non hai ancora inserito investimenti.</p>
+                    <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-500">
+                      Nessun investimento inserito. Dopo il salvataggio, lo strumento apparira qui con categoria, ISIN e importo.
+                    </div>
                   ) : (
                     <div className="mt-4 space-y-3">
                       {holdings.map((item) => (
                         <div
                           key={item.id}
-                          className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-4 md:flex-row md:items-center md:justify-between"
+                          className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between"
                         >
                           <div>
                             <p className="font-medium">{item.strumentiName}</p>
@@ -4796,62 +8689,37 @@ const [authReady, setAuthReady] = useState(false);
               </div>
 
               <div className="space-y-6">
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex items-center justify-between">
+                <div className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-md shadow-emerald-100/50 ring-1 ring-emerald-100">
+                  <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 id="pac-mensile" className="scroll-mt-6 text-xl font-semibold">Esempio PAC mensile</h3>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Inserisci un importo mensile e l'app mostra una possibile ripartizione educativa secondo il modello.
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Step 4</p>
+                      <h3 className="mt-2 text-xl font-bold tracking-tight text-slate-900">Guida operativa del mese</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        Esegui le quote suggerite e spuntale una alla volta. Questa e la parte pratica del mese, non una registrazione contabile.
                       </p>
                     </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      esecuzione guidata
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      allocationChecklistComplete
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-100 text-slate-700"
+                    }`}>
+                      {monthlyAllocationAlignedCount}/{monthlyAllocationPlan.length} in linea
                     </span>
                   </div>
 
-                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <label className="text-sm font-medium text-slate-700">PAC mensile da distribuire</label>
-                    <input
-                      value={portMonthly}
-                      onChange={(e) => setPortMonthly(e.target.value)}
-                      placeholder="Es. 200"
-                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
+                  <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-emerald-600 transition-all duration-700"
+                      style={{
+                        width: `${monthlyAllocationPlan.length > 0 ? (monthlyAllocationAlignedCount / monthlyAllocationPlan.length) * 100 : 0}%`,
+                      }}
                     />
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                      Questo e esattamente cosa fare questo mese: la cifra viene salvata, resta dopo il refresh e viene divisa automaticamente secondo il modello. Non serve essere preciso al centesimo: segui le proporzioni.
-                    </p>
                   </div>
 
-                  <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Guida operativa del mese</p>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Spunta ogni quota dopo averla eseguita. Serve come guida pratica, non come registrazione contabile.
-                        </p>
-                      </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        allocationChecklistComplete
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-slate-100 text-slate-700"
-                      }`}>
-                        {checkedAllocationCount}/{monthlyAllocationPlan.length} completate
-                      </span>
-                    </div>
-
-                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className="h-full rounded-full bg-emerald-600 transition-all duration-700"
-                        style={{
-                          width: `${monthlyAllocationPlan.length > 0 ? (checkedAllocationCount / monthlyAllocationPlan.length) * 100 : 0}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-5 space-y-3">
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                     {monthlyAllocationPlan.map((item) => {
-                      const checked = !!checkedPacAllocations[item.category];
+                      const investedAmount = investedByCategory[item.category] || 0;
+                      const isInLine = item.roundedAmount > 0 && Math.abs(investedAmount - item.roundedAmount) <= 1;
 
                       return (
                         <button
@@ -4862,212 +8730,274 @@ const [authReady, setAuthReady] = useState(false);
                               [item.category]: !prev[item.category],
                             }))
                           }
-                          className={`w-full rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
-                            checked
-                              ? "border-emerald-300 bg-emerald-50"
+                          className={`min-h-[156px] w-full rounded-2xl border p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm ${
+                            isInLine
+                              ? "border-emerald-300 bg-emerald-50 shadow-sm ring-1 ring-emerald-100"
                               : "border-slate-200 bg-white hover:bg-slate-50"
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-start gap-3">
-                              <span className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                                checked
-                                  ? "bg-emerald-600 text-white"
-                                  : "bg-slate-100 text-slate-400 ring-1 ring-slate-200"
-                              }`}>
-                                {checked ? "✓" : ""}
-                              </span>
+                          <div className="flex h-full flex-col justify-between gap-4">
+                            <div className="flex items-start justify-between gap-3">
                               <div>
-                                <p className="font-semibold text-slate-900">{item.label}</p>
+                                <p className="text-lg font-bold tracking-tight text-slate-900">{item.label}</p>
                                 <p className="mt-1 text-sm text-slate-500">{item.percentage}% del PAC mensile</p>
                               </div>
+                              <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
+                                isInLine
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
+                              }`}>
+                                {isInLine ? "in linea" : "da allineare"}
+                              </span>
                             </div>
-                            <div className="text-right">
-                              <p className="text-xl font-bold tracking-tight text-slate-900">
-                                {formatEuro(item.roundedAmount)}
-                              </p>
-                              <p className="mt-1 text-xs text-slate-500">
-                                valore preciso: {formatEuro(item.rawAmount)}
-                              </p>
-                            </div>
-                          </div>
 
-                          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
-                            <div
-                              className={`h-full rounded-full transition-all duration-700 ${
-                                checked ? "bg-emerald-600" : "bg-slate-900"
-                              }`}
-                              style={{ width: `${Math.min(item.percentage, 100)}%` }}
-                            />
+                            <div className="grid grid-cols-2 gap-3 rounded-2xl bg-white/70 p-3 ring-1 ring-slate-100">
+                              <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Da investire</p>
+                                <p className="mt-1 text-xl font-bold text-slate-900">{formatEuro(item.roundedAmount)}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Inserito</p>
+                                <p className={`mt-1 text-xl font-bold ${isInLine ? "text-emerald-700" : "text-slate-900"}`}>
+                                  {formatEuro(investedAmount)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+                              <div
+                                className={`h-full rounded-full transition-all duration-700 ${
+                                  isInLine ? "bg-emerald-600" : "bg-slate-900"
+                                }`}
+                                style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                              />
+                            </div>
                           </div>
                         </button>
                       );
                     })}
                   </div>
 
-                  {allocationChecklistComplete && (
+                  {monthlyAllocationIsAligned && (
                     <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                       <p className="text-sm font-semibold text-emerald-900">
-                        Checklist PAC completata. Ora il mese e davvero operativo.
+                        Ripartizione del mese in linea.
                       </p>
                       <p className="mt-1 text-xs leading-5 text-emerald-700">
-                        Se hai gia eseguito anche il versamento mensile, ricordati di chiudere il PAC del mese nel blocco principale.
+                        Gli importi inseriti corrispondono alle quote suggerite dal modello.
                       </p>
                     </div>
                   )}
 
-                  <div className="mt-6 border-t border-slate-200 pt-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Controllo allineamento attuale</p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Qui sotto vedi se gli investimenti registrati sono vicini al target.
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                        modello attuale
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 space-y-4">
-                    {targetCoverage.map((item) => (
-                      <div key={`${item.label}-${item.category}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
-                            <p className="font-semibold text-slate-900">{item.label}</p>
-                            <p className="mt-1 text-sm text-slate-500">{formatEuro(item.currentAmount)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-slate-700">
-                              {item.currentPercentage}% / {item.targetPercentage}%
-                            </p>
-                            <p className={`mt-1 text-xs font-semibold uppercase tracking-wide ${
-                              item.delta === 0
-                                ? "text-emerald-700"
-                                : item.delta > 0
-                                ? "text-amber-700"
-                                : "text-sky-700"
-                            }`}>
-                              {item.delta === 0
-                                ? "in linea"
-                                : item.delta > 0
-                                ? `sovrappeso +${item.delta}%`
-                                : `sottopeso ${item.delta}%`}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4">
-                          <div className="mb-2 flex justify-between text-[11px] uppercase tracking-wide text-slate-500">
-                            <span>Attuale</span>
-                            <span>Target {item.targetPercentage}%</span>
-                          </div>
-                          <div className="relative h-3 overflow-hidden rounded-full bg-slate-200">
-                            <div
-                              className="h-full rounded-full bg-slate-900"
-                              style={{ width: `${Math.min(item.currentPercentage, 100)}%` }}
-                            />
-                            <div
-                              className="absolute top-0 h-3 w-[2px] bg-emerald-600"
-                              style={{ left: `${Math.min(item.targetPercentage, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                    <p className="text-sm text-emerald-900">
-                      Usa il piano PAC mensile per eseguire senza fare calcoli. Il controllo sotto resta utile per capire se il modello registrato si sta allontanando dal target.
+                  <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <label className="text-sm font-semibold text-emerald-950">PAC mensile da distribuire</label>
+                    <input
+                      value={portMonthly}
+                      onChange={(e) => setPortMonthly(e.target.value)}
+                      placeholder="Es. 200"
+                      className="mt-2 w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-500"
+                    />
+                    <p className="mt-2 text-xs leading-5 text-emerald-800">
+                      La cifra viene salvata, resta dopo il refresh e viene divisa automaticamente secondo il modello. Non serve essere preciso al centesimo: segui le proporzioni.
                     </p>
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-xl font-semibold">Badge del percorso</h3>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Ogni badge rappresenta un comportamento reale: setup, PAC, continuita e capitale costruito.
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      {unlockedBadges.length}/{badges.length} badge
-                    </span>
-                  </div>
-
-                  <div className={`mt-5 rounded-3xl border p-5 ${
-                    nextBadge
-                      ? "border-amber-300 bg-gradient-to-br from-amber-50 to-white"
-                      : "border-emerald-300 bg-gradient-to-br from-emerald-50 to-white"
-                  }`}>
-                    <div className="flex items-start gap-4">
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl ${
-                        nextBadge ? "bg-amber-500 text-white" : "bg-emerald-600 text-white"
-                      }`}>
-                        {nextBadge ? "🎯" : "🏆"}
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                          {nextBadge ? "Prossimo badge" : "Percorso completato"}
-                        </p>
-                        <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">
-                          {nextBadge ? nextBadge.title : "Tutti i badge sbloccati"}
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                          {nextBadge ? nextBadge.description : "Hai completato tutti i badge disponibili in questa fase."}
-                        </p>
-                        <p className="mt-3 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200">
-                          {nextBadgeAction}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-3">
-                    {badges.map((badge) => (
-                      <div
-                        key={badge.id}
-                        className={`rounded-2xl border p-4 transition-all duration-200 ${
-                          badge.unlocked
-                            ? "border-amber-300 bg-amber-50 shadow-sm"
-                            : nextBadge?.id === badge.id
-                            ? "border-slate-300 bg-white ring-2 ring-amber-200"
-                            : "border-slate-200 bg-slate-50 opacity-75"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg ${
-                              badge.unlocked
-                                ? "bg-amber-500 text-white"
-                                : nextBadge?.id === badge.id
-                                ? "bg-slate-900 text-white"
-                                : "bg-slate-200 text-slate-500"
-                            }`}
-                          >
-                            {badge.unlocked ? "🏅" : nextBadge?.id === badge.id ? "🎯" : "🔒"}
-                          </div>
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="font-semibold text-slate-900">{badge.title}</p>
-                              {nextBadge?.id === badge.id && (
-                                <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-800">
-                                  prossimo
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-1 text-sm leading-6 text-slate-600">{badge.description}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </div>
               </div>
             </div>
+
+                <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">Percorso lungo termine</p>
+                      <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Badge del percorso</h3>
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                        Non sono premi casuali: ogni badge misura un comportamento utile nel tempo. Setup, consapevolezza, costanza, capitale e identità.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right ring-1 ring-slate-200">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Risultati sbloccati</p>
+                      <p className="mt-1 text-2xl font-black text-slate-900">{unlockedBadges.length}<span className="text-base font-semibold text-slate-400">/{badges.length}</span></p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 overflow-hidden rounded-[2rem] border border-slate-900 bg-slate-950 p-5 text-white shadow-sm">
+                    <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-white/10 text-3xl ring-1 ring-white/15">
+                          {currentInvestorTitle.icon}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Titolo attuale</p>
+                          <h4 className="mt-2 text-3xl font-black tracking-tight">{currentInvestorTitle.title}</h4>
+                          <p className="mt-1 text-sm font-semibold text-slate-200">{currentInvestorTitle.subtitle}</p>
+                          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">{currentInvestorTitle.description}</p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-3xl bg-white/10 p-4 ring-1 ring-white/15">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-black">{nextInvestorTitle ? "Prossimo titolo" : "Titoli completati"}</p>
+                          <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-black text-emerald-200">
+                            {nextInvestorTitle ? nextInvestorTitle.progressLabel : "massimo livello"}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-lg font-black">{nextInvestorTitle ? nextInvestorTitle.title : "Sei al livello più alto"}</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                          {nextInvestorTitle ? nextInvestorTitle.nextHint : "Continua a proteggere la costanza: il titolo resta forte se il comportamento continua."}
+                        </p>
+                        <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/15">
+                          <div
+                            className="h-full rounded-full bg-emerald-400 transition-all duration-700"
+                            style={{ width: `${nextInvestorTitle ? Math.min(nextTitleProgressPercent, 100) : 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-slate-50 p-5">
+                    <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+                      <div className="flex items-start gap-4">
+                        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl shadow-sm ${
+                          nextBadge ? "bg-slate-900 text-white" : "bg-emerald-600 text-white"
+                        }`}>
+                          {nextBadge ? nextBadge.icon : "🏆"}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-700">
+                            {nextBadge ? "Badge vicino" : "Percorso completato"}
+                          </p>
+                          <h4 className="mt-2 text-2xl font-black tracking-tight text-slate-950">
+                            {nextBadge ? nextBadge.title : "Tutti i badge attivi"}
+                          </h4>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                            {nextBadge ? nextBadge.description : "Hai completato tutti i badge disponibili in questa fase."}
+                          </p>
+                          <p className="mt-3 inline-flex rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-slate-200">
+                            {nextBadgeAction}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-3xl bg-white/80 p-4 ring-1 ring-emerald-100">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-bold text-slate-900">Avanzamento badge</p>
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">
+                            {Math.round((unlockedBadges.length / Math.max(badges.length, 1)) * 100)}%
+                          </span>
+                        </div>
+                        <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full rounded-full bg-emerald-600 transition-all duration-700"
+                            style={{ width: `${Math.round((unlockedBadges.length / Math.max(badges.length, 1)) * 100)}%` }}
+                          />
+                        </div>
+                        <p className="mt-3 text-xs leading-5 text-slate-500">
+                          I badge futuri restano visibili come obiettivi, ma quelli più lontani rimangono discreti per non creare pressione.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    {(["inizio", "consapevolezza", "costanza", "capitale", "identita"] as Badge["tier"][]).map((tier) => {
+                      const tierLabels: Record<Badge["tier"], string> = {
+                        inizio: "Attivazione",
+                        consapevolezza: "Consapevolezza",
+                        costanza: "Costanza",
+                        capitale: "Capitale",
+                        identita: "Identità",
+                      };
+                      const tierBadges = orderedBadges.filter((badge) => badge.tier === tier);
+                      const tierUnlocked = tierBadges.filter((badge) => badge.unlocked).length;
+
+                      return (
+                        <div key={tier} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{tierLabels[tier]}</p>
+                            <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+                              {tierUnlocked}/{tierBadges.length}
+                            </span>
+                          </div>
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className="h-full rounded-full bg-slate-900 transition-all duration-700"
+                              style={{ width: `${Math.round((tierUnlocked / Math.max(tierBadges.length, 1)) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {orderedBadges.map((badge) => {
+                      const isNext = nextBadge?.id === badge.id;
+                      const progressPercent = Math.round((badge.progress / Math.max(badge.target, 1)) * 100);
+
+                      return (
+                        <div
+                          key={badge.id}
+                          className={`group relative overflow-hidden rounded-2xl border p-4 transition-all duration-300 ${
+                            badge.unlocked
+                              ? "border-emerald-300 bg-emerald-50 shadow-sm ring-1 ring-emerald-100"
+                              : isNext
+                              ? "border-slate-300 bg-white shadow-sm ring-2 ring-emerald-100"
+                              : "border-slate-200 bg-slate-50/80 opacity-80"
+                          }`}
+                        >
+                          {badge.unlocked && (
+                            <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-200/50 blur-2xl" />
+                          )}
+
+                          <div className="relative flex items-start justify-between gap-4">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg shadow-sm ${
+                              badge.unlocked
+                                ? "bg-emerald-600 text-white"
+                                : isNext
+                                ? "bg-slate-900 text-white"
+                                : "bg-white text-slate-400 ring-1 ring-slate-200"
+                            }`}>
+                              {badge.unlocked ? "✓" : badge.icon}
+                            </div>
+                            <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${
+                              badge.unlocked
+                                ? "bg-emerald-600 text-white"
+                                : isNext
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-white text-slate-500 ring-1 ring-slate-200"
+                            }`}>
+                              {badge.unlocked ? "sbloccato" : isNext ? "prossimo" : "in arrivo"}
+                            </span>
+                          </div>
+
+                          <div className="relative mt-4">
+                            <p className="text-lg font-black tracking-tight text-slate-950">{badge.title}</p>
+                            <p className="mt-2 min-h-[48px] text-sm leading-6 text-slate-600">
+                              {badge.unlocked || isNext ? badge.description : badge.lockedHint}
+                            </p>
+                          </div>
+
+                          <div className="relative mt-4 rounded-xl bg-white/80 p-2.5 ring-1 ring-slate-100">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Progresso</p>
+                              <p className="text-xs font-black text-slate-800">{badge.progressLabel}</p>
+                            </div>
+                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                              <div
+                                className={`h-full rounded-full transition-all duration-700 ${
+                                  badge.unlocked ? "bg-emerald-600" : isNext ? "bg-slate-900" : "bg-slate-300"
+                                }`}
+                                style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
           </section>
         )}        {showRetakeWarning && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
@@ -5145,66 +9075,86 @@ const [authReady, setAuthReady] = useState(false);
         {step === "rebalance" && (
           <section className="space-y-6">
             {!isProPlan ? (
-              <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Funzione Pro</p>
-                <h2 className="mt-3 text-3xl font-bold tracking-tight">Ribilanciamento guidato</h2>
+              <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/40 to-white p-8 shadow-sm">
+                <div className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Funzione Pro</div>
+                <h2 className="mt-4 text-3xl font-bold tracking-tight">Ribilanciamento guidato</h2>
                 <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-                  Questa sezione e inclusa nel piano Pro da 59 EUR/anno. Il Core resta il piano consigliato per il primo anno; il Pro ha senso quando hai gia iniziato e vuoi monitorare gli scostamenti dal modello.
+                  Il ribilanciamento ti aiuta a riportare il portafoglio vicino al piano scelto, senza inseguire il mercato e senza prendere decisioni impulsive. E una funzione utile quando hai gia iniziato e vuoi controllare se la tua ripartizione sta restando coerente.
                 </p>
                 <button
                   onClick={requestProUpgrade}
-                  className="mt-6 rounded-xl bg-slate-900 px-6 py-3 font-semibold text-white transition hover:bg-slate-800"
+                  className="mt-6 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700"
                 >
                   {isCorePlan ? "Passa a Pro - paghi " + proPriceToPay + " EUR" : "Vedi piano Pro"}
                 </button>
               </div>
             ) : (
               <>
-                <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Piano Pro</p>
-                  <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Ribilanciamento guidato</h2>
-                  <p className="mt-4 max-w-4xl text-base leading-7 text-slate-600">
-                    Confronta la tua ripartizione attuale con il modello educativo e valuta come orientare i prossimi PAC per avvicinarti gradualmente al piano. Non e una raccomandazione di acquisto o vendita: e un calcolatore educativo di scostamento.
-                  </p>
+                <div className="overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/50 to-slate-50 p-8 shadow-sm">
+                  <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Piano Pro</p>
+                      <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Ribilanciamento guidato</h2>
+                      <p className="mt-4 max-w-4xl text-base leading-7 text-slate-600">
+                        Il ribilanciamento non serve a prevedere il mercato. Serve a controllare se il portafoglio si sta allontanando dal tuo modello e a decidere, con calma, dove indirizzare i prossimi PAC.
+                      </p>
+                    </div>
+                    <div className="grid min-w-[260px] gap-2 rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500">Patrimonio inserito</span>
+                        <strong className="text-slate-900">{formatEuro(rebalanceTotalInvested)}</strong>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500">PAC disponibile</span>
+                        <strong className="text-slate-900">{formatEuro(rebalancePacNumber)}</strong>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500">Scostamento totale</span>
+                        <strong className={totalRebalanceAbsoluteDrift === 0 ? "text-emerald-700" : totalRebalanceAbsoluteDrift <= 8 ? "text-amber-700" : "text-red-700"}>{totalRebalanceAbsoluteDrift}%</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-emerald-100 bg-white p-4">
+                      <p className="text-sm font-bold text-slate-900">1. Inserisci i valori</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">Inserisci gli importi attuali per ogni categoria.</p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-white p-4">
+                      <p className="text-sm font-bold text-slate-900">2. Leggi lo scostamento</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">Vedi cosa e sopra peso, sotto peso o in linea.</p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-white p-4">
+                      <p className="text-sm font-bold text-slate-900">3. Orienta il prossimo PAC</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">Correggi gradualmente, senza vendere in modo impulsivo.</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
+                <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
                   <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <h3 className="text-xl font-bold tracking-tight">Dati del calcolatore</h3>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                          Inserisci il valore attuale di ogni asset. Il calcolo confronta questi dati con il modello e mostra dove sei sopra o sotto peso.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const nextValues: Partial<Record<StrumentiCategory, string>> = {};
-                          selectedPortfolio.composition.forEach((item) => {
-                            nextValues[item.category] = String(investedByCategory[item.category] || 0);
-                          });
-                          setRebalanceValues(nextValues);
-                        }}
-                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Carica dalla dashboard
-                      </button>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Dati di partenza</p>
+                      <h3 className="mt-2 text-xl font-bold tracking-tight">Quanto hai oggi in ogni asset?</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Inserisci il valore attuale delle categorie del tuo modello. Il calcolo considera normale uno scostamento fino all'1% per asset, ma mostra comunque numeri precisi per orientare il PAC.
+                      </p>
                     </div>
 
-                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="text-sm font-medium text-slate-700">PAC mensile disponibile per il riequilibrio</span>
+                    <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_1.2fr]">
+                      <label className="block rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <span className="text-sm font-semibold text-slate-800">PAC mensile per riequilibrare</span>
                         <input
                           type="number"
                           min="0"
                           value={rebalancePacAmount}
                           onChange={(e) => setRebalancePacAmount(e.target.value)}
                           placeholder="Es. 200"
-                          className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                         />
                       </label>
-                      <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                        Inserisci il PAC mensile e i valori attuali qui sotto: l'app calcola da sola per quanti mesi orientare temporaneamente il PAC verso gli asset sotto peso.
+                      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+                        <strong>Consiglio semplice:</strong> se lo scostamento non e enorme, spesso e meglio correggere con i prossimi PAC invece di vendere strumenti. Meno fretta, meno costi, meno decisioni impulsive.
                       </div>
                     </div>
 
@@ -5213,7 +9163,7 @@ const [authReady, setAuthReady] = useState(false);
                         <div>
                           <h4 className="text-base font-bold text-slate-900">Valori attuali per asset</h4>
                           <p className="mt-1 text-sm leading-6 text-slate-600">
-                            Inserisci quanti euro hai oggi in ogni categoria del tuo modello. Questi valori guidano tutto il calcolo dello scostamento.
+                            Inserisci gli importi in euro. Il target indica la percentuale che il tuo modello vorrebbe mantenere nel tempo. Uno scostamento fino all'1% viene considerato fisiologico, ma puoi comunque usare le quote sotto per riportarti al target preciso.
                           </p>
                         </div>
                         <button
@@ -5227,7 +9177,7 @@ const [authReady, setAuthReady] = useState(false);
 
                       <div className="mt-5 grid gap-4 sm:grid-cols-2">
                         {selectedPortfolio.composition.map((item) => (
-                          <label key={item.category} className="block rounded-2xl border border-slate-200 bg-white p-4">
+                          <label key={item.category} className="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                             <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: getAssetColor(item.category) }} />
                               {item.label}
@@ -5247,39 +9197,86 @@ const [authReady, setAuthReady] = useState(false);
                                 }))
                               }
                               placeholder="Es. 1000"
-                              className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                              className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                             />
                           </label>
                         ))}
                       </div>
                     </div>
 
-                    <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                      Patrimonio inserito: <strong>{formatEuro(rebalanceTotalInvested)}</strong> · PAC mensile disponibile: <strong>{formatEuro(rebalancePacNumber)}</strong>{rebalanceMonthsNumber > 0 ? <> · Rientro simulato: <strong>{rebalanceMonthsNumber}</strong> {rebalanceMonthsNumber === 1 ? "mese" : "mesi"} ({formatEuro(totalRebalanceBudget)} di nuovi PAC).</> : null}
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Patrimonio</p>
+                        <p className="mt-1 text-xl font-bold text-slate-900">{formatEuro(rebalanceTotalInvested)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">PAC</p>
+                        <p className="mt-1 text-xl font-bold text-slate-900">{formatEuro(rebalancePacNumber)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rientro</p>
+                        <p className="mt-1 text-xl font-bold text-slate-900">{rebalanceMonthsNumber > 0 ? `${rebalanceMonthsNumber} ${rebalanceMonthsNumber === 1 ? "mese" : "mesi"}` : "-"}</p>
+                      </div>
                     </div>
                     <p className="mt-4 text-xs leading-5 text-slate-500">
-                      Puoi inserire i valori manualmente oppure caricarli dagli investimenti registrati nella dashboard. Il risultato resta educativo e non costituisce consulenza personalizzata.
+                      Il risultato e educativo: non dice cosa comprare o vendere, ma ti aiuta a capire se il portafoglio sta rispettando il modello scelto.
                     </p>
                   </div>
 
-                  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <h3 className="text-xl font-bold tracking-tight">Lettura dello scostamento</h3>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">{rebalanceStatus}</p>
-                    <div className="mt-5 space-y-3">
-                      {rebalanceCoverage.map((item) => (
-                        <div key={item.category} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                          <div className="flex items-center justify-between gap-4 text-sm">
-                            <span className="flex items-center gap-2 font-semibold text-slate-900">
-                              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: getAssetColor(item.category) }} />
-                              {item.label}
-                            </span>
-                            <span className={item.delta > 0 ? "font-bold text-red-600" : item.delta < 0 ? "font-bold text-blue-600" : "font-bold text-emerald-600"}>
-                              {item.delta > 0 ? "+" : ""}{item.delta}%
-                            </span>
-                          </div>
-                          <p className="mt-2 text-xs text-slate-500">Attuale {item.currentPercentage}% ({formatEuro(item.currentAmount)}) · Modello {item.targetPercentage}%</p>
+                  <div className="space-y-6">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Lettura rapida</p>
+                          <h3 className="mt-2 text-xl font-bold tracking-tight">Quanto sei vicino al piano?</h3>
+                          <p className="mt-3 text-sm leading-6 text-slate-600">{rebalanceStatus}</p>
                         </div>
-                      ))}
+                        <div className={totalRebalanceAbsoluteDrift === 0 ? "rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700" : totalRebalanceAbsoluteDrift <= 8 ? "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700" : "rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700"}>
+                          {rebalanceTotalInvested <= 0 ? "Inserisci dati" : totalRebalanceAbsoluteDrift === 0 ? "In linea" : totalRebalanceAbsoluteDrift <= 8 ? "Da monitorare" : "Da correggere"}
+                        </div>
+                      </div>
+
+                      <div className="mt-5 space-y-3">
+                        {rebalanceCoverage.map((item) => {
+                          const assetStatus = item.delta === 0 ? "In linea" : item.delta > 0 ? "Sopra peso" : "Sotto peso";
+                          const assetStatusClass = item.delta === 0 ? "bg-emerald-100 text-emerald-700" : item.delta > 0 ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700";
+                          const driftWidth = Math.min(100, Math.abs(item.delta) * 4);
+                          return (
+                            <div key={item.category} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: getAssetColor(item.category) }} />
+                                    {item.label}
+                                  </p>
+                                  <p className="mt-2 text-xs text-slate-500">Attuale {item.currentPercentage}% ({formatEuro(item.currentAmount)}) · Obiettivo {item.targetPercentage}%</p>
+                                </div>
+                                <span className={`rounded-full px-3 py-1 text-xs font-bold ${assetStatusClass}`}>{assetStatus}</span>
+                              </div>
+                              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                                <div className={item.delta === 0 ? "h-full bg-emerald-500" : item.delta > 0 ? "h-full bg-amber-500" : "h-full bg-blue-500"} style={{ width: `${driftWidth}%` }} />
+                              </div>
+                              <p className="mt-2 text-xs font-semibold text-slate-600">Differenza precisa: {item.preciseDelta > 0 ? "+" : ""}{item.preciseDelta}% rispetto al modello{item.delta === 0 && item.preciseDelta !== 0 ? " (entro soglia 1%)" : ""}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Regola pratica</p>
+                      <h3 className="mt-2 text-xl font-bold tracking-tight">Ribilanciare non significa correre</h3>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+                          <strong>Piccolo scostamento</strong><br />Non e un problema. Se vuoi precisione, usa le quote del PAC suggerite sotto.
+                        </div>
+                        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                          <strong>Scostamento medio</strong><br />Usa i prossimi PAC per rafforzare cio che e sotto peso.
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                          <strong>Scostamento alto</strong><br />Valuta con calma costi, fiscalita e alternative prima di vendere.
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -5287,31 +9284,43 @@ const [authReady, setAuthReady] = useState(false);
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                     <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Output educativo</p>
-                      <h3 className="mt-2 text-2xl font-bold tracking-tight">Possibile orientamento dei prossimi PAC</h3>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Cosa fare ora</p>
+                      <h3 className="mt-2 text-2xl font-bold tracking-tight">Orientamento dei prossimi PAC</h3>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                        Questa sezione suggerisce come distribuire temporaneamente il nuovo capitale per avvicinarti alle percentuali del modello. Se bastano pochi mesi, il piano non deve mettere tutto su un solo asset: indica anche la quota da mantenere sugli altri strumenti per non creare un nuovo squilibrio.
+                      </p>
                     </div>
                     {rebalanceBiggestGap && (
                       <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                        Scostamento maggiore: <strong>{rebalanceBiggestGap.label}</strong> ({rebalanceBiggestGap.delta > 0 ? "+" : ""}{rebalanceBiggestGap.delta}%)
+                        Scostamento maggiore: <strong>{rebalanceBiggestGap.label}</strong> ({rebalanceBiggestGap.preciseDelta > 0 ? "+" : ""}{rebalanceBiggestGap.preciseDelta}%)
                       </div>
                     )}
                   </div>
 
                   {rebalanceTotalInvested <= 0 ? (
                     <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
-                      Inserisci prima i valori attuali dei tuoi asset oppure caricali dalla dashboard.
+                      Inserisci prima i valori attuali dei tuoi asset.
+                    </div>
+                  ) : rebalancePlan.length === 0 ? (
+                    <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm leading-6 text-emerald-900">
+                      Il portafoglio e gia molto vicino al modello. Non emergono categorie da rafforzare: puoi continuare con il PAC ordinario e ricontrollare con calma.
                     </div>
                   ) : (
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {rebalancePlan.map((item) => (
-                        <div key={item.category} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                        <div key={item.category} className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm">
                           <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                             <span className="h-3 w-3 rounded-full" style={{ backgroundColor: getAssetColor(item.category) }} />
                             {item.label}
                           </p>
-                          <p className="mt-3 text-3xl font-bold tracking-tight">{item.suggestedPercentage}%</p>
-                          <p className="mt-2 text-sm text-slate-600">Circa {formatEuro(item.roundedAmount)} al mese{rebalanceMonthsNumber > 0 ? <> per {rebalanceMonthsNumber} {rebalanceMonthsNumber === 1 ? "mese" : "mesi"}</> : null}.</p>
-                          {rebalanceMonthsNumber > 0 && <p className="mt-1 text-xs text-slate-500">Totale simulato: {formatEuro(item.totalAmount)}.</p>}
+                          <div className="mt-3 flex items-end justify-between gap-3">
+                            <p className="text-3xl font-bold tracking-tight text-slate-900">{item.suggestedPercentage}%</p>
+                            <span className={`rounded-full px-3 py-1 text-xs font-bold ${item.role === "correzione" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                              {item.role === "correzione" ? "quota di rientro" : "quota di mantenimento"}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">Circa <strong>{formatEuro(item.roundedAmount)}</strong> al mese{rebalanceMonthsNumber > 0 ? <> per {rebalanceMonthsNumber} {rebalanceMonthsNumber === 1 ? "mese" : "mesi"}</> : null}.</p>
+                          {rebalanceMonthsNumber > 0 && <p className="mt-1 text-xs text-slate-500">Totale simulato: {formatEuro(item.totalAmount)}. Valore preciso: {formatEuro(item.exactTotalAmount)}.</p>}
                         </div>
                       ))}
                     </div>
@@ -5322,33 +9331,33 @@ const [authReady, setAuthReady] = useState(false);
                       <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Soluzione piu auspicabile</p>
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Soluzione piu prudente</p>
                             <p className="mt-2 text-lg font-bold text-slate-900">Rientro graduale usando solo i prossimi PAC</p>
                           </div>
                           {automaticRebalance.feasible && <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700">circa {rebalanceMonthsNumber} {rebalanceMonthsNumber === 1 ? "mese" : "mesi"}</span>}
                         </div>
                         <p className="mt-3 text-sm leading-6 text-slate-700">
-                          Pro: non richiede vendite, riduce il rischio di decisioni impulsive e usa il nuovo capitale per riportare il portafoglio verso il modello. Contro: se lo scostamento e grande puo richiedere diversi mesi e nel frattempo il portafoglio resta parzialmente sbilanciato.
+                          Pro: evita vendite immediate, riduce il rischio di agire sull'emotività e usa il nuovo capitale per tornare verso il piano. La quota di rientro corregge l'asset sotto peso, mentre la quota di mantenimento continua a finanziare gli altri asset per non creare un nuovo squilibrio. Contro: se lo scostamento e grande puo richiedere piu tempo.
                         </p>
                       </div>
 
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-                          <p className="text-sm font-bold text-slate-900">Alternativa 1: vendere e riallocare</p>
+                          <p className="text-sm font-bold text-slate-900">Alternativa: vendere e riallocare</p>
                           <p className="mt-2 text-sm leading-6 text-slate-700">
-                            Puoi simulare la vendita delle categorie sopra peso e l'acquisto di quelle sotto peso. Scostamento stimato da riallocare: <strong>{formatEuro(estimatedSaleAmount)}</strong>.
+                            Puoi simulare la vendita delle categorie sopra peso e l'acquisto di quelle sotto peso. Importo indicativo da riallocare: <strong>{formatEuro(estimatedSaleAmount)}</strong>.
                           </p>
                           <p className="mt-3 rounded-xl bg-white p-3 text-xs leading-5 text-amber-900">
-                            Attenzione: vendere strumenti in guadagno puo generare tasse sulla plusvalenza. In Italia l'aliquota ordinaria sulle plusvalenze finanziarie e generalmente il 26%, salvo casi particolari. Verifica sempre fiscalita e costi prima di agire.
+                            Prima di vendere, valuta costi, tasse e conseguenze. In Italia l'aliquota ordinaria sulle plusvalenze finanziarie e generalmente il 26%, salvo casi particolari.
                           </p>
                         </div>
                         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-sm font-bold text-slate-900">Alternativa 2: PAC temporaneamente piu alto</p>
+                          <p className="text-sm font-bold text-slate-900">Alternativa: PAC temporaneamente piu alto</p>
                           <p className="mt-2 text-sm leading-6 text-slate-600">
-                            Se vuoi rientrare prima senza vendere, puoi aumentare temporaneamente il PAC a circa <strong>{formatEuro(acceleratedRebalancePac)}</strong> al mese per circa <strong>{acceleratedRebalanceMonths} {acceleratedRebalanceMonths === 1 ? "mese" : "mesi"}</strong>, mantenendo la stessa ripartizione temporanea proposta sopra.
+                            Se vuoi rientrare prima senza vendere, puoi aumentare temporaneamente il PAC a circa <strong>{formatEuro(acceleratedRebalancePac)}</strong> al mese per circa <strong>{acceleratedRebalanceMonths} {acceleratedRebalanceMonths === 1 ? "mese" : "mesi"}</strong>.
                           </p>
                           <p className="mt-3 text-xs leading-5 text-slate-500">
-                            Pro: accelera il rientro ed evita vendite. Contro: richiede maggiore liquidita mensile per un periodo limitato.
+                            Pro: accelera il rientro. Contro: richiede piu liquidita mensile per un periodo limitato.
                           </p>
                         </div>
                       </div>
@@ -5356,7 +9365,7 @@ const [authReady, setAuthReady] = useState(false);
                   )}
 
                   <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600">
-                    Lettura pratica: se una categoria e molto sopra il modello, il calcolatore tende a non aumentarla nei PAC temporanei; orienta invece il nuovo capitale verso le categorie sotto peso. Quando il portafoglio torna vicino al modello, puoi riprendere il PAC ordinario e ricontrollare lo scostamento periodicamente.
+                    <strong>Lettura pratica:</strong> se una categoria e molto sopra il modello, il calcolatore tende a non aumentarla nei PAC temporanei; orienta invece il nuovo capitale verso le categorie sotto peso. Quando il portafoglio torna vicino al modello, puoi riprendere il PAC ordinario e ricontrollare periodicamente.
                   </div>
                 </div>
               </>
@@ -5386,16 +9395,24 @@ const [authReady, setAuthReady] = useState(false);
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Piano Pro</p>
                   <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Strategia di uscita guidata</h2>
                   <p className="mt-4 max-w-4xl text-base leading-7 text-slate-600">
-                    Questa sezione ti aiuta a scegliere come uscire da un PAC a fine percorso. Puoi farti guidare da un questionario oppure scegliere manualmente una strategia. Il nostro consiglio viene salvato, ma le altre opzioni restano sempre disponibili.
+                    Uscire da un investimento non significa vendere tutto di colpo. Significa trasformare il piano in soldi disponibili, con metodo, tempi chiari e senza farsi guidare dal panico.
                   </p>
+                  <div className="mt-5 grid gap-3 md:grid-cols-4">
+                    {["Scegli l'obiettivo", "Controlla quando servono i soldi", "Riduci il rischio gradualmente", "Segui una regola scritta"].map((item, index) => (
+                      <div key={item} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+                        <span className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">{index + 1}</span>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
                   <div className="mt-6 grid gap-3 md:grid-cols-2">
                     <button
                       type="button"
                       onClick={openExitQuestionnaire}
-                      className={`rounded-2xl border p-5 text-left transition ${exitMode === "questionario" ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-white"}`}
+                      className="rounded-2xl border border-emerald-600 bg-emerald-600 p-5 text-left text-white shadow-sm transition hover:bg-emerald-700"
                     >
                       <span className="block text-sm font-bold">Non so cosa scegliere: guidami</span>
-                      <span className={`mt-1 block text-xs leading-5 ${exitMode === "questionario" ? "text-slate-200" : "text-slate-500"}`}>Rispondi a poche domande e salva una strategia coerente con la tua situazione.</span>
+                      <span className="mt-1 block text-xs leading-5 text-emerald-50">Rispondi a poche domande e salva una strategia coerente con la tua situazione.</span>
                     </button>
                     <button
                       type="button"
@@ -5411,12 +9428,12 @@ const [authReady, setAuthReady] = useState(false);
                 <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
                   <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                     <h3 className="text-xl font-bold tracking-tight">Dati della simulazione</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">Questi numeri servono per rendere concreti esempi, tasse stimate, quote di vendita e bucket.</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">Inserisci pochi dati: non servono numeri perfetti. Servono per capire quanto vendere, in quanto tempo e con quali attenzioni.</p>
                     <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                      <label className="block"><span className="text-sm font-medium text-slate-700">Capitale investito</span><input type="number" min="0" value={exitInvestedAmount} onChange={(e) => setExitInvestedAmount(e.target.value)} placeholder="Es. 100000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /></label>
-                      <label className="block"><span className="text-sm font-medium text-slate-700">Valore attuale</span><input type="number" min="0" value={exitCurrentAmount} onChange={(e) => setExitCurrentAmount(e.target.value)} placeholder="Es. 130000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /></label>
-                      <label className="block"><span className="text-sm font-medium text-slate-700">Obiettivo finale</span><input type="number" min="0" value={exitGoalAmount} onChange={(e) => setExitGoalAmount(e.target.value)} placeholder="Es. 120000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /></label>
-                      <label className="block"><span className="text-sm font-medium text-slate-700">Durata uscita graduale</span><input type="number" min="1" value={exitMonths} onChange={(e) => setExitMonths(e.target.value)} placeholder="Es. 12" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /></label>
+                      <label className="block"><span className="text-sm font-medium text-slate-700">Capitale investito</span><input type="number" min="0" value={exitInvestedAmount} onChange={(e) => setExitInvestedAmount(e.target.value)} placeholder="Es. 100000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">Quanto hai versato nel tempo. Serve per stimare il guadagno e le eventuali tasse.</span></label>
+                      <label className="block"><span className="text-sm font-medium text-slate-700">Valore attuale</span><input type="number" min="0" value={exitCurrentAmount} onChange={(e) => setExitCurrentAmount(e.target.value)} placeholder="Es. 130000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">Quanto vale oggi il capitale che stai valutando di usare o proteggere.</span></label>
+                      <label className="block"><span className="text-sm font-medium text-slate-700">Obiettivo finale</span><input type="number" min="0" value={exitGoalAmount} onChange={(e) => setExitGoalAmount(e.target.value)} placeholder="Es. 120000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">La cifra che ti serve davvero. Quando sei vicino, proteggere puo contare piu di inseguire altro rendimento.</span></label>
+                      <label className="block"><span className="text-sm font-medium text-slate-700">Durata uscita graduale</span><input type="number" min="1" value={exitMonths} onChange={(e) => setExitMonths(e.target.value)} placeholder="Es. 12" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">In quanti mesi vuoi trasformare il capitale in liquidita. Piu mesi = uscita piu morbida.</span></label>
                     </div>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       <MetricCard label="Plusvalenza stimata" value={formatEuro(exitProfit)} />
@@ -5438,6 +9455,7 @@ const [authReady, setAuthReady] = useState(false);
                     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Strategie disponibili</p>
                       <h3 className="mt-2 text-2xl font-bold tracking-tight">Scegli sempre tu</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">Il questionario ti orienta, ma la decisione finale resta tua. Leggi quando usarla, pro e contro prima di applicarla.</p>
                       <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         {(Object.keys(exitStrategyLabels) as ExitStrategyKey[]).map((key) => (
                           <button key={key} type="button" onClick={() => setSelectedExitStrategy(key)} className={`rounded-2xl border p-4 text-left transition ${selectedExitStrategy === key ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-white"}`}>
@@ -5456,6 +9474,9 @@ const [authReady, setAuthReady] = useState(false);
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Strategia selezionata</p>
                       <h3 className="mt-2 text-3xl font-bold tracking-tight">{selectedExitDetails.title}</h3>
                       <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">{selectedExitDetails.plain}</p>
+                      <p className="mt-3 max-w-4xl rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                        Lettura semplice: prima capisci perche vuoi uscire, poi scegli il ritmo. Non devi prevedere il mercato: devi sapere quale bisogno stai proteggendo.
+                      </p>
                     </div>
                     {savedExitAdvice && selectedExitStrategy !== savedExitAdvice && (
                       <div className="rounded-2xl bg-amber-50 p-4 text-xs leading-5 text-amber-900">Strategia consigliata dal questionario: <strong>{exitStrategyLabels[savedExitAdvice]}</strong>. Puoi comunque scegliere liberamente questa alternativa.</div>
@@ -5478,10 +9499,13 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
 
                   <div className="mt-6 rounded-2xl border border-slate-200 p-5">
-                    <h4 className="font-bold text-slate-900">Piano step by step</h4>
+                    <h4 className="font-bold text-slate-900">Istruzioni passo dopo passo</h4>
                     <ol className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
                       {selectedExitDetails.steps.map((item, index) => (<li key={item} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">{index + 1}</span><span>{item}</span></li>))}
                     </ol>
+                    <div className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+                      <strong>Regola pratica:</strong> se non hai un bisogno immediato, spesso e meglio uscire con calma. Se invece i soldi servono davvero, il primo obiettivo e proteggerli, non cercare l'ultimo punto di rendimento.
+                    </div>
                   </div>
                 </div>
               </>
@@ -5499,7 +9523,7 @@ const [authReady, setAuthReady] = useState(false);
             <p className="mt-3 text-sm leading-6 text-slate-600">Rifare il questionario puo modificare la strategia consigliata in base alle nuove risposte. Il consiglio salvato verra aggiornato, ma potrai comunque scegliere liberamente qualsiasi strategia.</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setShowExitQuestionnaireWarning(false)} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Non cambiare</button>
-              <button type="button" onClick={() => { setShowExitQuestionnaireWarning(false); setExitQuestionnaireStep(0); setShowExitQuestionnaireModal(true); }} className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Prosegui</button>
+              <button type="button" onClick={() => { setShowExitQuestionnaireWarning(false); setExitQuestionnaireStep(0); setShowExitQuestionnaireModal(true); }} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">Prosegui</button>
             </div>
           </div>
         </div>
@@ -5512,7 +9536,7 @@ const [authReady, setAuthReady] = useState(false);
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Questionario guidato</p>
                 <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Troviamo una strategia coerente</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Una domanda alla volta. Il risultato salva il nostro consiglio, ma potrai comunque scegliere liberamente qualsiasi strategia.</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Una domanda alla volta. Il risultato ti indica una strada possibile, ma potrai comunque scegliere liberamente qualsiasi strategia.</p>
               </div>
               <button type="button" onClick={() => { setShowExitQuestionnaireModal(false); setExitQuestionnaireStep(0); }} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">Chiudi</button>
             </div>
@@ -5628,6 +9652,99 @@ const [authReady, setAuthReady] = useState(false);
       </div>
     </main>
   );
+
+}
+
+function CelebrationOverlay({
+  celebration,
+  onClose,
+}: {
+  celebration: CelebrationEvent | null;
+  onClose: () => void;
+}) {
+  if (!celebration) return null;
+
+  const isGoal = celebration.kind === "goal";
+  const isTitle = celebration.kind === "title";
+
+  if (!isGoal) {
+    return (
+      <div className="pointer-events-none fixed left-1/2 top-5 z-[80] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 sm:top-7">
+        <div className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50 p-4 shadow-2xl shadow-emerald-950/15 ring-1 ring-emerald-100 sm:p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm ring-1 ring-emerald-100 sm:h-16 sm:w-16">
+              {celebration.icon}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-700">
+                {isTitle ? "Nuovo titolo sbloccato" : "Nuovo traguardo"}
+              </p>
+              <h3 className="mt-1 text-base font-black text-slate-950 sm:text-lg">{celebration.title}</h3>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-700 sm:text-sm">{celebration.subtitle}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-md">
+      <div className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-emerald-200/30 bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900 text-white shadow-2xl">
+        <div className="relative p-6 sm:p-8">
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-400/30 blur-3xl" />
+          <div className="absolute -bottom-20 left-8 h-44 w-44 rounded-full bg-sky-400/20 blur-3xl" />
+          <div className="absolute left-1/2 top-0 h-px w-3/4 -translate-x-1/2 bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent" />
+
+          <div className="relative">
+            <div className="flex items-start gap-4">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-emerald-400/15 text-4xl ring-1 ring-emerald-200/30">
+                {celebration.icon}
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-300">
+                  Obiettivo personale raggiunto
+                </p>
+                <h3 className="mt-2 text-2xl font-black tracking-tight sm:text-4xl">{celebration.title}</h3>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-3xl bg-white/10 p-5 ring-1 ring-white/10">
+              <p className="text-base leading-7 text-slate-100 sm:text-lg">{celebration.subtitle}</p>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/10">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-200">Metodo</p>
+                <p className="mt-1 text-sm text-slate-200">Hai seguito un percorso, non un impulso.</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/10">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-200">Costanza</p>
+                <p className="mt-1 text-sm text-slate-200">Hai continuato anche quando era più facile rimandare.</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/10">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-200">Risultato</p>
+                <p className="mt-1 text-sm text-slate-200">Questo traguardo racconta una scelta mantenuta nel tempo.</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="inline-flex rounded-full bg-emerald-400/15 px-4 py-2 text-xs font-black text-emerald-200 ring-1 ring-emerald-300/20">
+                Prenditi un momento: questo risultato merita di essere celebrato.
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-600"
+              >
+                Continua il tuo percorso
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function TopBar({
@@ -5638,6 +9755,7 @@ function TopBar({
   onGoHome,
   onGoPortfolio,
   onGoGuide,
+  onGoAwareness,
   onGoStrumentis,
   onGoDashboard,
   onGoRebalance,
@@ -5653,6 +9771,7 @@ function TopBar({
   onGoHome: () => void;
   onGoPortfolio: () => void;
   onGoGuide: () => void;
+  onGoAwareness: () => void;
   onGoStrumentis: () => void;
   onGoDashboard: () => void;
   onGoRebalance: () => void;
@@ -5669,13 +9788,14 @@ function TopBar({
       </div>
 
       <nav className="flex flex-wrap items-center gap-2">
-        <NavButton active={step === "home"} onClick={onGoHome}>Home</NavButton>
+        {!unlocked && <NavButton active={step === "home"} onClick={onGoHome}>Home</NavButton>}
         {unlocked && (
           <>
             <NavButton active={step === "portfolio"} onClick={onGoPortfolio}>Modello</NavButton>
             <NavButton active={step === "guide"} onClick={onGoGuide}>Guida</NavButton>
-            <NavButton active={step === "strumentis"} onClick={onGoStrumentis}>Strumenti</NavButton>
             <NavButton active={step === "dashboard"} onClick={onGoDashboard}>Dashboard</NavButton>
+            <NavButton active={step === "awareness"} onClick={onGoAwareness}>Consapevolezza</NavButton>
+            <NavButton active={step === "strumentis"} onClick={onGoStrumentis}>Strumenti</NavButton>
             <NavButton active={step === "rebalance"} onClick={onGoRebalance}>Ribilanciamento</NavButton>
             <NavButton active={step === "exit"} onClick={onGoExit}>Strategia uscita</NavButton>
           </>
@@ -5877,6 +9997,7 @@ function GuidedStepCard({
   text,
   action,
   done,
+  active,
   onClick,
 }: {
   number: string;
@@ -5884,24 +10005,39 @@ function GuidedStepCard({
   text: string;
   action: string;
   done?: boolean;
+  active?: boolean;
   onClick: () => void;
 }) {
+  const isSecondary = done || !active;
+
   return (
-    <div className={`rounded-3xl border p-4 transition ${done ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+    <div
+      className={`flex h-full flex-col rounded-3xl border p-5 transition ${
+        active
+          ? "border-emerald-300 bg-white shadow-md shadow-emerald-100/70"
+          : done
+          ? "border-emerald-200 bg-emerald-50/70"
+          : "border-slate-200 bg-slate-50"
+      }`}
+    >
       <div className="flex items-center justify-between gap-3">
-        <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${done ? "bg-emerald-600 text-white" : "bg-slate-900 text-white"}`}>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${done ? "bg-emerald-600 text-white" : active ? "bg-emerald-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>
           {done ? "✓" : number}
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${done ? "bg-white text-emerald-700" : "bg-white text-slate-600"}`}>
-          {done ? "Fatto" : "Da fare"}
+        <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${done ? "bg-white text-emerald-700 ring-1 ring-emerald-100" : active ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : "bg-white text-slate-500 ring-1 ring-slate-200"}`}>
+          {done ? "Completato" : active ? "Da fare ora" : "Prossimo"}
         </span>
       </div>
       <h4 className="mt-4 text-base font-bold leading-6 text-slate-900">{title}</h4>
-      <p className="mt-2 min-h-[72px] text-sm leading-6 text-slate-600">{text}</p>
+      <p className="mt-2 min-h-[72px] flex-1 text-sm leading-6 text-slate-600">{text}</p>
       <button
         type="button"
         onClick={onClick}
-        className="mt-4 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+        className={`mt-5 w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+          isSecondary
+            ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            : "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+        }`}
       >
         {action}
       </button>
@@ -5917,6 +10053,8 @@ function ChecklistGroup({
   onToggle,
   getToolAction,
   nextItemId,
+  actionVisited = {},
+  onToolActionClick,
 }: {
   title: string;
   subtitle?: string;
@@ -5925,6 +10063,8 @@ function ChecklistGroup({
   onToggle: (id: string) => void;
   getToolAction?: (id: string) => { label: string; onClick: () => void } | null;
   nextItemId?: string | null;
+  actionVisited?: Record<string, boolean>;
+  onToolActionClick?: (id: string, action: { label: string; onClick: () => void }) => void;
 }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
@@ -5936,6 +10076,7 @@ function ChecklistGroup({
           const checked = Boolean(state[item.id]);
           const isNext = !checked && item.id === nextItemId;
           const toolAction = getToolAction ? getToolAction(item.id) : null;
+          const toolActionIsPrimary = Boolean(toolAction && isNext && !actionVisited[item.id]);
 
           return (
             <div
@@ -5982,9 +10123,14 @@ function ChecklistGroup({
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    toolAction.onClick();
+                    if (onToolActionClick) onToolActionClick(item.id, toolAction);
+                    else toolAction.onClick();
                   }}
-                  className="mt-3 inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100"
+                  className={`mt-3 inline-flex rounded-xl px-3 py-2 text-xs font-semibold shadow-sm transition ${
+                    toolActionIsPrimary
+                      ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                  }`}
                 >
                   {toolAction.label}
                 </button>
@@ -5996,3 +10142,13 @@ function ChecklistGroup({
     </div>
   );
 }
+
+
+// === UPGRADE BADGE VISIVO ===
+// Badge ora centrati in alto, più grandi, con animazione e stile premium
+// Esempio stile:
+// position: fixed; top: 20px; left: 50%; transform: translateX(-50%)
+// bg: emerald-50, border emerald-200
+// animazione: scale + fade
+// auto dismiss mantenuto
+
