@@ -4694,6 +4694,13 @@ const [authReady, setAuthReady] = useState(false);
     return Boolean(purchase.selectedPortfolio) || answers.every((answer) => answer !== -1);
   }
 
+  function goToPaywallTop() {
+    setStep("paywall");
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+    }
+  }
+
   function goToSafeHome() {
     if (purchase.unlocked) {
       setStep("dashboard");
@@ -5079,14 +5086,14 @@ const [authReady, setAuthReady] = useState(false);
             <div className="relative">
               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Soldi Semplici</p>
               <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-slate-950 md:text-6xl">
-                Inizia a investire ogni mese, senza complicarti la vita.
+                Gestisci i tuoi soldi con più metodo e meno confusione.
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                Ti guidiamo passo passo: dal primo Piano di Accumulo (PAC) alla gestione del portafoglio, fino alle strategie di uscita quando sarà il momento.
+                Crea il tuo piano, segui la guida operativa e usa strumenti semplici per investimenti, risparmio, auto, mutuo, spesa intelligente e anti-truffe.
               </p>
 
               <div className="mt-8 grid gap-4 md:grid-cols-3">
-                <FeatureCard title="Parti da zero" text="Rispondi a poche domande e ottieni un modello educativo semplice da capire." />
+                <FeatureCard title="Piano personalizzato" text="Modello, PAC e guida passo passo per sapere cosa fare adesso." />
                 <FeatureCard title="Costruisci il PAC" text="Imposti una cifra mensile sostenibile e segui un percorso ordinato, senza confusione." />
                 <FeatureCard title="Gestisci nel tempo" text="Con il Pro trovi ribilanciamento guidato e strategie di uscita più avanzate." />
               </div>
@@ -5330,13 +5337,16 @@ const [authReady, setAuthReady] = useState(false);
             <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm md:p-10">
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Soldi Semplici</p>
               <h1 className="mt-3 max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
-                Inizia a investire ogni mese, senza complicarti la vita
+                Gestisci i tuoi soldi con più metodo e meno confusione
               </h1>
               <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
-                Soldi Semplici ti guida passo passo nella creazione del tuo primo PAC: un piano di investimento mensile pensato per costruire abitudine, continuita e consapevolezza.
+                Soldi Semplici ti aiuta a costruire un piano, seguire una guida operativa e usare strumenti pratici per risparmio, investimenti, auto, mutuo, anti-truffe e strategia d’uscita.
               </p>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
                 L'app ha finalita educative e informative. Non sostituisce una consulenza finanziaria personalizzata e non promette rendimenti.
+              </p>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-700">
+                Non è solo teoria: è una guida pratica per evitare errori costosi e prendere decisioni più consapevoli.
               </p>
 
               <div className="mt-8 grid gap-4 lg:grid-cols-3">
@@ -5597,19 +5607,19 @@ const [authReady, setAuthReady] = useState(false);
                     </ul>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 p-8 text-white md:p-10 shadow-inner">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">La logica e semplice</p>
+                <div className="border-l border-slate-200 bg-slate-50 p-8 md:p-10">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">La logica e semplice</p>
                   <div className="mt-6 space-y-5">
-                    <div className="rounded-2xl bg-white/10 p-5">
-                      <p className="text-sm font-semibold text-slate-200">Gratis</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                      <p className="text-sm font-semibold text-slate-500">Gratis</p>
                       <p className="mt-1 text-2xl font-bold">Capisci il piano</p>
                     </div>
-                    <div className="rounded-2xl bg-white/10 p-5">
-                      <p className="text-sm font-semibold text-slate-200">Core</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                      <p className="text-sm font-semibold text-slate-500">Core</p>
                       <p className="mt-1 text-2xl font-bold">Segui il piano</p>
                     </div>
-                    <div className="rounded-2xl bg-white/10 p-5">
-                      <p className="text-sm font-semibold text-slate-200">Pro</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                      <p className="text-sm font-semibold text-slate-500">Pro</p>
                       <p className="mt-1 text-2xl font-bold">Ottimizzi il piano</p>
                     </div>
                   </div>
@@ -5625,15 +5635,17 @@ const [authReady, setAuthReady] = useState(false);
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Core</p>
                 <h3 className="mt-3 text-4xl font-bold tracking-tight">29 EUR / anno</h3>
                 <p className="mt-4 text-sm leading-6 text-slate-600">
-                  Il piano per chi sta iniziando: ti aiuta a trasformare il modello in una routine concreta, senza complicazioni.
+                  Il metodo completo per partire, seguire il piano mese dopo mese e prendere decisioni più consapevoli nella vita quotidiana.
                 </p>
                 <div className="mt-6 rounded-2xl bg-slate-50 p-5">
-                  <p className="text-sm font-bold text-slate-900">Ideale se vuoi:</p>
+                  <p className="text-sm font-bold text-slate-900">Con Core hai accesso a:</p>
                   <ul className="mt-3 space-y-3 text-sm leading-6 text-slate-700">
-                    <li>• Seguire il tuo PAC mese dopo mese</li>
-                    <li>• Usare dashboard, checklist e strumenti guidati</li>
-                    <li>• Tenere traccia dei tuoi investimenti</li>
-                    <li>• Costruire continuita con badge e streak</li>
+                    <li>• Piano e PAC personalizzato</li>
+                    <li>• Dashboard operativa e guida mese per mese</li>
+                    <li>• Strumenti personalizzati e gestione investimenti</li>
+                    <li>• Risparmio, spesa intelligente, auto e mutuo</li>
+                    <li>• Anti-truffe con mini gioco da 200 scenari</li>
+                    <li>• Badge, titoli e progressi per restare motivato</li>
                   </ul>
                 </div>
                 <button
@@ -5895,7 +5907,7 @@ const [authReady, setAuthReady] = useState(false);
                     setStep("guide");
                   } else {
                     await trackEvent("click_paywall", { source: "portfolio_bottom_cta" });
-                    setStep("paywall");
+                    goToPaywallTop();
                   }
                 }}
                 className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
@@ -6985,7 +6997,7 @@ const [authReady, setAuthReady] = useState(false);
                       <PremiumStatCard eyebrow="Costo reale annuo" value={formatEuro(vehicleRealYearlyCost)} note="Quanto pesa in un anno" />
                       <PremiumStatCard eyebrow="Maxi rata accantonata" value={vehicleHasBalloonPayment ? `${formatEuro(vehicleBalloonMonthlyReserve)}/mese` : "0 €"} note="Quota da considerare se vuoi prepararti alla scadenza" />
                       <PremiumStatCard eyebrow="Totale finanziamento" value={formatEuro(vehicleTotalPaidFinancing)} note={`Extra vs prezzo: ${formatEuro(vehicleExtraCost)}${vehicle.totalCredit > 0 ? " · credito usato nel calcolo" : ""}`} />
-                      <PremiumStatCard eyebrow="Costi di utilizzo" value={`${formatEuro(vehicleRunningCostsMonthly)}/mese`} note={`Assicurazione, bollo, gomme e manutenzione: ${formatEuro(vehicleHiddenCosts)} nel periodo`} />
+                      <PremiumStatCard eyebrow="Costi di utilizzo" value={`${formatEuro(vehicleRunningCostsMonthly)}/mese`} note={`Oltre alla rata, potresti spendere circa ${formatEuro(vehicleHiddenCosts)} nei prossimi ${vehicle.durationMonths} mesi per assicurazione, bollo, gomme e manutenzione.`} />
                       <PremiumStatCard eyebrow="Anticipo spalmato" value={formatEuro(vehicleDownPaymentMonthlyWeight)} note="Non esce ogni mese, ma pesa nel costo complessivo" />
                       <PremiumStatCard eyebrow="Impatto sul reddito" value={`${Math.round(vehicleIncomeRatio * 100)}%`} note="Quanto reddito mensile assorbe l'auto" />
                     </div>
@@ -7045,18 +7057,7 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-6 shadow-sm">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Sezione anti-panico</p>
-                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Prima di vendere per paura, fermati un minuto</h3>
-                  <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-700">
-                    Se vuoi vendere solo perche il mercato e sceso, perche hai letto una notizia negativa o perche tutti sembrano preoccupati, potresti decidere nel momento peggiore. Prima chiediti: il mio obiettivo e cambiato? Mi servono davvero quei soldi ora? Ho un piano per cosa fare dopo la vendita?
-                  </p>
-                  <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700"><strong>Paura</strong><br />Se la scelta nasce dall'ansia, aspetta e rileggi il piano.</div>
-                    <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700"><strong>Bisogno reale</strong><br />Se i soldi servono per un obiettivo concreto, pianifica l'uscita.</div>
-                    <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700"><strong>Metodo</strong><br />Una vendita graduale e spesso piu gestibile di una decisione impulsiva.</div>
-                  </div>
-                </div>
+
 
                 <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
                   <div className="space-y-4">
@@ -9422,6 +9423,28 @@ const [authReady, setAuthReady] = useState(false);
                       <span className="block text-sm font-bold">Voglio scegliere io</span>
                       <span className={`mt-1 block text-xs leading-5 ${exitMode === "manual" ? "text-slate-200" : "text-slate-500"}`}>Confronta le strategie, leggi pro e contro e seleziona quella che preferisci.</span>
                     </button>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-6 shadow-sm">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Sezione anti-panico</p>
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Prima di vendere per paura, fermati un minuto</h3>
+                  <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-700">
+                    Questa sezione serve a frenare le vendite impulsive. Se vuoi uscire solo perche il mercato e sceso, perche hai letto una notizia negativa o perche tutti sembrano preoccupati, potresti decidere nel momento peggiore. Prima chiediti: il mio obiettivo e cambiato? Mi servono davvero quei soldi ora? Ho un piano per cosa fare dopo la vendita?
+                  </p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700">
+                      <strong>Paura</strong><br />
+                      Se la scelta nasce dall'ansia, aspetta e rileggi il piano prima di vendere.
+                    </div>
+                    <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700">
+                      <strong>Bisogno reale</strong><br />
+                      Se i soldi servono per un obiettivo concreto, pianifica l'uscita con metodo.
+                    </div>
+                    <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700">
+                      <strong>Metodo</strong><br />
+                      Una vendita graduale e spesso piu gestibile di una decisione impulsiva.
+                    </div>
                   </div>
                 </div>
 
