@@ -2000,6 +2000,7 @@ const [authReady, setAuthReady] = useState(false);
     lastAt: null,
   });
   const [purchase, setPurchase] = useState<PurchaseState>({ unlocked: false, email: "", paidAmount: 0 });
+  const purchaseLoadedRef = useRef(false);
   const [showProUpgradeModal, setShowProUpgradeModal] = useState(false);
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
   const [goalCelebration, setGoalCelebration] = useState<CelebrationEvent | null>(null);
@@ -2127,8 +2128,9 @@ const [authReady, setAuthReady] = useState(false);
   }, [answers]);
 
   const selectedPortfolio = portfolioMap[purchase.selectedPortfolio || scoreResult.finalPortfolio];
-  const isProPlan = purchase.unlocked && purchase.plan === "pro";
-  const isCorePlan = purchase.unlocked && purchase.plan === "core";
+  const isPurchaseUnlocked = !!purchase.unlocked;
+  const isProPlan = isPurchaseUnlocked && purchase.plan === "pro";
+  const isCorePlan = isPurchaseUnlocked && purchase.plan === "core";
   const paidAmount = purchase.paidAmount ?? (purchase.plan === "core" ? 29 : purchase.plan === "pro" ? 59 : 0);
   const proPriceToPay = Math.max(59 - paidAmount, 0);
 
@@ -2221,11 +2223,38 @@ const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     if (!user) return;
+
+    purchaseLoadedRef.current = false;
+
     const savedPurchase = localStorage.getItem(getPurchaseKey(user.id));
     const savedHoldings = localStorage.getItem(getHoldingsKey(user.id));
 
-    if (savedPurchase) setPurchase(JSON.parse(savedPurchase));
-    else setPurchase({ unlocked: false, email: user.email || "", selectedPortfolio: undefined, paidAmount: 0 });
+    try {
+      if (savedPurchase) {
+        const parsedPurchase = JSON.parse(savedPurchase) as PurchaseState;
+        setPurchase({
+          unlocked: !!parsedPurchase.unlocked,
+          email: parsedPurchase.email || user.email || "",
+          selectedPortfolio: parsedPurchase.selectedPortfolio,
+          plan: parsedPurchase.plan,
+          paidAmount:
+            parsedPurchase.paidAmount ??
+            (parsedPurchase.plan === "core" ? 29 : parsedPurchase.plan === "pro" ? 59 : 0),
+        });
+      } else {
+        setPurchase((prev) => ({
+          ...prev,
+          email: user.email || prev.email || "",
+        }));
+      }
+    } catch {
+      setPurchase((prev) => ({
+        ...prev,
+        email: user.email || prev.email || "",
+      }));
+    } finally {
+      purchaseLoadedRef.current = true;
+    }
 
     if (savedHoldings) setHoldings(JSON.parse(savedHoldings));
     else setHoldings([]);
@@ -2237,14 +2266,28 @@ const [authReady, setAuthReady] = useState(false);
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    localStorage.setItem(getPurchaseKey(user.id), JSON.stringify(purchase));
+    if (!user || !purchaseLoadedRef.current) return;
+
+    const key = getPurchaseKey(user.id);
+    const savedPurchase = localStorage.getItem(key);
+    let savedUnlocked = false;
+
+    try {
+      savedUnlocked = savedPurchase ? !!(JSON.parse(savedPurchase) as PurchaseState).unlocked : false;
+    } catch {
+      savedUnlocked = false;
+    }
+
+    // Protezione importante: uno stato temporaneo non sbloccato non deve mai
+    // sovrascrivere un pagamento gia salvato.
+    if (savedUnlocked && !purchase.unlocked) return;
+
+    localStorage.setItem(key, JSON.stringify(purchase));
   }, [purchase, user]);
 
   useEffect(() => {
-    if (purchase.unlocked && step === "paywall" && purchase.plan === "pro") {
-      setStep("dashboard");
-    }
+    if (!purchase.unlocked || step !== "paywall") return;
+    setStep(purchase.plan === "core" ? "onboarding" : "dashboard");
   }, [purchase.unlocked, purchase.plan, step]);
 
   // Mantiene la schermata selezionata stabile anche dopo refresh sessione,
@@ -2573,6 +2616,13 @@ const [authReady, setAuthReady] = useState(false);
   const vehicleRefinanceExtraCost = Math.max(vehicleRefinanceTotalPaid - vehicleRefinance.amount, 0);
   const vehicleRefinancePaymentChange = vehicleHasDeclaredPayment ? vehicleRefinanceMonthlyPayment - vehicle.monthlyPayment : 0;
   const vehicleRefinanceAvailable = vehicleHasBalloonPayment && vehicleRefinanceMonthlyPayment > 0;
+  const vehicleFinancialCostWithRefinance =
+    vehicle.downPayment + vehicleEffectiveMonthlyPayment * vehicleRegularInstallmentMonths + vehicleRefinanceTotalPaid;
+  const vehicleTotalCostWithRefinance = vehicleFinancialCostWithRefinance;
+  const vehicleTotalCostWithRefinanceMonthly =
+    vehicle.durationMonths + vehicleRefinance.months > 0
+      ? vehicleTotalCostWithRefinance / (vehicle.durationMonths + vehicleRefinance.months)
+      : 0;
   const vehicleRefinanceMessage = vehicleRefinanceAvailable
     ? `Se alla scadenza non paghi la maxi rata in un'unica soluzione, potresti dover rifinanziare circa ${formatEuro(vehicleRefinance.amount)}. Con i dati inseriti, la nuova rata stimata sarebbe circa ${formatEuro(vehicleRefinanceMonthlyPayment)}/mese per ${vehicleRefinance.months} mesi. Questo aiuta a capire che la maxi rata non sparisce: se la rifinanzi, diventa un nuovo debito e puo portare a rate piu alte e nuovi interessi.`
     : "Inserisci una maxi rata finale per stimare cosa potrebbe succedere se dovessi rifinanziarla invece di pagarla subito.";
@@ -4664,12 +4714,21 @@ const [authReady, setAuthReady] = useState(false);
 
       const paidUnlocked = !!localPurchase?.unlocked;
 
-      setPurchase({
-        unlocked: paidUnlocked,
-        email: data.email || currentUser.email || "",
-        selectedPortfolio: savedPortfolio,
-        plan: localPurchase?.plan,
-        paidAmount: localPurchase?.paidAmount ?? (localPurchase?.plan === "core" ? 29 : localPurchase?.plan === "pro" ? 59 : 0),
+      setPurchase((prev) => {
+        const shouldStayUnlocked = !!prev.unlocked || paidUnlocked;
+        const resolvedPlan = prev.unlocked ? prev.plan : localPurchase?.plan;
+        const resolvedPaidAmount =
+          prev.unlocked
+            ? prev.paidAmount ?? (prev.plan === "core" ? 29 : prev.plan === "pro" ? 59 : 0)
+            : localPurchase?.paidAmount ?? (localPurchase?.plan === "core" ? 29 : localPurchase?.plan === "pro" ? 59 : 0);
+
+        return {
+          unlocked: shouldStayUnlocked,
+          email: data.email || currentUser.email || prev.email || "",
+          selectedPortfolio: savedPortfolio || prev.selectedPortfolio,
+          plan: resolvedPlan,
+          paidAmount: resolvedPaidAmount,
+        };
       });
 
       if (Array.isArray(data.quiz_answers) && data.quiz_answers.length === questions.length) {
@@ -4932,6 +4991,13 @@ const [authReady, setAuthReady] = useState(false);
     setStep("dashboard");
     window.setTimeout(() => {
       document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }
+
+  function goBackToGuideFromDashboard() {
+    setStep("guide");
+    window.setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }, 80);
   }
 
@@ -5680,7 +5746,7 @@ const [authReady, setAuthReady] = useState(false);
                 </div>
                 <button
                   onClick={requestProUpgrade}
-                  className="mt-8 w-full rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-800 transition hover:bg-slate-50"
+                  className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isCorePlan ? "Passa a Pro - paghi " + proPriceToPay + " EUR" : "Passa al livello avanzato - 59 EUR/anno"}
                 </button>
@@ -6406,26 +6472,54 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-4">
-              {[
-                { key: "risparmio" as AwarenessTab, title: "Risparmio", subtitle: "Sprechi invisibili" },
-                { key: "auto" as AwarenessTab, title: "Auto", subtitle: "Rata, maxi rata e costo reale" },
-                { key: "mutuo" as AwarenessTab, title: "Mutuo", subtitle: "Rata, interessi e stress test" },
-                { key: "truffe" as AwarenessTab, title: "Anti-truffe", subtitle: "Test rapido di rischio" },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setAwarenessTab(tab.key)}
-                  className={`rounded-2xl border p-5 text-left transition ${
-                    awarenessTab === tab.key
-                      ? "border-emerald-300 bg-emerald-50 shadow-sm"
-                      : "border-slate-200 bg-white hover:bg-slate-50"
-                  }`}
-                >
-                  <p className="font-semibold text-slate-950">{tab.title}</p>
-                  <p className="mt-1 text-sm leading-5 text-slate-600">{tab.subtitle}</p>
-                </button>
-              ))}
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-700">Scegli una scheda</p>
+                  <h3 className="mt-2 text-xl font-bold tracking-tight text-slate-950">Da dove vuoi partire?</h3>
+                </div>
+                <p className="max-w-2xl text-sm leading-6 text-slate-600">
+                  Queste sono le 4 aree della Consapevolezza. Seleziona una card per aprire lo strumento dedicato.
+                </p>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {[
+                  { key: "risparmio" as AwarenessTab, icon: "💡", title: "Risparmio", subtitle: "Libera soldi ogni mese", detail: "Sprechi, spesa intelligente e azioni pratiche." },
+                  { key: "auto" as AwarenessTab, icon: "🚗", title: "Auto", subtitle: "Scopri il costo reale", detail: "Rata, TAEG, maxi rata e rifinanziamento." },
+                  { key: "mutuo" as AwarenessTab, icon: "🏠", title: "Mutuo", subtitle: "Valuta la sostenibilità", detail: "Rata, costi reali, stress test e semaforo." },
+                  { key: "truffe" as AwarenessTab, icon: "🛡️", title: "Anti-truffe", subtitle: "Allenati sui rischi", detail: "Mini gioco con 200 scenari realistici." },
+                ].map((tab) => {
+                  const active = awarenessTab === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setAwarenessTab(tab.key)}
+                      className={`group relative overflow-hidden rounded-3xl border p-5 text-left transition-all duration-300 ${
+                        active
+                          ? "border-emerald-400 bg-emerald-50 shadow-sm ring-2 ring-emerald-100"
+                          : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-slate-50 hover:shadow-sm"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl transition ${
+                          active ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 group-hover:bg-emerald-100"
+                        }`}>
+                          {tab.icon}
+                        </div>
+                        <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                          active ? "bg-white text-emerald-700 ring-1 ring-emerald-200" : "bg-slate-50 text-slate-500 ring-1 ring-slate-200"
+                        }`}>
+                          {active ? "Scheda aperta" : "Apri"}
+                        </span>
+                      </div>
+                      <p className="mt-4 text-lg font-bold tracking-tight text-slate-950">{tab.title}</p>
+                      <p className={`mt-1 text-sm font-semibold ${active ? "text-emerald-800" : "text-slate-700"}`}>{tab.subtitle}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{tab.detail}</p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {awarenessTab === "risparmio" && (
@@ -6957,28 +7051,45 @@ const [authReady, setAuthReady] = useState(false);
                         </label>
                       </div>
 
-                      <div className="mt-5 grid gap-3 md:grid-cols-3">
-                        <div className="rounded-2xl bg-white/85 p-4 ring-1 ring-orange-100">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Importo da rifinanziare</p>
-                          <p className="mt-1 text-lg font-bold text-orange-950">{formatEuro(vehicleRefinance.amount)}</p>
+                      <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl bg-white/85 p-5 ring-1 ring-orange-100">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-orange-700">Importo da rifinanziare</p>
+                          <p className="mt-2 text-2xl font-bold text-orange-950">{formatEuro(vehicleRefinance.amount)}</p>
+                          <p className="mt-1 text-xs text-orange-800">La maxi rata finale inserita.</p>
                         </div>
-                        <div className="rounded-2xl bg-white/85 p-4 ring-1 ring-orange-100">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Nuova rata stimata</p>
-                          <p className="mt-1 text-lg font-bold text-orange-950">{vehicleRefinanceAvailable ? `${formatEuro(vehicleRefinanceMonthlyPayment)}/mese` : "Non stimabile"}</p>
+                        <div className="rounded-2xl bg-white/85 p-5 ring-1 ring-orange-100">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-orange-700">Nuova rata stimata</p>
+                          <p className="mt-2 text-2xl font-bold text-orange-950">{vehicleRefinanceAvailable ? `${formatEuro(vehicleRefinanceMonthlyPayment)}/mese` : "Non stimabile"}</p>
                           {vehicleRefinanceAvailable && vehicleHasDeclaredPayment && (
                             <p className="mt-1 text-xs text-orange-800">
                               {vehicleRefinancePaymentChange > 0
-                                ? `Circa ${formatEuro(vehicleRefinancePaymentChange)} in piu rispetto alla rata iniziale.`
-                                : `Circa ${formatEuro(Math.abs(vehicleRefinancePaymentChange))} in meno rispetto alla rata iniziale.`}
+                                ? `+${formatEuro(vehicleRefinancePaymentChange)}/mese rispetto alla rata iniziale.`
+                                : `-${formatEuro(Math.abs(vehicleRefinancePaymentChange))}/mese rispetto alla rata iniziale.`}
                             </p>
                           )}
                         </div>
-                        <div className="rounded-2xl bg-white/85 p-4 ring-1 ring-orange-100">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Interessi/costi stimati</p>
-                          <p className="mt-1 text-lg font-bold text-orange-950">{vehicleRefinanceAvailable ? formatEuro(vehicleRefinanceExtraCost) : "Non stimabile"}</p>
-                          <p className="mt-1 text-xs text-orange-800">Sul secondo finanziamento</p>
+                        <div className="rounded-2xl bg-white/85 p-5 ring-1 ring-orange-100">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-orange-700">Interessi/costi stimati</p>
+                          <p className="mt-2 text-2xl font-bold text-orange-950">{vehicleRefinanceAvailable ? formatEuro(vehicleRefinanceExtraCost) : "Non stimabile"}</p>
+                          <p className="mt-1 text-xs text-orange-800">Sul secondo finanziamento.</p>
+                        </div>
+                        <div className="rounded-2xl border border-orange-300 bg-white p-5 shadow-sm ring-1 ring-orange-100">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-orange-700">Costo complessivo stimato</p>
+                          <p className="mt-2 text-3xl font-black tracking-tight text-orange-950">{vehicleRefinanceAvailable ? formatEuro(vehicleTotalCostWithRefinance) : "Non stimabile"}</p>
+                          <p className="mt-2 text-xs leading-5 text-orange-800">
+                            Anticipo + rate iniziali + rifinanziamento maxi rata.
+                          </p>
                         </div>
                       </div>
+
+                      {vehicleRefinanceAvailable && (
+                        <div className="mt-5 rounded-2xl border border-orange-200 bg-white/80 p-5 text-sm leading-6 text-orange-950">
+                          <p className="font-bold">Lettura completa</p>
+                          <p className="mt-1">
+                            Con i dati inseriti, se rifinanzi la maxi rata la sola auto finanziata potrebbe pesare circa <strong>{formatEuro(vehicleTotalCostWithRefinance)}</strong> complessivi, pari a circa <strong>{formatEuro(vehicleTotalCostWithRefinanceMonthly)}/mese</strong> se spalmi anticipo, primo finanziamento e rifinanziamento sul periodo totale. Questo valore non include assicurazione, bollo, gomme e manutenzione.
+                          </p>
+                        </div>
+                      )}
 
                       <div className="mt-5 rounded-2xl border border-orange-200 bg-white/80 p-4 text-sm leading-6 text-orange-950">
                         <strong>Messaggio chiave:</strong> se non hai la liquidita per pagare la rata finale, la rata bassa iniziale potrebbe trasformarsi in un nuovo impegno mensile. Questa stima non sostituisce un preventivo ufficiale, ma ti aiuta a capire se la maxi rata finale e davvero sostenibile per te.
@@ -6996,7 +7107,7 @@ const [authReady, setAuthReady] = useState(false);
                       <PremiumStatCard eyebrow="Costo reale mensile stimato" value={formatEuro(vehicleRealMonthlyCost)} note={vehicleHasBalloonPayment ? `Include anche circa ${formatEuro(vehicleBalloonMonthlyReserve)}/mese di maxi rata spalmata` : "Include anticipo e costi sul periodo"} />
                       <PremiumStatCard eyebrow="Costo reale annuo" value={formatEuro(vehicleRealYearlyCost)} note="Quanto pesa in un anno" />
                       <PremiumStatCard eyebrow="Maxi rata accantonata" value={vehicleHasBalloonPayment ? `${formatEuro(vehicleBalloonMonthlyReserve)}/mese` : "0 €"} note="Quota da considerare se vuoi prepararti alla scadenza" />
-                      <PremiumStatCard eyebrow="Totale finanziamento" value={formatEuro(vehicleTotalPaidFinancing)} note={`Extra vs prezzo: ${formatEuro(vehicleExtraCost)}${vehicle.totalCredit > 0 ? " · credito usato nel calcolo" : ""}`} />
+                      <PremiumStatCard eyebrow="Totale finanziamento" value={formatEuro(vehicleTotalPaidFinancing)} note={`Valido se paghi la maxi rata finale senza rifinanziarla. Extra vs prezzo: ${formatEuro(vehicleExtraCost)}${vehicle.totalCredit > 0 ? " · credito usato nel calcolo" : ""}`} />
                       <PremiumStatCard eyebrow="Costi di utilizzo" value={`${formatEuro(vehicleRunningCostsMonthly)}/mese`} note={`Oltre alla rata, potresti spendere circa ${formatEuro(vehicleHiddenCosts)} nei prossimi ${vehicle.durationMonths} mesi per assicurazione, bollo, gomme e manutenzione.`} />
                       <PremiumStatCard eyebrow="Anticipo spalmato" value={formatEuro(vehicleDownPaymentMonthlyWeight)} note="Non esce ogni mese, ma pesa nel costo complessivo" />
                       <PremiumStatCard eyebrow="Impatto sul reddito" value={`${Math.round(vehicleIncomeRatio * 100)}%`} note="Quanto reddito mensile assorbe l'auto" />
@@ -8650,6 +8761,26 @@ const [authReady, setAuthReady] = useState(false);
                   )}
                 </div>
 
+                {monthlyAllocationIsAligned && (
+                  <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-emerald-950">Quote del mese completate</p>
+                        <p className="mt-1 text-sm leading-6 text-emerald-800">
+                          Hai inserito gli strumenti. Torna alla guida per chiudere il passaggio e continuare il percorso.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={goBackToGuideFromDashboard}
+                        className="shrink-0 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
+                      >
+                        Torna alla guida
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -8717,7 +8848,7 @@ const [authReady, setAuthReady] = useState(false);
                     />
                   </div>
 
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                  <div className="mt-5 grid gap-3">
                     {monthlyAllocationPlan.map((item) => {
                       const investedAmount = investedByCategory[item.category] || 0;
                       const isInLine = item.roundedAmount > 0 && Math.abs(investedAmount - item.roundedAmount) <= 1;
@@ -8731,19 +8862,19 @@ const [authReady, setAuthReady] = useState(false);
                               [item.category]: !prev[item.category],
                             }))
                           }
-                          className={`min-h-[156px] w-full rounded-2xl border p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm ${
+                          className={`min-h-[156px] w-full min-w-0 rounded-2xl border p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm ${
                             isInLine
                               ? "border-emerald-300 bg-emerald-50 shadow-sm ring-1 ring-emerald-100"
                               : "border-slate-200 bg-white hover:bg-slate-50"
                           }`}
                         >
-                          <div className="flex h-full flex-col justify-between gap-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="text-lg font-bold tracking-tight text-slate-900">{item.label}</p>
-                                <p className="mt-1 text-sm text-slate-500">{item.percentage}% del PAC mensile</p>
+                          <div className="flex h-full min-w-0 flex-col gap-5">
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+                              <div className="min-w-0">
+                                <p className="break-words text-lg font-bold leading-tight tracking-tight text-slate-900">{item.label}</p>
+                                <p className="mt-1 text-sm leading-5 text-slate-500">{item.percentage}% del PAC mensile</p>
                               </div>
-                              <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
+                              <span className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
                                 isInLine
                                   ? "bg-emerald-600 text-white"
                                   : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
@@ -8753,13 +8884,13 @@ const [authReady, setAuthReady] = useState(false);
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 rounded-2xl bg-white/70 p-3 ring-1 ring-slate-100">
-                              <div>
+                              <div className="min-w-0">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Da investire</p>
-                                <p className="mt-1 text-xl font-bold text-slate-900">{formatEuro(item.roundedAmount)}</p>
+                                <p className="mt-1 whitespace-nowrap text-xl font-bold text-slate-900">{formatEuro(item.roundedAmount)}</p>
                               </div>
-                              <div className="text-right">
+                              <div className="min-w-0 text-right">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Inserito</p>
-                                <p className={`mt-1 text-xl font-bold ${isInLine ? "text-emerald-700" : "text-slate-900"}`}>
+                                <p className={`mt-1 whitespace-nowrap text-xl font-bold ${isInLine ? "text-emerald-700" : "text-slate-900"}`}>
                                   {formatEuro(investedAmount)}
                                 </p>
                               </div>
@@ -9084,7 +9215,7 @@ const [authReady, setAuthReady] = useState(false);
                 </p>
                 <button
                   onClick={requestProUpgrade}
-                  className="mt-6 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700"
+                  className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isCorePlan ? "Passa a Pro - paghi " + proPriceToPay + " EUR" : "Vedi piano Pro"}
                 </button>
@@ -9385,7 +9516,7 @@ const [authReady, setAuthReady] = useState(false);
                 </p>
                 <button
                   onClick={requestProUpgrade}
-                  className="mt-6 rounded-xl bg-slate-900 px-6 py-3 font-semibold text-white transition hover:bg-slate-800"
+                  className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isCorePlan ? "Passa a Pro - paghi " + proPriceToPay + " EUR" : "Vedi piano Pro"}
                 </button>
