@@ -111,6 +111,15 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+
+const SOLDI_SEMPLICI_REPORT_LOGO_SVG = `
+<svg class="report-logo-mark" viewBox="0 0 96 96" role="img" aria-label="Soldi Semplici">
+  <path d="M70 18C59 9 41 8 27 17C12 27 8 48 18 64C28 81 51 87 68 76" fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="7.5" stroke-linecap="round"/>
+  <path d="M61 69C71 64 77 55 80 44" fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="7.5" stroke-linecap="round"/>
+  <path d="M80 44L88 57L73 55Z" fill="rgba(255,255,255,0.92)"/>
+  <text x="48" y="62" text-anchor="middle" font-size="47" font-weight="900" font-family="Inter, Arial, sans-serif" fill="rgba(255,255,255,0.96)">S</text>
+</svg>`;
+
 type BaseProfile = "stabilita" | "equilibrio" | "crescita";
 type FinalPortfolioKey =
   | "stabilita_assoluta"
@@ -834,6 +843,134 @@ type AwarenessAction = {
 };
 
 
+type MortgageMode = "sostenibilita" | "pies";
+type MortgagePiesStatus = "found" | "missing" | "unclear";
+
+type MortgagePiesFieldState = {
+  status: MortgagePiesStatus;
+  value: string;
+  notes: string;
+};
+
+type MortgagePiesFieldDefinition = {
+  id: string;
+  label: string;
+  placeholder: string;
+  penalty: number;
+  area: "costo" | "tasso" | "polizze" | "ammortamento" | "uscita";
+  issue: string;
+  why: string;
+  question: string;
+  selectOptions?: string[];
+};
+
+type MortgagePiesSection = {
+  id: string;
+  title: string;
+  where: string;
+  explanation: string;
+  fields: MortgagePiesFieldDefinition[];
+};
+
+const mortgagePiesSections: MortgagePiesSection[] = [
+  {
+    id: "base",
+    title: "1. Dati base del mutuo",
+    where: "Cerca nel PIES la sezione 'Caratteristiche principali del contratto di credito'.",
+    explanation: "Qui capisci quanto chiedi, per quanto tempo e quale sara la dimensione economica complessiva del mutuo.",
+    fields: [
+      { id: "amount", label: "Importo mutuo", placeholder: "Es. 180000", penalty: 8, area: "costo", issue: "Importo del mutuo non chiaro", why: "Senza importo non puoi verificare coerenza di rata, durata e totale da rimborsare.", question: "Potete confermarmi l'importo esatto del mutuo indicato nella proposta?" },
+      { id: "duration", label: "Durata mutuo (anni)", placeholder: "Es. 30", penalty: 6, area: "ammortamento", issue: "Durata del mutuo non chiara", why: "La durata incide su rata, interessi e costo complessivo. Inserisci solo gli anni indicati nel PIES.", question: "Potete confermarmi la durata del mutuo in anni indicata nella proposta?" },
+      { id: "totalToRepay", label: "Totale da rimborsare", placeholder: "Es. 292320", penalty: 12, area: "costo", issue: "Totale da rimborsare non trovato", why: "Questo dato evita di valutare il mutuo solo dalla rata mensile.", question: "Potete indicarmi l'importo totale da rimborsare se il mutuo viene mantenuto fino alla scadenza?" },
+    ],
+  },
+  {
+    id: "rate-costs",
+    title: "2. Tasso e costo reale",
+    where: "Cerca la sezione 'Tasso di interesse e altri costi'.",
+    explanation: "Il TAN indica il tasso nominale. Il TAEG aiuta a capire il costo complessivo e a confrontare offerte diverse.",
+    fields: [
+      { id: "rateType", label: "Tipo di tasso", placeholder: "Seleziona il tipo indicato nel PIES", penalty: 8, area: "tasso", issue: "Tipo di tasso non chiaro", why: "Il rischio cambia molto tra fisso, variabile e variabile con cap.", question: "Potete confermarmi se il mutuo e a tasso fisso, variabile, misto o variabile con cap?", selectOptions: ["Tasso fisso", "Tasso variabile", "Tasso variabile con cap", "Tasso misto", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "tan", label: "TAN", placeholder: "Es. 3,20%", penalty: 8, area: "tasso", issue: "TAN non trovato o non chiaro", why: "Serve per capire il tasso nominale applicato al capitale.", question: "Potete confermarmi il TAN applicato alla proposta?" },
+      { id: "taeg", label: "TAEG", placeholder: "Es. 3,74%", penalty: 15, area: "costo", issue: "TAEG non trovato o non chiaro", why: "Il TAEG e fondamentale per confrontare offerte e capire i costi accessori inclusi.", question: "Potete confermarmi il TAEG e quali costi sono inclusi o esclusi dal calcolo?" },
+      { id: "rateLocked", label: "Tasso bloccato fino alla stipula", placeholder: "Seleziona la risposta indicata nel PIES", penalty: 8, area: "tasso", issue: "Blocco tasso fino al rogito non chiaro", why: "Se il tasso non e bloccato, le condizioni potrebbero cambiare prima della firma.", question: "Il tasso indicato e bloccato fino alla stipula? Fino a quale data?", selectOptions: ["Si, fino alla stipula", "Si, fino a una data indicata", "No", "Non trovato nel PIES", "Non chiaro"] },
+    ],
+  },
+  {
+    id: "installment",
+    title: "3. Rata e scenari",
+    where: "Cerca 'Importo di ciascuna rata' e le eventuali simulazioni per mutui variabili.",
+    explanation: "La rata iniziale non basta: se il mutuo e variabile bisogna capire quanto puo aumentare.",
+    fields: [
+      { id: "installment", label: "Rata mensile", placeholder: "Es. 812", penalty: 8, area: "tasso", issue: "Rata mensile non trovata", why: "La rata serve per verificare la sostenibilita mensile.", question: "Potete confermarmi l'importo della rata mensile iniziale?" },
+      { id: "variableSimulation", label: "Simulazioni aumento rata", placeholder: "Seleziona se sono presenti simulazioni", penalty: 12, area: "tasso", issue: "Simulazioni del variabile assenti o non chiare", why: "Senza simulazioni, l'utente vede solo la rata iniziale e non il rischio di aumento.", question: "Potete inviarmi una simulazione della rata in caso di aumento del tasso di riferimento di +1%, +2% e +3%?", selectOptions: ["Presenti per +1%, +2% e +3%", "Presente solo scenario al cap", "Presenti ma incomplete", "Non presenti", "Non trovato nel PIES", "Non chiaro"] },
+    ],
+  },
+  {
+    id: "amortization",
+    title: "4. Piano di ammortamento",
+    where: "Cerca 'Piano di ammortamento' nel PIES o in un allegato dedicato.",
+    explanation: "Il piano mostra quota capitale, quota interessi e debito residuo nel tempo.",
+    fields: [
+      { id: "amortization", label: "Piano di ammortamento", placeholder: "Seleziona se il piano e disponibile", penalty: 8, area: "ammortamento", issue: "Piano di ammortamento mancante", why: "Aiuta a capire quanto capitale si riduce nei primi anni e quanto debito resta.", question: "Potete inviarmi il piano di ammortamento completo con quota capitale, quota interessi e debito residuo?", selectOptions: ["Presente nel PIES", "Presente come allegato", "Ricevuto separatamente", "Non presente", "Non trovato nel PIES", "Non chiaro"] },
+    ],
+  },
+  {
+    id: "policies-products",
+    title: "5. Polizze e prodotti collegati",
+    where: "Cerca la sezione 'Obblighi supplementari' e gli allegati assicurativi o commerciali.",
+    explanation: "Questa e una delle aree piu delicate: bisogna distinguere obbligo reale, proposta commerciale e sconto condizionato.",
+    fields: [
+      { id: "policiesObligation", label: "Polizze obbligatorie o facoltative", placeholder: "Seleziona la situazione indicata", penalty: 15, area: "polizze", issue: "Obbligatorieta delle polizze non chiara", why: "Una polizza collegata puo incidere sul costo o sulle condizioni del tasso.", question: "Le polizze indicate sono obbligatorie o facoltative? Se non le sottoscrivo, il tasso o le condizioni cambiano?", selectOptions: ["Nessuna polizza indicata", "Solo polizze obbligatorie", "Solo polizze facoltative", "Polizze sia obbligatorie sia facoltative", "Polizze presenti ma obbligatorieta non chiara", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "policyCost", label: "Costo polizze e inclusione nel TAEG", placeholder: "Seleziona come viene indicato il costo", penalty: 10, area: "polizze", issue: "Costo polizze o inclusione nel TAEG non chiari", why: "Il costo puo essere rilevante, soprattutto se finanziato o collegato allo sconto.", question: "Qual e il costo di ciascuna polizza? Il costo e incluso nel TAEG? Il premio viene finanziato?", selectOptions: ["Costo indicato e incluso nel TAEG", "Costo indicato ma non incluso nel TAEG", "Costo indicato ma inclusione nel TAEG non chiara", "Costo non indicato", "Non ci sono polizze", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "linkedProducts", label: "Prodotti collegati", placeholder: "Seleziona se ci sono prodotti collegati", penalty: 8, area: "polizze", issue: "Prodotti collegati non quantificati", why: "Prodotti aggiuntivi possono creare costi o vincoli nel tempo.", question: "Quali prodotti collegati sono richiesti o proposti? Quali costi hanno e sono necessari per ottenere le condizioni indicate?", selectOptions: ["Nessun prodotto collegato indicato", "Prodotti collegati facoltativi", "Prodotti collegati necessari per ottenere il tasso", "Prodotti collegati presenti ma costi non chiari", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "discountConditions", label: "Sconto tasso condizionato", placeholder: "Seleziona se lo sconto dipende da condizioni", penalty: 15, area: "polizze", issue: "Condizioni dello sconto tasso non chiare", why: "Uno sconto non e davvero valutabile se non sai cosa succede quando chiudi o recedi dai prodotti collegati.", question: "Da quali condizioni dipende lo sconto sul tasso? Cosa accade se non sottoscrivo, chiudo o recedo dai prodotti collegati?", selectOptions: ["Nessuno sconto indicato", "Sconto indicato senza condizioni", "Sconto collegato a polizze", "Sconto collegato a conto/accredito/prodotti", "Sconto indicato ma condizioni non chiare", "Non trovato nel PIES", "Non chiaro"] },
+    ],
+  },
+  {
+    id: "exit",
+    title: "6. Estinzione, surroga e uscita",
+    where: "Cerca 'Estinzione anticipata', 'portabilita', 'surroga' e condizioni sulle polizze non godute.",
+    explanation: "Un buon mutuo deve essere comprensibile non solo all'ingresso, ma anche in uscita.",
+    fields: [
+      { id: "earlyRepayment", label: "Estinzione anticipata e surroga", placeholder: "Seleziona cosa indica la documentazione", penalty: 8, area: "uscita", issue: "Estinzione o surroga non chiare", why: "Se vuoi uscire, surrogare o chiudere il mutuo, devi sapere cosa succede a costi e polizze.", question: "Sono previsti costi o condizioni in caso di estinzione anticipata o surroga? Cosa accade alle polizze collegate e alla quota di premio non goduta?", selectOptions: ["Condizioni chiare", "Estinzione chiara ma surroga non chiara", "Surroga chiara ma estinzione non chiara", "Polizze collegate non chiare in caso di uscita", "Non trovato nel PIES", "Non chiaro"] },
+    ],
+  },
+];
+
+const mortgagePiesFieldDefinitions = mortgagePiesSections.flatMap((section) => section.fields);
+
+
+function getDefaultMortgagePiesFields(): Record<string, MortgagePiesFieldState> {
+  return Object.fromEntries(
+    mortgagePiesFieldDefinitions.map((field) => [
+      field.id,
+      { status: "missing" as MortgagePiesStatus, value: "", notes: "" },
+    ])
+  );
+}
+
+function cleanMortgagePiesFields(input: unknown): Record<string, MortgagePiesFieldState> {
+  const source = input && typeof input === "object" ? (input as Record<string, Partial<MortgagePiesFieldState>>) : {};
+  return Object.fromEntries(
+    mortgagePiesFieldDefinitions.map((field) => {
+      const raw = source[field.id] || {};
+      const status = raw.status === "found" || raw.status === "unclear" || raw.status === "missing" ? raw.status : "missing";
+      return [
+        field.id,
+        {
+          status,
+          value: typeof raw.value === "string" ? raw.value : "",
+          notes: typeof raw.notes === "string" ? raw.notes : "",
+        },
+      ];
+    })
+  );
+}
+
+
+
+
 type ScamScenario = {
   id: string;
   category: string;
@@ -1405,6 +1542,29 @@ function getChecklistStorageKey(userId: string, portfolioKey: FinalPortfolioKey)
   return `${getPrefix(userId)}-checklist-${portfolioKey}`;
 }
 
+function getAwarenessActionsStorageKey(userId: string) {
+  return `${getPrefix(userId)}-awareness-actions`;
+}
+
+function getMortgageCheckStorageKey(userId: string) {
+  return `${getPrefix(userId)}-mortgage-check`;
+}
+
+function getValidAwarenessActionIds() {
+  return new Set(awarenessActions.map((action) => action.id));
+}
+
+function cleanAwarenessActionsState(value: Record<string, boolean>) {
+  const validActionIds = getValidAwarenessActionIds();
+  const cleaned: Record<string, boolean> = {};
+
+  Object.entries(value).forEach(([actionId, completed]) => {
+    if (validActionIds.has(actionId)) cleaned[actionId] = !!completed;
+  });
+
+  return cleaned;
+}
+
 function getPacStorageKey(userId: string, portfolioKey: FinalPortfolioKey) {
   return `${getPrefix(userId)}-pac-${portfolioKey}`;
 }
@@ -1938,6 +2098,31 @@ function writeStringArrayToStorage(key: string, values: string[]) {
   window.localStorage.setItem(key, JSON.stringify(Array.from(new Set(values))));
 }
 
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    return typeof message === "string" ? message : String(message ?? "");
+  }
+  return String(error ?? "");
+}
+
+function isSupabaseLockAbortError(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase();
+  return message.includes("aborterror") || message.includes("lock broken") || message.includes("steal");
+}
+
+function isSupabaseRlsError(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    message.includes("row-level security") ||
+    message.includes("violates row-level security policy") ||
+    message.includes("permission denied")
+  );
+}
+
 function clearSupabaseAuthStorage() {
   if (typeof window === "undefined") return;
 
@@ -2005,10 +2190,16 @@ const [authReady, setAuthReady] = useState(false);
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
   const [goalCelebration, setGoalCelebration] = useState<CelebrationEvent | null>(null);
   const [persistedBadgeIds, setPersistedBadgeIds] = useState<string[]>([]);
+  const [badgeVaultLoadedKey, setBadgeVaultLoadedKey] = useState("");
   const celebrationInitialSyncRef = useRef<Record<string, boolean>>({});
   const awarenessTabLoadedRef = useRef(false);
+  const awarenessActionsLoadedRef = useRef(false);
+  const mortgageCheckLoadedRef = useRef(false);
+  const mortgageSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pacHistoryLoadKeyRef = useRef<string | null>(null);
   const pacHistoryRequestIdRef = useRef(0);
+  const goalLoadKeyRef = useRef<string | null>(null);
+  const goalLoadRequestIdRef = useRef(0);
   const lastScamPerfectGameSignatureRef = useRef<string | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [customInstruments, setCustomInstruments] = useState<CustomInstrument[]>([]);
@@ -2041,6 +2232,7 @@ const [authReady, setAuthReady] = useState(false);
   const [vehicleTaeg, setVehicleTaeg] = useState("7.5");
   const [vehicleTan, setVehicleTan] = useState("8.99");
   const [vehicleTotalCredit, setVehicleTotalCredit] = useState("");
+  const [vehicleFinancingBonus, setVehicleFinancingBonus] = useState("0");
   const [vehicleScrappage, setVehicleScrappage] = useState("no");
   const [vehicleDurationMonths, setVehicleDurationMonths] = useState("36");
   const [vehicleBalloonPayment, setVehicleBalloonPayment] = useState("12000");
@@ -2072,6 +2264,12 @@ const [authReady, setAuthReady] = useState(false);
   const [mortgageFixedExpensesMonthly, setMortgageFixedExpensesMonthly] = useState("1000");
   const [mortgageLiquidAfterPurchase, setMortgageLiquidAfterPurchase] = useState("15000");
   const [mortgageEmergencyMonths, setMortgageEmergencyMonths] = useState("6");
+  const [mortgageMode, setMortgageMode] = useState<MortgageMode>("sostenibilita");
+  const [mortgageOfferName, setMortgageOfferName] = useState("");
+  const [mortgagePiesFields, setMortgagePiesFields] = useState<Record<string, MortgagePiesFieldState>>(() =>
+    getDefaultMortgagePiesFields()
+  );
+  const [openMortgagePiesSectionId, setOpenMortgagePiesSectionId] = useState(mortgagePiesSections[0]?.id ?? "");
   const [fraudAnswers, setFraudAnswers] = useState<Record<string, boolean>>({});
   const [fraudContext, setFraudContext] = useState("sms");
   const [scamGameQuestions, setScamGameQuestions] = useState<ScamScenario[]>([]);
@@ -2314,6 +2512,98 @@ const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     if (!user) return;
+
+    awarenessActionsLoadedRef.current = false;
+    const savedAwarenessActions = localStorage.getItem(getAwarenessActionsStorageKey(user.id));
+    let localAwarenessActions: Record<string, boolean> = {};
+
+    if (savedAwarenessActions) {
+      try {
+        const parsed = JSON.parse(savedAwarenessActions) as Record<string, boolean>;
+        localAwarenessActions = cleanAwarenessActionsState(parsed);
+        setCompletedAwarenessActions(localAwarenessActions);
+      } catch {
+        setCompletedAwarenessActions({});
+      }
+    } else {
+      setCompletedAwarenessActions({});
+    }
+
+    awarenessActionsLoadedRef.current = true;
+    loadAwarenessActionsFromDb(user, localAwarenessActions);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !awarenessActionsLoadedRef.current) return;
+    localStorage.setItem(getAwarenessActionsStorageKey(user.id), JSON.stringify(completedAwarenessActions));
+  }, [completedAwarenessActions, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    mortgageCheckLoadedRef.current = false;
+    const savedMortgageCheck = localStorage.getItem(getMortgageCheckStorageKey(user.id));
+    let localMortgageCheck: any = null;
+
+    if (savedMortgageCheck) {
+      try {
+        localMortgageCheck = JSON.parse(savedMortgageCheck);
+        applyMortgageCheckState(localMortgageCheck);
+      } catch {
+        localMortgageCheck = null;
+      }
+    }
+
+    mortgageCheckLoadedRef.current = true;
+    loadMortgageCheckFromDb(user, localMortgageCheck);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !mortgageCheckLoadedRef.current) return;
+
+    const state = buildMortgageCheckState();
+    localStorage.setItem(getMortgageCheckStorageKey(user.id), JSON.stringify(state));
+
+    if (mortgageSaveTimerRef.current) clearTimeout(mortgageSaveTimerRef.current);
+    mortgageSaveTimerRef.current = setTimeout(() => {
+      saveMortgageCheckToDb(user, state);
+    }, 700);
+
+    return () => {
+      if (mortgageSaveTimerRef.current) {
+        clearTimeout(mortgageSaveTimerRef.current);
+        mortgageSaveTimerRef.current = null;
+      }
+    };
+  }, [
+    user,
+    mortgageMode,
+    mortgageOfferName,
+    mortgageHomePrice,
+    mortgageDownPayment,
+    mortgagePrincipal,
+    mortgageRate,
+    mortgageYears,
+    mortgageRateType,
+    mortgageCapRate,
+    mortgageDeclaredPayment,
+    mortgageMonthlyIncome,
+    mortgageInitialCosts,
+    mortgageRecurringYearly,
+    mortgageCondoMonthly,
+    mortgageUtilitiesMonthly,
+    mortgageInsuranceYearly,
+    mortgageMaintenanceYearly,
+    mortgageOtherDebtsMonthly,
+    mortgageFixedExpensesMonthly,
+    mortgageLiquidAfterPurchase,
+    mortgageEmergencyMonths,
+    mortgagePiesFields,
+    openMortgagePiesSectionId,
+  ]);
+
+  useEffect(() => {
+    if (!user) return;
     localStorage.setItem(getHoldingsKey(user.id), JSON.stringify(holdings));
   }, [holdings, user]);
 
@@ -2428,6 +2718,7 @@ const [authReady, setAuthReady] = useState(false);
     taeg: safeNumber(vehicleTaeg),
     tan: safeNumber(vehicleTan),
     totalCredit: safeNumber(vehicleTotalCredit),
+    financingBonus: safeNumber(vehicleFinancingBonus),
     hasScrappage: vehicleScrappage === "si",
     durationMonths: Math.max(safeNumber(vehicleDurationMonths), 1),
     balloonPayment: safeNumber(vehicleBalloonPayment),
@@ -2442,7 +2733,8 @@ const [authReady, setAuthReady] = useState(false);
   const vehicleOwnershipYears = vehicle.durationMonths / 12;
   const vehicleRegularInstallmentMonths = vehicle.balloonPayment > 0 ? Math.max(vehicle.durationMonths - 1, 1) : vehicle.durationMonths;
   const vehicleFinancedAmount = Math.max(vehicle.price - vehicle.downPayment, 0);
-  const vehicleCreditAmountForCalculation = vehicle.totalCredit > 0 ? vehicle.totalCredit : vehicleFinancedAmount;
+  const vehicleEstimatedCreditBase = Math.max(vehicle.price - vehicle.financingBonus - vehicle.downPayment, 0);
+  const vehicleCreditAmountForCalculation = vehicle.totalCredit > 0 ? vehicle.totalCredit : vehicleEstimatedCreditBase;
   const vehicleMonthlyTaegRate = vehicle.taeg > 0 ? vehicle.taeg / 100 / 12 : 0;
   const vehicleEstimatedMonthlyPaymentFromTaeg = (() => {
     if (vehicle.price <= 0 || vehicle.durationMonths <= 0 || vehicle.taeg <= 0) return 0;
@@ -2628,6 +2920,7 @@ const [authReady, setAuthReady] = useState(false);
     : "Inserisci una maxi rata finale per stimare cosa potrebbe succedere se dovessi rifinanziarla invece di pagarla subito.";
 
   const vehicleAlerts = [
+    vehicle.financingBonus > 0 && vehicle.totalCredit <= 0 ? "Bonus finanziamento inserito: la rata stimata dal TAEG viene calcolata su prezzo meno bonus e anticipo. Controlla comunque il totale dovuto." : null,
     vehicleRemainingDebtRatio > 0.4 ? "Maxi rata alta: una parte importante del costo resta concentrata alla fine del finanziamento." : null,
     vehicleFirstMonthCapitalRatio > 0 && vehicleFirstMonthCapitalRatio < 0.4 ? "Quota capitale bassa: le rate mensili stanno riducendo poco il debito principale." : null,
     vehicle.hasScrappage ? "Offerta con rottamazione: verifica bene condizioni, cumulabilita e prezzo senza incentivo." : null,
@@ -2762,6 +3055,608 @@ const [authReady, setAuthReady] = useState(false);
     return { drop, stressedIncome, ratio, risk: ratio > 0.45 ? "alto" : ratio > 0.35 ? "medio" : "basso" };
   });
   const mortgageExpenseStress = mortgage.monthlyIncome > 0 ? (mortgageRealMonthlyHomeCost + 200) / mortgage.monthlyIncome : 0;
+
+  const updateMortgagePiesField = (fieldId: string, updates: Partial<MortgagePiesFieldState>) => {
+    setMortgagePiesFields((prev) => ({
+      ...prev,
+      [fieldId]: {
+        status: prev[fieldId]?.status ?? "missing",
+        value: prev[fieldId]?.value ?? "",
+        notes: prev[fieldId]?.notes ?? "",
+        ...updates,
+      },
+    }));
+  };
+
+  const updateMortgagePiesInputValue = (fieldId: string, value: string) => {
+    setMortgagePiesFields((prev) => {
+      const current = prev[fieldId] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+      const hadValue = current.value.trim().length > 0;
+      const hasValue = value.trim().length > 0;
+      const shouldAutoMarkFound = !hadValue && hasValue && current.status === "missing";
+
+      return {
+        ...prev,
+        [fieldId]: {
+          ...current,
+          value,
+          status: shouldAutoMarkFound ? "found" : current.status,
+        },
+      };
+    });
+  };
+
+  const updateMortgagePiesSelectValue = (fieldId: string, value: string) => {
+    const normalized = value.toLowerCase();
+    const nextStatus: MortgagePiesStatus = !value
+      ? "missing"
+      : normalized.includes("non trovato") || normalized.includes("non presente") || normalized.includes("costo non indicato")
+      ? "missing"
+      : normalized.includes("non chiaro") || normalized.includes("non chiare") || normalized.includes("non chiara") || normalized.includes("incomplete")
+      ? "unclear"
+      : "found";
+
+    updateMortgagePiesField(fieldId, { value, status: nextStatus });
+  };
+
+  const resetMortgagePiesCheck = () => {
+    setMortgagePiesFields(getDefaultMortgagePiesFields());
+    setOpenMortgagePiesSectionId(mortgagePiesSections[0]?.id ?? "");
+  };
+
+  const mortgagePiesIssues = mortgagePiesFieldDefinitions
+    .map((field) => ({ field, state: mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" } }))
+    .filter((item) => item.state.status !== "found")
+    .sort((a, b) => b.field.penalty - a.field.penalty);
+  const mortgagePiesFound = mortgagePiesFieldDefinitions
+    .map((field) => ({ field, state: mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" } }))
+    .filter((item) => item.state.status === "found");
+  const mortgagePiesTotalWeight = mortgagePiesFieldDefinitions.reduce((sum, field) => sum + field.penalty, 0);
+  const mortgagePiesFoundWeight = mortgagePiesFound.reduce((sum, item) => sum + item.field.penalty, 0);
+  const mortgageClarityScore = mortgagePiesTotalWeight > 0 ? Math.round((mortgagePiesFoundWeight / mortgagePiesTotalWeight) * 100) : 0;
+  const mortgageClarityBand = mortgageClarityScore >= 80 ? "chiaro" : mortgageClarityScore >= 60 ? "da_chiarire" : mortgageClarityScore >= 40 ? "attenzione" : "confuso";
+  const mortgageClarityCopy = mortgageClarityBand === "chiaro"
+    ? {
+        label: "Mutuo abbastanza chiaro",
+        message: "Le informazioni principali sono presenti. Restano comunque da verificare le condizioni definitive prima della firma.",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+      }
+    : mortgageClarityBand === "da_chiarire"
+    ? {
+        label: "Alcuni punti da chiarire",
+        message: "La proposta e leggibile, ma ci sono elementi da confermare per iscritto prima di procedere.",
+        className: "border-amber-200 bg-amber-50 text-amber-900",
+      }
+    : mortgageClarityBand === "attenzione"
+    ? {
+        label: "Dati importanti mancanti",
+        message: "Mancano o non sono chiari dati che possono incidere su costo, rata o vincoli del mutuo.",
+        className: "border-orange-200 bg-orange-50 text-orange-900",
+      }
+    : {
+        label: "Alto rischio di confusione",
+        message: "La documentazione e troppo incompleta o ambigua. Non firmare senza chiarimenti scritti sui punti critici.",
+        className: "border-red-200 bg-red-50 text-red-900",
+      };
+
+  const getMortgageAreaStatus = (area: MortgagePiesFieldDefinition["area"]) => {
+    const areaItems = mortgagePiesFieldDefinitions.filter((field) => field.area === area);
+    const issueCount = areaItems.filter((field) => (mortgagePiesFields[field.id]?.status ?? "missing") !== "found").length;
+    const unclearCount = areaItems.filter((field) => mortgagePiesFields[field.id]?.status === "unclear").length;
+    if (issueCount === 0) return { label: "Chiaro", className: "border-emerald-200 bg-emerald-50 text-emerald-800" };
+    if (issueCount >= Math.max(2, areaItems.length) || unclearCount > 0) return { label: "Non chiaro", className: "border-red-200 bg-red-50 text-red-800" };
+    return { label: "Da controllare", className: "border-amber-200 bg-amber-50 text-amber-800" };
+  };
+
+  const mortgageAreaCards = [
+    { label: "Costo reale", status: getMortgageAreaStatus("costo") },
+    { label: "Tasso e rata", status: getMortgageAreaStatus("tasso") },
+    { label: "Polizze e prodotti", status: getMortgageAreaStatus("polizze") },
+    { label: "Ammortamento", status: getMortgageAreaStatus("ammortamento") },
+    { label: "Estinzione e surroga", status: getMortgageAreaStatus("uscita") },
+  ];
+
+  const mortgageEmailSections = mortgagePiesSections
+    .map((section) => {
+      const issues = section.fields
+        .map((field) => ({ field, state: mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" } }))
+        .filter((item) => item.state.status !== "found");
+
+      return { section, issues };
+    })
+    .filter((item) => item.issues.length > 0);
+
+  const mortgageGeneratedEmail = mortgageEmailSections.length === 0
+    ? "Oggetto: Conferma condizioni proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo. Al momento i dati principali risultano individuati.\n\nVi chiedo cortesemente di confermarmi che il PIES ricevuto e aggiornato alle condizioni definitive e che non ci sono ulteriori costi, polizze o prodotti obbligatori non indicati nella documentazione.\n\nGrazie.\nCordiali saluti"
+    : `Oggetto: Richiesta chiarimenti su proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo e avrei bisogno di chiarire alcuni punti prima di procedere.\n\nVi chiedo cortesemente di confermarmi per iscritto i seguenti chiarimenti, ordinati secondo le sezioni del PIES:\n\n${mortgageEmailSections.map(({ section, issues }, sectionIndex) => `${sectionIndex + 1}. ${section.title.replace(/^\d+\.\s*/, "")}\n${issues.map((item, issueIndex) => `   ${sectionIndex + 1}.${issueIndex + 1} ${item.field.question}`).join("\n")}`).join("\n\n")}\n\nLa richiesta e finalizzata esclusivamente a comprendere correttamente la proposta prima della firma.\n\nGrazie.\nCordiali saluti`;
+
+  const mortgageRequestPiesEmail = "Oggetto: Richiesta PIES e documentazione mutuo\n\nBuongiorno,\nprima di procedere con la valutazione del mutuo, vi chiedo cortesemente di inviarmi il PIES aggiornato relativo alla proposta, insieme al piano di ammortamento e al prospetto completo delle condizioni economiche.\n\nVi chiedo inoltre di indicarmi eventuali polizze, prodotti collegati o condizioni necessarie per ottenere o mantenere il tasso proposto.\n\nGrazie.\nCordiali saluti";
+
+  const mortgageMainNumbers = [
+    { label: "Importo mutuo", value: mortgagePrincipalForCalc > 0 ? formatEuro(mortgagePrincipalForCalc) : "Da inserire" },
+    { label: "Durata", value: `${mortgage.years} anni` },
+    { label: mortgageUsesDeclaredPayment ? "Rata dichiarata" : "Rata stimata", value: mortgageMonthlyPayment > 0 ? formatEuro(mortgageMonthlyPayment) : "Da inserire" },
+    { label: "TAN / tasso", value: `${mortgage.annualRate || 0}%` },
+    { label: "Totale stimato rate", value: mortgageTotalPaid > 0 ? formatEuro(mortgageTotalPaid) : "Da inserire" },
+    { label: "Interessi stimati", value: mortgageTotalInterest > 0 ? formatEuro(mortgageTotalInterest) : "Da inserire" },
+  ];
+
+  const escapeReportHtml = (value: string | number) => String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+  const openMortgagePdfReport = () => {
+    if (typeof window === "undefined") return;
+
+    const reportDate = new Date().toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+    const reportOfferName = mortgageOfferName.trim() || "Preventivo mutuo senza nome";
+    const reportLogoSvg = SOLDI_SEMPLICI_REPORT_LOGO_SVG;
+
+    const scoreTone = mortgageClarityScore >= 80
+      ? "good"
+      : mortgageClarityScore >= 60
+      ? "medium"
+      : mortgageClarityScore >= 40
+      ? "warning"
+      : "risk";
+
+    const issueCards = mortgageEmailSections.length
+      ? mortgageEmailSections.map(({ section, issues }) => `
+        <section class="report-section avoid-break">
+          <div class="section-kicker">${escapeReportHtml(section.title.replace(/^\d+\.\s*/, ""))}</div>
+          <div class="issue-list">
+            ${issues.map((item) => `
+              <article class="issue-card ${item.state.status === "unclear" ? "is-unclear" : "is-missing"}">
+                <div class="issue-header">
+                  <span class="status-pill ${item.state.status === "unclear" ? "pill-unclear" : "pill-missing"}">${item.state.status === "unclear" ? "Non chiaro" : "Non trovato"}</span>
+                  <strong>${escapeReportHtml(item.field.issue)}</strong>
+                </div>
+                <p>${escapeReportHtml(item.field.why)}</p>
+                <div class="question-box">${escapeReportHtml(item.field.question)}</div>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+      `).join("")
+      : `<div class="empty-state avoid-break"><strong>Nessuna criticita documentale rilevante.</strong><span>I dati principali controllati risultano segnati come trovati.</span></div>`;
+
+    const foundItems = mortgagePiesFound.length
+      ? mortgagePiesFound.map((item) => `
+        <div class="data-chip">
+          <span>${escapeReportHtml(item.field.label)}</span>
+          ${item.state.value ? `<strong>${escapeReportHtml(item.state.value)}</strong>` : ""}
+        </div>
+      `).join("")
+      : `<div class="empty-state"><strong>Nessun dato ancora segnato come trovato.</strong><span>Compila i blocchi PIES per far crescere l'indice di chiarezza.</span></div>`;
+
+    const numberCards = mortgageMainNumbers.map((item) => `
+      <div class="number-card">
+        <span>${escapeReportHtml(item.label)}</span>
+        <strong>${escapeReportHtml(item.value)}</strong>
+      </div>
+    `).join("");
+
+    const areaCards = mortgageAreaCards.map((item) => {
+      const normalized = item.status.label.toLowerCase();
+      const areaTone = normalized.includes("chiaro") && !normalized.includes("non")
+        ? "good"
+        : normalized.includes("non")
+        ? "risk"
+        : "medium";
+      return `
+        <div class="area-card ${areaTone}">
+          <span>${escapeReportHtml(item.label)}</span>
+          <strong>${escapeReportHtml(item.status.label)}</strong>
+        </div>
+      `;
+    }).join("");
+
+    const html = `<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeReportHtml(reportOfferName)} - Report verifica mutuo - Soldi Semplici</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --soft: #f8fafc;
+      --panel: #ffffff;
+      --brand: #059669;
+      --brand-dark: #047857;
+      --good-bg: #ecfdf5;
+      --good: #047857;
+      --medium-bg: #fffbeb;
+      --medium: #b45309;
+      --warning-bg: #fff7ed;
+      --warning: #c2410c;
+      --risk-bg: #fef2f2;
+      --risk: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #e5e7eb;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+    .print-shell {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: var(--panel);
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+    }
+    .hero {
+      padding: 30px 34px 26px;
+      color: white;
+      background: linear-gradient(135deg, #064e3b 0%, #059669 60%, #34d399 100%);
+    }
+    .brand-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .report-logo-mark {
+      width: 54px;
+      height: 54px;
+      flex: 0 0 auto;
+      padding: 7px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.28);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+    }
+    .brand-name {
+      display: block;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .brand-payoff {
+      display: block;
+      margin-top: 5px;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      color: rgba(255,255,255,0.78);
+    }
+    .date-pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.24);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    h1 {
+      margin: 0;
+      font-size: 31px;
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      max-width: 720px;
+    }
+    .report-offer-title {
+      display: block;
+      margin-top: 8px;
+      font-size: 24px;
+      line-height: 1.12;
+      letter-spacing: -0.025em;
+      color: rgba(255,255,255,0.96);
+      overflow-wrap: anywhere;
+    }
+    .report-offer-title::before {
+      content: "Preventivo: ";
+      color: rgba(255,255,255,0.72);
+      font-size: 15px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .hero p {
+      max-width: 680px;
+      margin: 10px 0 0;
+      color: rgba(255,255,255,0.88);
+      font-size: 14px;
+    }
+    .offer-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.24);
+      color: white;
+      font-size: 13px;
+    }
+    .offer-pill span { color: rgba(255,255,255,0.78); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+    .offer-pill strong { font-weight: 850; }
+    .content { padding: 28px 34px 34px; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.45fr;
+      gap: 18px;
+      margin-top: -54px;
+      align-items: stretch;
+    }
+    .score-card, .summary-card, .report-section, .empty-state, .email-card, .next-card {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+    .score-card { padding: 22px; }
+    .score-label { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+    .score-value { display: flex; align-items: flex-end; gap: 6px; margin-top: 8px; }
+    .score-value strong { font-size: 52px; line-height: 0.92; letter-spacing: -0.06em; }
+    .score-value span { color: var(--muted); font-weight: 800; margin-bottom: 8px; }
+    .score-bar { height: 10px; border-radius: 999px; background: #e2e8f0; overflow: hidden; margin: 18px 0 14px; }
+    .score-fill { width: ${Math.max(0, Math.min(100, mortgageClarityScore))}%; height: 100%; border-radius: 999px; background: var(--brand); }
+    .score-card.medium .score-fill { background: var(--medium); }
+    .score-card.warning .score-fill { background: var(--warning); }
+    .score-card.risk .score-fill { background: var(--risk); }
+    .score-title { display: block; font-size: 17px; margin-bottom: 6px; }
+    .score-card p, .summary-card p { margin: 0; color: var(--muted); font-size: 13px; }
+    .summary-card { padding: 22px; }
+    .summary-card h2, .report-section h2, .email-card h2, .next-card h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      letter-spacing: -0.025em;
+    }
+    .number-grid, .area-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .number-card, .area-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      background: var(--soft);
+      min-height: 72px;
+    }
+    .number-card span, .area-card span, .data-chip span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .number-card strong, .area-card strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+    .area-card.good { background: var(--good-bg); border-color: #bbf7d0; }
+    .area-card.good strong { color: var(--good); }
+    .area-card.medium { background: var(--medium-bg); border-color: #fde68a; }
+    .area-card.medium strong { color: var(--medium); }
+    .area-card.risk { background: var(--risk-bg); border-color: #fecaca; }
+    .area-card.risk strong { color: var(--risk); }
+    .report-section { padding: 22px; margin-top: 18px; }
+    .section-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin: 30px 0 12px;
+    }
+    .section-title-row h2 { margin: 0; font-size: 21px; letter-spacing: -0.03em; }
+    .section-title-row span { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .data-chip {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 11px 12px;
+      background: var(--soft);
+    }
+    .data-chip strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .section-kicker {
+      display: inline-flex;
+      margin-bottom: 12px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      color: var(--brand-dark);
+      background: var(--good-bg);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .issue-list { display: grid; gap: 10px; }
+    .issue-card {
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      padding: 14px;
+      background: var(--soft);
+    }
+    .issue-card.is-missing { border-color: #fed7aa; background: var(--warning-bg); }
+    .issue-card.is-unclear { border-color: #fecaca; background: var(--risk-bg); }
+    .issue-header { display: flex; gap: 9px; align-items: center; margin-bottom: 7px; }
+    .issue-header strong { font-size: 14px; }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    .pill-missing { background: #fed7aa; color: #9a3412; }
+    .pill-unclear { background: #fecaca; color: #991b1b; }
+    .issue-card p { margin: 0 0 8px; color: #334155; font-size: 13px; }
+    .question-box {
+      border-radius: 13px;
+      padding: 10px 12px;
+      background: white;
+      border: 1px solid rgba(15,23,42,0.08);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .email-card, .next-card { padding: 22px; margin-top: 18px; }
+    pre {
+      white-space: pre-wrap;
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      background: #f8fafc;
+      color: #0f172a;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .next-list { margin: 0; padding-left: 18px; color: #334155; }
+    .next-list li { margin-bottom: 8px; }
+    .empty-state {
+      padding: 18px;
+      background: var(--good-bg);
+      border-color: #bbf7d0;
+    }
+    .empty-state strong { display: block; color: var(--good); }
+    .empty-state span { display: block; margin-top: 4px; color: #334155; font-size: 13px; }
+    .footer-note {
+      margin-top: 22px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .print-action {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 10;
+      padding: 13px 18px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--brand);
+      color: white;
+      font-weight: 800;
+      box-shadow: 0 14px 30px rgba(5, 150, 105, 0.32);
+      cursor: pointer;
+    }
+    .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+    @media print {
+      @page { size: A4; margin: 12mm; }
+      body { background: white; }
+      .print-shell { width: auto; min-height: auto; margin: 0; box-shadow: none; }
+      .hero { border-radius: 0; padding: 22px 24px; }
+      .content { padding: 22px 24px; }
+      .summary-grid { margin-top: 18px; grid-template-columns: 1fr 1.35fr; }
+      .score-card, .summary-card, .report-section, .email-card, .next-card { box-shadow: none; }
+      .print-action { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <button class="print-action" onclick="window.print()">Salva o stampa in PDF</button>
+  <main class="print-shell">
+    <header class="hero">
+      <div class="brand-row">
+        <div class="brand-mark">
+          ${reportLogoSvg}
+          <div><span class="brand-name">soldi semplici</span><span class="brand-payoff">La tua finanza. In modo semplice.</span></div>
+        </div>
+        <div class="date-pill">${escapeReportHtml(reportDate)}</div>
+      </div>
+      <h1>Report verifica mutuo:<span class="report-offer-title">${escapeReportHtml(reportOfferName)}</span></h1>
+      <p>Una sintesi leggibile dei dati PIES, dei punti chiari e delle domande da inviare alla banca prima della firma.</p>
+    </header>
+
+    <div class="content">
+      <section class="summary-grid avoid-break">
+        <article class="score-card ${scoreTone}">
+          <div class="score-label">Indice di chiarezza documentale</div>
+          <div class="score-value"><strong>${mortgageClarityScore}</strong><span>/100</span></div>
+          <div class="score-bar"><div class="score-fill"></div></div>
+          <strong class="score-title">${escapeReportHtml(mortgageClarityCopy.label)}</strong>
+          <p>${escapeReportHtml(mortgageClarityCopy.message)}</p>
+          <p style="margin-top:10px;">Dati trovati: <strong>${mortgagePiesFound.length}/${mortgagePiesFieldDefinitions.length}</strong></p>
+        </article>
+
+        <article class="summary-card">
+          <h2>Dati principali</h2>
+          <div class="number-grid">${numberCards}</div>
+        </article>
+      </section>
+
+      <div class="section-title-row avoid-break">
+        <h2>Aree controllate</h2>
+        <span>Semaforo sintetico</span>
+      </div>
+      <section class="area-grid avoid-break">${areaCards}</section>
+
+      <div class="section-title-row">
+        <h2>Dati trovati</h2>
+        <span>Valori individuati nel PIES</span>
+      </div>
+      <section class="data-grid avoid-break">${foundItems}</section>
+
+      <div class="section-title-row">
+        <h2>Punti da chiarire</h2>
+        <span>Ordinati secondo i blocchi PIES</span>
+      </div>
+      ${issueCards}
+
+      <section class="email-card avoid-break">
+        <h2>Email pronta per la banca</h2>
+        <pre>${escapeReportHtml(mortgageGeneratedEmail)}</pre>
+      </section>
+
+      <section class="next-card avoid-break">
+        <h2>Prossimi passi</h2>
+        <ul class="next-list">
+          <li>Invia la richiesta di chiarimento se ci sono punti non trovati o non chiari.</li>
+          <li>Chiedi conferme scritte quando una condizione incide su costo, tasso, polizze o vincoli.</li>
+          <li>Prima della firma verifica di avere il PIES aggiornato alle condizioni definitive.</li>
+        </ul>
+      </section>
+
+      <p class="footer-note">Report educativo generato da Soldi Semplici. Non sostituisce consulenza bancaria, legale o finanziaria personalizzata. Verifica sempre le condizioni definitive prima della firma.</p>
+    </div>
+  </main>
+  <script>setTimeout(function(){ window.print(); }, 500);</script>
+</body>
+</html>`;
+    const reportWindow = window.open("", "_blank");
+    if (!reportWindow) return;
+    reportWindow.document.write(html);
+    reportWindow.document.close();
+  };
 
   const fraudQuestions = [
     { id: "urgency", text: "Ti chiedono di agire subito?", weight: 1 },
@@ -3784,14 +4679,16 @@ const [authReady, setAuthReady] = useState(false);
   useEffect(() => {
     if (!badgeVaultStorageKey) {
       setPersistedBadgeIds([]);
+      setBadgeVaultLoadedKey("");
       return;
     }
 
     setPersistedBadgeIds(readStringArrayFromStorage(badgeVaultStorageKey));
+    setBadgeVaultLoadedKey(badgeVaultStorageKey);
   }, [badgeVaultStorageKey]);
 
   useEffect(() => {
-    if (!userId || !authReady || !goalLoaded || !badgeVaultStorageKey || !celebrationSnapshotKey) return;
+    if (!userId || !authReady || !goalLoaded || !badgeVaultStorageKey || badgeVaultLoadedKey !== badgeVaultStorageKey || !celebrationSnapshotKey) return;
 
     const sessionKey = `${userId}-${selectedPortfolio.key}`;
     const firstSyncForThisSession = !celebrationInitialSyncRef.current[sessionKey];
@@ -3901,6 +4798,7 @@ const [authReady, setAuthReady] = useState(false);
     goalLoaded,
     selectedPortfolio.key,
     badgeVaultStorageKey,
+    badgeVaultLoadedKey,
     celebrationSnapshotKey,
     personalGoalCelebrationStateKey,
     currentUnlockedBadgeSignature,
@@ -4072,6 +4970,13 @@ const [authReady, setAuthReady] = useState(false);
     setStep("home");
     setAnswers(Array(questions.length).fill(-1));
     setCurrentQuestion(0);
+    setCompletedAwarenessActions({});
+    awarenessActionsLoadedRef.current = false;
+    mortgageCheckLoadedRef.current = false;
+    if (mortgageSaveTimerRef.current) {
+      clearTimeout(mortgageSaveTimerRef.current);
+      mortgageSaveTimerRef.current = null;
+    }
   }
 
   async function clearBrokenSession() {
@@ -4080,6 +4985,269 @@ const [authReady, setAuthReady] = useState(false);
     setUser(null);
     setAuthMessage("Sessione locale pulita. Ora puoi accedere di nuovo.");
     setAuthReady(true);
+  }
+
+  async function loadAwarenessActionsFromDb(currentUser: User, localFallback: Record<string, boolean> = {}) {
+    try {
+      const { data, error } = await supabase
+        .from("user_awareness_actions")
+        .select("action_id, completed")
+        .eq("user_id", currentUser.id);
+
+      if (error) {
+        if (isSupabaseRlsError(error)) {
+          console.warn(
+            "Azioni risparmio caricate solo in locale: policy RLS di Supabase da verificare per user_awareness_actions.",
+            error.message
+          );
+        } else {
+          console.warn("Azioni risparmio caricate solo in locale: errore Supabase.", error.message);
+        }
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        const localCompletedEntries = Object.entries(localFallback).filter(([, completed]) => completed);
+        if (localCompletedEntries.length > 0) {
+          syncAwarenessActionsToDb(currentUser, localFallback);
+        }
+        return;
+      }
+
+      const mapped: Record<string, boolean> = {};
+      data.forEach((row: any) => {
+        mapped[row.action_id] = !!row.completed;
+      });
+
+      setCompletedAwarenessActions(cleanAwarenessActionsState(mapped));
+    } catch (error) {
+      console.warn("Azioni risparmio caricate solo in locale: errore non bloccante.", getErrorMessage(error));
+    }
+  }
+
+  async function syncAwarenessActionsToDb(currentUser: User, actionsState: Record<string, boolean>) {
+    const rows = Object.entries(cleanAwarenessActionsState(actionsState)).map(([actionId, completed]) => ({
+      user_id: currentUser.id,
+      action_id: actionId,
+      completed,
+      updated_at: new Date().toISOString(),
+    }));
+
+    if (rows.length === 0) return;
+
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const authUserId = authData?.user?.id;
+
+      if (authError || !authUserId || authUserId !== currentUser.id) {
+        console.warn(
+          "Sincronizzazione azioni risparmio rimandata: utente Supabase non ancora confermato.",
+          getErrorMessage(authError)
+        );
+        return;
+      }
+
+      const { error } = await supabase.from("user_awareness_actions").upsert(rows, {
+        onConflict: "user_id,action_id",
+      });
+
+      if (error) {
+        console.warn("Sincronizzazione azioni risparmio non completata.", error.message);
+      }
+    } catch (error) {
+      console.warn("Sincronizzazione azioni risparmio non disponibile.", getErrorMessage(error));
+    }
+  }
+
+  async function saveAwarenessActionToDb(actionId: string, completed: boolean) {
+    if (!user) return;
+
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const authUserId = authData?.user?.id;
+
+      if (authError || !authUserId || authUserId !== user.id) {
+        console.warn(
+          "Azione risparmio salvata solo in locale: utente Supabase non ancora confermato.",
+          getErrorMessage(authError)
+        );
+        return;
+      }
+
+      const { error } = await supabase
+        .from("user_awareness_actions")
+        .upsert(
+          {
+            user_id: authUserId,
+            action_id: actionId,
+            completed,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "user_id,action_id",
+          }
+        );
+
+      if (error) {
+        if (isSupabaseRlsError(error)) {
+          console.warn(
+            "Azione risparmio salvata solo in locale: policy RLS di Supabase da verificare per user_awareness_actions.",
+            error.message
+          );
+        } else {
+          console.warn("Azione risparmio salvata solo in locale: errore Supabase.", error.message);
+        }
+      }
+    } catch (error) {
+      console.warn("Azione risparmio salvata solo in locale: errore non bloccante.", getErrorMessage(error));
+    }
+  }
+
+  function toggleAwarenessAction(actionId: string, completed: boolean) {
+    setCompletedAwarenessActions((prev) => ({
+      ...prev,
+      [actionId]: completed,
+    }));
+    saveAwarenessActionToDb(actionId, completed);
+  }
+
+  function buildMortgageCheckState() {
+    return {
+      mortgageMode,
+      sustainability: {
+        offerName: mortgageOfferName,
+        homePrice: mortgageHomePrice,
+        downPayment: mortgageDownPayment,
+        principal: mortgagePrincipal,
+        rate: mortgageRate,
+        years: mortgageYears,
+        rateType: mortgageRateType,
+        capRate: mortgageCapRate,
+        declaredPayment: mortgageDeclaredPayment,
+        monthlyIncome: mortgageMonthlyIncome,
+        initialCosts: mortgageInitialCosts,
+        recurringYearly: mortgageRecurringYearly,
+        condoMonthly: mortgageCondoMonthly,
+        utilitiesMonthly: mortgageUtilitiesMonthly,
+        insuranceYearly: mortgageInsuranceYearly,
+        maintenanceYearly: mortgageMaintenanceYearly,
+        otherDebtsMonthly: mortgageOtherDebtsMonthly,
+        fixedExpensesMonthly: mortgageFixedExpensesMonthly,
+        liquidAfterPurchase: mortgageLiquidAfterPurchase,
+        emergencyMonths: mortgageEmergencyMonths,
+      },
+      piesFields: cleanMortgagePiesFields(mortgagePiesFields),
+      openMortgagePiesSectionId,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  function applyMortgageCheckState(saved: any) {
+    if (!saved || typeof saved !== "object") return;
+
+    if (saved.mortgageMode === "sostenibilita" || saved.mortgageMode === "pies") {
+      setMortgageMode(saved.mortgageMode);
+    }
+
+    const data = saved.sustainability && typeof saved.sustainability === "object" ? saved.sustainability : {};
+    if (typeof data.offerName === "string") setMortgageOfferName(data.offerName);
+    if (typeof data.homePrice === "string") setMortgageHomePrice(data.homePrice);
+    if (typeof data.downPayment === "string") setMortgageDownPayment(data.downPayment);
+    if (typeof data.principal === "string") setMortgagePrincipal(data.principal);
+    if (typeof data.rate === "string") setMortgageRate(data.rate);
+    if (typeof data.years === "string") setMortgageYears(data.years);
+    if (typeof data.rateType === "string") setMortgageRateType(data.rateType);
+    if (typeof data.capRate === "string") setMortgageCapRate(data.capRate);
+    if (typeof data.declaredPayment === "string") setMortgageDeclaredPayment(data.declaredPayment);
+    if (typeof data.monthlyIncome === "string") setMortgageMonthlyIncome(data.monthlyIncome);
+    if (typeof data.initialCosts === "string") setMortgageInitialCosts(data.initialCosts);
+    if (typeof data.recurringYearly === "string") setMortgageRecurringYearly(data.recurringYearly);
+    if (typeof data.condoMonthly === "string") setMortgageCondoMonthly(data.condoMonthly);
+    if (typeof data.utilitiesMonthly === "string") setMortgageUtilitiesMonthly(data.utilitiesMonthly);
+    if (typeof data.insuranceYearly === "string") setMortgageInsuranceYearly(data.insuranceYearly);
+    if (typeof data.maintenanceYearly === "string") setMortgageMaintenanceYearly(data.maintenanceYearly);
+    if (typeof data.otherDebtsMonthly === "string") setMortgageOtherDebtsMonthly(data.otherDebtsMonthly);
+    if (typeof data.fixedExpensesMonthly === "string") setMortgageFixedExpensesMonthly(data.fixedExpensesMonthly);
+    if (typeof data.liquidAfterPurchase === "string") setMortgageLiquidAfterPurchase(data.liquidAfterPurchase);
+    if (typeof data.emergencyMonths === "string") setMortgageEmergencyMonths(data.emergencyMonths);
+
+    if (saved.piesFields) {
+      setMortgagePiesFields(cleanMortgagePiesFields(saved.piesFields));
+    }
+
+    if (typeof saved.openMortgagePiesSectionId === "string" && mortgagePiesSections.some((section) => section.id === saved.openMortgagePiesSectionId)) {
+      setOpenMortgagePiesSectionId(saved.openMortgagePiesSectionId);
+    }
+  }
+
+  async function loadMortgageCheckFromDb(currentUser: User, localFallback: any = null) {
+    try {
+      const { data, error } = await supabase
+        .from("user_mortgage_checks")
+        .select("mortgage_mode, sustainability, pies_fields, open_section_id, updated_at")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+
+      if (error) {
+        if (isSupabaseRlsError(error)) {
+          console.warn("Mutuo caricato solo in locale: policy RLS di Supabase da verificare per user_mortgage_checks.", error.message);
+        } else {
+          console.warn("Mutuo caricato solo in locale: errore Supabase.", error.message);
+        }
+        return;
+      }
+
+      if (!data) {
+        if (localFallback) {
+          saveMortgageCheckToDb(currentUser, localFallback);
+        }
+        return;
+      }
+
+      applyMortgageCheckState({
+        mortgageMode: data.mortgage_mode,
+        sustainability: data.sustainability,
+        piesFields: data.pies_fields,
+        openMortgagePiesSectionId: data.open_section_id,
+        updatedAt: data.updated_at,
+      });
+    } catch (error) {
+      console.warn("Mutuo caricato solo in locale: errore non bloccante.", getErrorMessage(error));
+    }
+  }
+
+  async function saveMortgageCheckToDb(currentUser: User, state: any) {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const authUserId = authData?.user?.id;
+
+      if (authError || !authUserId || authUserId !== currentUser.id) {
+        console.warn("Mutuo salvato solo in locale: utente Supabase non ancora confermato.", getErrorMessage(authError));
+        return;
+      }
+
+      const { error } = await supabase.from("user_mortgage_checks").upsert(
+        {
+          user_id: authUserId,
+          mortgage_mode: state.mortgageMode,
+          sustainability: state.sustainability,
+          pies_fields: state.piesFields,
+          open_section_id: state.openMortgagePiesSectionId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+
+      if (error) {
+        if (isSupabaseRlsError(error)) {
+          console.warn("Mutuo salvato solo in locale: policy RLS di Supabase da verificare per user_mortgage_checks.", error.message);
+        } else {
+          console.warn("Mutuo salvato solo in locale: errore Supabase.", error.message);
+        }
+      }
+    } catch (error) {
+      console.warn("Mutuo salvato solo in locale: errore non bloccante.", getErrorMessage(error));
+    }
   }
 
   async function saveHoldingToDb(item: Holding) {
@@ -4568,100 +5736,160 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   async function loadGoalFromDb(currentUser: User) {
-    const fallbackGoal = localStorage.getItem(getGoalStorageKey(currentUser.id, selectedPortfolio.key));
+    const portfolioKey = selectedPortfolio.key;
+    const loadKey = `${currentUser.id}:${portfolioKey}`;
 
-    const { data, error } = await supabase
-      .from("user_goals")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .eq("portfolio_key", selectedPortfolio.key)
-      .maybeSingle();
+    // In sviluppo React/Next puo avviare lo stesso caricamento due volte.
+    // Evitiamo richieste sovrapposte, che in Supabase possono generare AbortError/lock broken.
+    if (goalLoadKeyRef.current === loadKey) return;
 
-    if (error) {
-      console.error("Errore caricamento obiettivo:", error.message);
+    goalLoadKeyRef.current = loadKey;
+    const requestId = goalLoadRequestIdRef.current + 1;
+    goalLoadRequestIdRef.current = requestId;
 
+    const fallbackGoal = localStorage.getItem(getGoalStorageKey(currentUser.id, portfolioKey));
+
+    const applyFallbackGoal = () => {
       if (fallbackGoal) {
         try {
           applyGoalData(JSON.parse(fallbackGoal));
+          return;
         } catch {
-          applyGoalData({});
+          // fall through and apply defaults
         }
-      } else {
-        applyGoalData({});
       }
 
-      setGoalLoaded(true);
-      return;
-    }
-
-    if (data) {
-      applyGoalData(data);
-      localStorage.setItem(
-        getGoalStorageKey(currentUser.id, selectedPortfolio.key),
-        JSON.stringify({
-          goalTitle: data.goal_title,
-          goalTarget: String(data.goal_target ?? "100000"),
-          goalCurrentValue: String(data.goal_current_value ?? "0"),
-          goalPreviousValue: String(data.goal_previous_value ?? "0"),
-          goalReason: data.goal_reason || "stabile",
-          goalEndYear: String(data.goal_end_year ?? new Date().getFullYear() + 10),
-          portMonthly: String(data.pac_monthly ?? "200"),
-        })
-      );
-      setGoalLoaded(true);
-      return;
-    }
-
-    if (fallbackGoal) {
-      try {
-        applyGoalData(JSON.parse(fallbackGoal));
-      } catch {
-        applyGoalData({});
-      }
-    } else {
       applyGoalData({});
-    }
+    };
 
-    setGoalLoaded(true);
+    try {
+      const { data, error } = await supabase
+        .from("user_goals")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .eq("portfolio_key", portfolioKey)
+        .maybeSingle();
+
+      if (requestId !== goalLoadRequestIdRef.current) return;
+
+      if (error) {
+        const message = getErrorMessage(error);
+
+        if (isSupabaseLockAbortError(error)) {
+          console.warn("Caricamento obiettivo rimandato: richiesta Supabase sovrapposta.", message);
+        } else {
+          console.error("Errore caricamento obiettivo:", message);
+        }
+
+        applyFallbackGoal();
+        setGoalLoaded(true);
+        return;
+      }
+
+      if (data) {
+        applyGoalData(data);
+        localStorage.setItem(
+          getGoalStorageKey(currentUser.id, portfolioKey),
+          JSON.stringify({
+            goalTitle: data.goal_title,
+            goalTarget: String(data.goal_target ?? "100000"),
+            goalCurrentValue: String(data.goal_current_value ?? "0"),
+            goalPreviousValue: String(data.goal_previous_value ?? "0"),
+            goalReason: data.goal_reason || "stabile",
+            goalEndYear: String(data.goal_end_year ?? new Date().getFullYear() + 10),
+            portMonthly: String(data.pac_monthly ?? "200"),
+          })
+        );
+        setGoalLoaded(true);
+        return;
+      }
+
+      applyFallbackGoal();
+      setGoalLoaded(true);
+    } catch (error) {
+      if (requestId !== goalLoadRequestIdRef.current) return;
+
+      const message = getErrorMessage(error);
+      if (isSupabaseLockAbortError(error)) {
+        console.warn("Caricamento obiettivo rimandato: richiesta Supabase sovrapposta.", message);
+      } else {
+        console.error("Errore caricamento obiettivo:", message);
+      }
+
+      applyFallbackGoal();
+      setGoalLoaded(true);
+    } finally {
+      if (goalLoadKeyRef.current === loadKey) {
+        goalLoadKeyRef.current = null;
+      }
+    }
   }
 
   async function saveGoalToDb(forceSave = false) {
     if (!user || (!goalLoaded && !forceSave)) return;
 
-    const payload = {
-      user_id: user.id,
-      portfolio_key: selectedPortfolio.key,
-      goal_title: goalTitle,
-      goal_target: Number(goalTarget || 0),
-      goal_current_value: Number(goalCurrentValue || 0),
-      goal_previous_value: Number(goalPreviousValue || 0),
-      goal_reason: goalReason,
-      goal_end_year: Number(goalEndYear || new Date().getFullYear() + 10),
-      pac_monthly: Number(portMonthly || 0),
-      updated_at: new Date().toISOString(),
+    const storagePayload = {
+      goalTitle,
+      goalTarget,
+      goalCurrentValue,
+      goalPreviousValue,
+      goalReason,
+      goalEndYear,
+      portMonthly,
     };
 
-    localStorage.setItem(
-      getGoalStorageKey(user.id, selectedPortfolio.key),
-      JSON.stringify({
-        goalTitle,
-        goalTarget,
-        goalCurrentValue,
-        goalPreviousValue,
-        goalReason,
-        goalEndYear,
-        portMonthly,
-      })
-    );
+    // Salviamo sempre prima in locale: se Supabase ha una policy RLS da correggere,
+    // l'app resta usabile e non perde l'obiettivo dell'utente nella sessione/browser.
+    localStorage.setItem(getGoalStorageKey(user.id, selectedPortfolio.key), JSON.stringify(storagePayload));
 
-    const { error } = await supabase
-      .from("user_goals")
-      .upsert(payload, {
-        onConflict: "user_id,portfolio_key",
-      });
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const authUserId = authData?.user?.id;
 
-    if (error) {
-      console.error("Errore salvataggio obiettivo:", error.message);
+      if (authError || !authUserId || authUserId !== user.id) {
+        console.warn(
+          "Salvataggio obiettivo solo locale: utente Supabase non ancora confermato.",
+          getErrorMessage(authError)
+        );
+        return;
+      }
+
+      const payload = {
+        user_id: authUserId,
+        portfolio_key: selectedPortfolio.key,
+        goal_title: goalTitle,
+        goal_target: Number(goalTarget || 0),
+        goal_current_value: Number(goalCurrentValue || 0),
+        goal_previous_value: Number(goalPreviousValue || 0),
+        goal_reason: goalReason,
+        goal_end_year: Number(goalEndYear || new Date().getFullYear() + 10),
+        pac_monthly: Number(portMonthly || 0),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from("user_goals")
+        .upsert(payload, {
+          onConflict: "user_id,portfolio_key",
+        });
+
+      if (error) {
+        if (isSupabaseRlsError(error)) {
+          console.warn(
+            "Salvataggio obiettivo solo locale: policy RLS di Supabase da verificare per user_goals.",
+            error.message
+          );
+        } else {
+          console.warn("Salvataggio obiettivo solo locale: errore Supabase.", error.message);
+        }
+      }
+    } catch (error) {
+      const message = getErrorMessage(error);
+      if (isSupabaseRlsError(error) || isSupabaseLockAbortError(error)) {
+        console.warn("Salvataggio obiettivo solo locale: Supabase non disponibile o policy da verificare.", message);
+      } else {
+        console.warn("Salvataggio obiettivo solo locale: errore non bloccante.", message);
+      }
     }
   }
 
@@ -5150,8 +6378,10 @@ const [authReady, setAuthReady] = useState(false);
             <div className="absolute bottom-[-100px] left-[-100px] h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
 
             <div className="relative">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Soldi Semplici</p>
-              <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-slate-950 md:text-6xl">
+              <div className="inline-flex rounded-3xl border border-emerald-100 bg-white/85 p-4 shadow-sm backdrop-blur">
+                <SoldiSempliciLogo size="large" showTagline />
+              </div>
+              <h1 className="mt-7 max-w-3xl text-4xl font-bold tracking-tight text-slate-950 md:text-6xl">
                 Gestisci i tuoi soldi con più metodo e meno confusione.
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
@@ -5178,6 +6408,9 @@ const [authReady, setAuthReady] = useState(false);
 
           <aside className="flex items-center">
             <div className="w-full rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+              <div className="mb-6 flex justify-end">
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Accesso sicuro</span>
+              </div>
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
                   {authMode === "login" ? "Bentornato" : "Crea il tuo piano"}
@@ -6822,24 +8055,14 @@ const [authReady, setAuthReady] = useState(false);
                         <div className="mt-5 flex flex-wrap gap-3">
                           {!done ? (
                             <button
-                              onClick={() =>
-                                setCompletedAwarenessActions((prev) => ({
-                                  ...prev,
-                                  [action.id]: true,
-                                }))
-                              }
+                              onClick={() => toggleAwarenessAction(action.id, true)}
                               className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
                             >
                               Segna come fatto
                             </button>
                           ) : (
                             <button
-                              onClick={() =>
-                                setCompletedAwarenessActions((prev) => ({
-                                  ...prev,
-                                  [action.id]: false,
-                                }))
-                              }
+                              onClick={() => toggleAwarenessAction(action.id, false)}
                               className="rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
                             >
                               Azione completata
@@ -6892,6 +8115,18 @@ const [authReady, setAuthReady] = useState(false);
                             </label>
                           ))}
                         </div>
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">Bonus finanziamento / sconto vincolato (€)</label>
+                      <input
+                        value={vehicleFinancingBonus}
+                        onChange={(e) => setVehicleFinancingBonus(e.target.value)}
+                        placeholder="Es. 1800"
+                        className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none"
+                      />
+                      <p className="mt-2 text-xs leading-5 text-slate-500">
+                        Inserisci eventuali sconti validi solo con finanziamento. Se hai già inserito l'importo totale del credito, questo campo non modifica la rata stimata dal TAEG.
+                      </p>
+                    </div>
                         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                           <label className="text-sm font-medium text-slate-700">
                             Offerta con rottamazione?
@@ -7107,7 +8342,7 @@ const [authReady, setAuthReady] = useState(false);
                       <PremiumStatCard eyebrow="Costo reale mensile stimato" value={formatEuro(vehicleRealMonthlyCost)} note={vehicleHasBalloonPayment ? `Include anche circa ${formatEuro(vehicleBalloonMonthlyReserve)}/mese di maxi rata spalmata` : "Include anticipo e costi sul periodo"} />
                       <PremiumStatCard eyebrow="Costo reale annuo" value={formatEuro(vehicleRealYearlyCost)} note="Quanto pesa in un anno" />
                       <PremiumStatCard eyebrow="Maxi rata accantonata" value={vehicleHasBalloonPayment ? `${formatEuro(vehicleBalloonMonthlyReserve)}/mese` : "0 €"} note="Quota da considerare se vuoi prepararti alla scadenza" />
-                      <PremiumStatCard eyebrow="Totale finanziamento" value={formatEuro(vehicleTotalPaidFinancing)} note={`Valido se paghi la maxi rata finale senza rifinanziarla. Extra vs prezzo: ${formatEuro(vehicleExtraCost)}${vehicle.totalCredit > 0 ? " · credito usato nel calcolo" : ""}`} />
+                      <PremiumStatCard eyebrow="Totale finanziamento" value={formatEuro(vehicleTotalPaidFinancing)} note={`Valido se paghi la maxi rata finale senza rifinanziarla. Extra vs prezzo: ${formatEuro(vehicleExtraCost)}${vehicle.totalCredit > 0 ? " · credito usato nel calcolo" : vehicle.financingBonus > 0 ? " · bonus finanziamento considerato nella stima" : ""}`} />
                       <PremiumStatCard eyebrow="Costi di utilizzo" value={`${formatEuro(vehicleRunningCostsMonthly)}/mese`} note={`Oltre alla rata, potresti spendere circa ${formatEuro(vehicleHiddenCosts)} nei prossimi ${vehicle.durationMonths} mesi per assicurazione, bollo, gomme e manutenzione.`} />
                       <PremiumStatCard eyebrow="Anticipo spalmato" value={formatEuro(vehicleDownPaymentMonthlyWeight)} note="Non esce ogni mese, ma pesa nel costo complessivo" />
                       <PremiumStatCard eyebrow="Impatto sul reddito" value={`${Math.round(vehicleIncomeRatio * 100)}%`} note="Quanto reddito mensile assorbe l'auto" />
@@ -7147,333 +8382,624 @@ const [authReady, setAuthReady] = useState(false);
 
             {awarenessTab === "mutuo" && (
               <div className="space-y-6">
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Motore mutuo</p>
-                  <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                      <h3 className="text-2xl font-bold tracking-tight text-slate-950">Capisci se il mutuo e sostenibile</h3>
-                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                        La rata e solo una parte della storia. Inserisci i dati che conosci: la scheda si aggiorna automaticamente e ti aiuta a capire quanto pesa davvero la casa ogni mese, quanto margine ti resta e cosa succede se tassi, reddito o spese cambiano.
+                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                  <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
+                    <div className="p-6 md:p-8">
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Mutuo</p>
+                      <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Capisci rata, costi e condizioni prima di firmare</h3>
+                      <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                        Usa la scheda in due modi: valuta la sostenibilita del mutuo e, quando hai una proposta reale, fatti guidare nella lettura del PIES. Se qualcosa manca o non e chiaro, l'app prepara una richiesta precisa per la banca.
                       </p>
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => setMortgageMode("sostenibilita")}
+                          className={`rounded-2xl border p-4 text-left transition ${mortgageMode === "sostenibilita" ? "border-emerald-300 bg-emerald-50 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                        >
+                          <span className="text-2xl">📊</span>
+                          <span className="mt-3 block text-base font-bold text-slate-950">Calcola sostenibilita</span>
+                          <span className="mt-1 block text-sm leading-5 text-slate-600">Rata, reddito, altri debiti, costi iniziali, fondo emergenza e stress test.</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMortgageMode("pies")}
+                          className={`rounded-2xl border p-4 text-left transition ${mortgageMode === "pies" ? "border-emerald-300 bg-emerald-50 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                        >
+                          <span className="text-2xl">📄</span>
+                          <span className="mt-3 block text-base font-bold text-slate-950">Verifica PIES</span>
+                          <span className="mt-1 block text-sm leading-5 text-slate-600">Dati trovati, dati mancanti, indice di chiarezza, email alla banca e report PDF.</span>
+                        </button>
+                      </div>
                     </div>
-                    <span className={`w-fit rounded-full px-4 py-2 text-xs font-bold ${
-                      mortgageSustainabilityLevel === "buono"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : mortgageSustainabilityLevel === "medio"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-red-100 text-red-700"
-                    }`}>
-                      {mortgageSustainabilityLevel === "buono" ? "Sostenibilita buona" : mortgageSustainabilityLevel === "medio" ? "Da valutare" : "Rischio elevato"}
-                    </span>
+                    <div className="border-t border-slate-200 bg-slate-50 p-6 md:p-8 lg:border-l lg:border-t-0">
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Regola pratica</p>
+                      <p className="mt-3 text-lg font-bold leading-7 text-slate-950">
+                        Non valutare il mutuo solo dalla rata. Controlla costo totale, TAEG, polizze, sconti condizionati e cosa succede se vuoi uscire.
+                      </p>
+                      <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <p className="text-sm font-bold text-amber-950">Da ricordare</p>
+                        <p className="mt-1 text-sm leading-6 text-amber-900">Se una condizione incide sul costo del mutuo, chiedila per iscritto. Le condizioni dette solo a voce non bastano.</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
+                {mortgageMode === "sostenibilita" && (
+                  <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+                    <div className="space-y-6">
+                      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+                        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Percorso 1</p>
+                        <h4 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Sostenibilita del mutuo</h4>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          Inserisci i dati che conosci. Se hai una rata proposta dalla banca, usa quella: e piu concreta della stima calcolata.
+                        </p>
 
+                        <div className="mt-6 grid gap-4 md:grid-cols-2">
+                          {[
+                            ["Prezzo casa", mortgageHomePrice, setMortgageHomePrice, "Prezzo richiesto per la casa. Oltre al prezzo ci sono anticipo, notaio, imposte e altre spese."],
+                            ["Anticipo", mortgageDownPayment, setMortgageDownPayment, "Soldi che metti subito. Non consumare tutta la liquidita solo per aumentare l'anticipo."],
+                            ["Importo mutuo", mortgagePrincipal, setMortgagePrincipal, "Se hai gia il preventivo della banca, inserisci l'importo esatto. Se lo lasci vuoto, lo stimiamo da prezzo casa meno anticipo."],
+                            ["Durata mutuo (anni)", mortgageYears, setMortgageYears, "Durate piu lunghe abbassano la rata, ma di solito aumentano gli interessi totali pagati nel tempo."],
+                            ["Tasso / TAN (%)", mortgageRate, setMortgageRate, "Inserisci il tasso nominale indicato nel preventivo o nel PIES."],
+                            ["Rata dichiarata dalla banca", mortgageDeclaredPayment, setMortgageDeclaredPayment, "Se la banca ti ha dato una rata, inseriscila qui: l'app la usa come dato principale."],
+                            ["Reddito netto mensile", mortgageMonthlyIncome, setMortgageMonthlyIncome, "Usa il reddito familiare netto stabile, non entrate occasionali."],
+                            ["Altre rate/debiti mensili", mortgageOtherDebtsMonthly, setMortgageOtherDebtsMonthly, "Prestiti, finanziamenti, cessioni, carte rateali: servono per capire il peso totale dei debiti."],
+                          ].map(([label, value, setter, help]) => (
+                            <label key={String(label)} className="text-sm font-medium text-slate-700">
+                              {label as string}
+                              <input
+                                value={value as string}
+                                onChange={(e) => (setter as (value: string) => void)(e.target.value)}
+                                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                              />
+                              <span className="mt-1 block text-xs leading-5 text-slate-500">{help as string}</span>
+                            </label>
+                          ))}
+                        </div>
 
-                <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-                  <div className="space-y-4">
-                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                      <h4 className="text-lg font-bold text-slate-950">1. Dati principali</h4>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">Inserisci i dati del preventivo. Se hai gia una rata ufficiale, usa quella: sara il dato piu vicino alla realta.</p>
-                      <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        {[
-                          ["Prezzo casa", mortgageHomePrice, setMortgageHomePrice, "Prezzo richiesto per la casa. Non confonderlo con i soldi necessari all'inizio: oltre al prezzo ci sono anticipo, notaio, imposte e altre spese."],
-                          ["Anticipo disponibile", mortgageDownPayment, setMortgageDownPayment, "Piu anticipo metti, meno capitale devi finanziare. Attenzione pero a non svuotare tutta la liquidita: serve margine per imprevisti."],
-                          ["Importo mutuo", mortgagePrincipal, setMortgagePrincipal, "Se hai gia il preventivo della banca, inserisci l'importo esatto. Se lo lasci vuoto, lo stimiamo da prezzo casa meno anticipo."],
-                          ["Durata mutuo (anni)", mortgageYears, setMortgageYears, "Durate piu lunghe abbassano la rata, ma di solito aumentano gli interessi totali pagati nel tempo."],
-                          ["Tasso annuo %", mortgageRate, setMortgageRate, "Serve per stimare la rata quando non hai ancora un preventivo. Se il tasso e variabile, controlla sempre anche lo stress test."],
-                          ["Rata mensile dichiarata", mortgageDeclaredPayment, setMortgageDeclaredPayment, "Se hai una rata ufficiale, inseriscila: e il dato piu concreto. La stima resta utile per capire se il peso sul reddito e sostenibile."],
-                        ].map(([label, value, setter, help]) => (
-                          <label key={String(label)} className="text-sm font-medium text-slate-700">
-                            {label as string}
-                            <input
-                              value={value as string}
-                              onChange={(e) => (setter as (value: string) => void)(e.target.value)}
-                              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
-                            />
-                            <span className="mt-1 block text-xs leading-5 text-slate-500">{help as string}</span>
-                          </label>
-                        ))}
-
-                        <label className="text-sm font-medium text-slate-700">
-                          Tipo tasso
-                          <select
-                            value={mortgageRateType}
-                            onChange={(e) => setMortgageRateType(e.target.value)}
-                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
-                          >
-                            <option value="fisso">Fisso</option>
-                            <option value="variabile">Variabile</option>
-                            <option value="cap">Variabile con cap</option>
-                          </select>
-                          <span className="mt-1 block text-xs leading-5 text-slate-500">Il tipo di tasso cambia il rischio: fisso significa rata piu prevedibile, variabile significa rata che puo salire, cap significa variabile con un limite massimo.</span>
-                        </label>
-
-                        {mortgageRateType === "cap" && (
+                        <div className="mt-5 grid gap-4 md:grid-cols-2">
                           <label className="text-sm font-medium text-slate-700">
-                            Tasso massimo / cap (%)
-                            <input
-                              value={mortgageCapRate}
-                              onChange={(e) => setMortgageCapRate(e.target.value)}
+                            Tipo tasso
+                            <select
+                              value={mortgageRateType}
+                              onChange={(e) => setMortgageRateType(e.target.value)}
                               className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
-                            />
-                            <span className="mt-1 block text-xs leading-5 text-slate-500">E il tasso massimo che il mutuo puo raggiungere secondo il contratto. Se non lo conosci, cercalo nel preventivo o nel foglio informativo: serve per stimare la rata nello scenario peggiore previsto.</span>
+                            >
+                              <option value="fisso">Fisso</option>
+                              <option value="variabile">Variabile</option>
+                              <option value="cap">Variabile con cap</option>
+                            </select>
+                            <span className="mt-1 block text-xs leading-5 text-slate-500">Serve per adattare lo stress test al tipo di rischio.</span>
                           </label>
-                        )}
-                      </div>
-                      <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                        <p className="text-sm font-semibold text-emerald-950">Consiglio semplice</p>
-                        <p className="mt-1 text-sm leading-6 text-emerald-900">
-                          Non scegliere casa guardando solo la rata. Una rata sostenibile deve lasciarti spazio per vivere, risparmiare e gestire imprevisti senza andare in affanno.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                      <h4 className="text-lg font-bold text-slate-950">2. Costi iniziali e costi casa</h4>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">Comprare casa non significa pagare solo anticipo e rata. Inserisci anche i costi che spesso vengono dimenticati.</p>
-                      <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        {[
-                          ["Costi iniziali stimati", mortgageInitialCosts, setMortgageInitialCosts, "Notaio, agenzia, imposte, perizia, istruttoria, trasloco, arredamento e piccoli lavori. Meglio sovrastimare che restare senza liquidita."],
-                          ["Condominio mensile", mortgageCondoMonthly, setMortgageCondoMonthly, "Se non lo conosci, inserisci una stima prudente. Il condominio pesa ogni mese, quindi va considerato nel costo reale della casa."],
-                          ["Utenze mensili", mortgageUtilitiesMonthly, setMortgageUtilitiesMonthly, "Luce, gas, acqua, internet e altre spese ricorrenti. Anche se non sono rata, fanno parte del peso mensile della casa."],
-                          ["Assicurazione annua", mortgageInsuranceYearly, setMortgageInsuranceYearly, "Casa, scoppio/incendio o altre coperture collegate. Alcune possono essere richieste dalla banca."],
-                          ["Manutenzione annua", mortgageMaintenanceYearly, setMortgageMaintenanceYearly, "Piccoli lavori, guasti e manutenzione ordinaria. Una casa costa anche quando non succede nulla di speciale."],
-                          ["Altri costi ricorrenti annui", mortgageRecurringYearly, setMortgageRecurringYearly, "Altre spese ricorrenti non incluse sopra. Usa questo campo per non sottovalutare il costo reale mensile."],
-                        ].map(([label, value, setter, help]) => (
-                          <label key={String(label)} className="text-sm font-medium text-slate-700">
-                            {label as string}
-                            <input
-                              value={value as string}
-                              onChange={(e) => (setter as (value: string) => void)(e.target.value)}
-                              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
-                            />
-                            <span className="mt-1 block text-xs leading-5 text-slate-500">{help as string}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                        <p className="text-sm font-semibold text-amber-950">Attenzione ai costi dimenticati</p>
-                        <p className="mt-1 text-sm leading-6 text-amber-900">
-                          Per comprare casa non servono solo anticipo e mutuo. Notaio, imposte, agenzia, trasloco, arredamento e piccoli lavori possono assorbire molta liquidita.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                      <h4 className="text-lg font-bold text-slate-950">3. Reddito, margine e fondo emergenza</h4>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">Qui capisci se il mutuo lascia spazio alla vita normale: spese, imprevisti e sicurezza.</p>
-                      <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        {[
-                          ["Reddito netto mensile familiare", mortgageMonthlyIncome, setMortgageMonthlyIncome, "Somma dei redditi netti reali che entrano ogni mese in famiglia, non il lordo."],
-                          ["Altre rate/debiti mensili", mortgageOtherDebtsMonthly, setMortgageOtherDebtsMonthly, "Auto, prestiti, carte revolving o altri debiti. La banca guarda anche questi, e tu dovresti farlo ancora prima."],
-                          ["Spese fisse mensili", mortgageFixedExpensesMonthly, setMortgageFixedExpensesMonthly, "Spesa, trasporti, scuola, assicurazioni, telefono e costi familiari. Servono per capire quanto margine resta davvero."],
-                          ["Liquidita residua dopo acquisto", mortgageLiquidAfterPurchase, setMortgageLiquidAfterPurchase, "Soldi che ti restano dopo anticipo, notaio, imposte e costi iniziali. Questa e la tua protezione contro gli imprevisti."],
-                          ["Mesi fondo emergenza", mortgageEmergencyMonths, setMortgageEmergencyMonths, "Di solito e prudente mantenere almeno 3-6 mesi di spese essenziali. Se il reddito e variabile, meglio avvicinarsi a 6-12 mesi."],
-                        ].map(([label, value, setter, help]) => (
-                          <label key={String(label)} className="text-sm font-medium text-slate-700">
-                            {label as string}
-                            <input
-                              value={value as string}
-                              onChange={(e) => (setter as (value: string) => void)(e.target.value)}
-                              className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
-                            />
-                            <span className="mt-1 block text-xs leading-5 text-slate-500">{help as string}</span>
-                          </label>
-                        ))}
-                      </div>
-
-                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-sm font-semibold text-slate-950">Calcolo automatico</p>
-                        <p className="mt-1 text-sm leading-6 text-slate-700">
-                          Non devi premere nessun pulsante: i risultati a destra si aggiornano mentre compili i dati. Se mancano dati importanti, usa i riquadri come guida e completa solo cio che conosci.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Lettura semplice</p>
-                      <h4 className="mt-2 text-xl font-bold text-slate-950">Rata, costo casa e sostenibilita</h4>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        {mortgagePrincipalForCalc <= 0
-                          ? "Inserisci almeno prezzo casa e anticipo, oppure direttamente l'importo del mutuo, per vedere una stima piu utile."
-                          : mortgageUsesDeclaredPayment
-                          ? "Stiamo usando la rata che hai inserito. La stima del tasso resta utile come controllo, ma il dato dichiarato e quello piu concreto."
-                          : "Non hai inserito una rata dichiarata: la rata viene stimata usando importo, tasso e durata."}
-                      </p>
-                      <div className="mt-4 grid gap-4 md:grid-cols-2">
-                        <PremiumStatCard eyebrow={mortgageUsesDeclaredPayment ? "Rata dichiarata" : "Rata stimata"} value={formatEuro(mortgageMonthlyPayment)} note="Quello che paghi alla banca ogni mese" />
-                        <PremiumStatCard eyebrow="Costo reale mensile" value={formatEuro(mortgageRealMonthlyHomeCost)} note="Rata + costi ricorrenti della casa" />
-                        <PremiumStatCard eyebrow="Peso rata/reddito" value={`${Math.round(mortgagePaymentIncomeRatio * 100)}%`} note="Solo rata mutuo" />
-                        <PremiumStatCard eyebrow="Peso casa/reddito" value={`${Math.round(mortgageHomeIncomeRatio * 100)}%`} note="Rata + costi casa" />
-                      </div>
-                    </div>
-
-                    <div className={`rounded-3xl border p-6 shadow-sm ${
-                      mortgageSustainabilityLevel === "buono"
-                        ? "border-emerald-200 bg-emerald-50"
-                        : mortgageSustainabilityLevel === "medio"
-                        ? "border-amber-200 bg-amber-50"
-                        : "border-red-200 bg-red-50"
-                    }`}>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Semaforo mutuo</p>
-                          <h4 className="mt-2 text-xl font-bold text-slate-950">{mortgageTrafficLight.title}</h4>
+                          {mortgageRateType === "cap" && (
+                            <label className="text-sm font-medium text-slate-700">
+                              Tasso massimo / cap (%)
+                              <input
+                                value={mortgageCapRate}
+                                onChange={(e) => setMortgageCapRate(e.target.value)}
+                                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                              />
+                              <span className="mt-1 block text-xs leading-5 text-slate-500">E il tasso massimo previsto dal contratto. Serve per stimare la rata nello scenario peggiore.</span>
+                            </label>
+                          )}
                         </div>
-                        <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-bold ${mortgageTrafficLight.badgeClass}`}>
-                          <span className={`h-2.5 w-2.5 rounded-full ${mortgageTrafficLight.dotClass}`} />
-                          {mortgageTrafficLight.label}
-                        </span>
                       </div>
 
-                      <p className="mt-4 text-sm leading-6 text-slate-700">{mortgageTrafficLight.shortText}</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-700">{mortgageTrafficLight.advice}</p>
-
-                      <div className="mt-4 rounded-2xl bg-white/80 p-4">
-                        <p className="text-sm font-semibold text-slate-950">Lettura semplice</p>
-                        <p className="mt-1 text-sm leading-6 text-slate-700">{mortgageSustainabilityText}</p>
-                      </div>
-
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <div className="rounded-2xl bg-white/80 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Margine mensile residuo</p>
-                          <p className="mt-1 text-2xl font-bold text-slate-950">{formatEuro(mortgageMonthlyMargin)}</p>
-                          <p className="mt-1 text-xs text-slate-600">Reddito meno spese fisse, altri debiti e costo reale casa.</p>
-                        </div>
-                        <div className="rounded-2xl bg-white/80 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Debiti/reddito</p>
-                          <p className="mt-1 text-2xl font-bold text-slate-950">{Math.round(mortgageDebtIncomeRatio * 100)}%</p>
-                          <p className="mt-1 text-xs text-slate-600">Rata mutuo + altre rate rispetto al reddito.</p>
+                      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+                        <h4 className="text-xl font-bold text-slate-950">Costi iniziali, casa e fondo emergenza</h4>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">Per comprare casa non servono solo anticipo e mutuo. Notaio, imposte, agenzia, trasloco, arredamento e piccoli lavori possono assorbire molta liquidita.</p>
+                        <div className="mt-5 grid gap-4 md:grid-cols-2">
+                          {[
+                            ["Costi iniziali acquisto", mortgageInitialCosts, setMortgageInitialCosts, "Notaio, imposte, agenzia, perizia, istruttoria, trasloco, primi lavori o arredi."],
+                            ["Costi casa annui", mortgageRecurringYearly, setMortgageRecurringYearly, "Spese ricorrenti generiche della casa, se vuoi inserirle in modo aggregato."],
+                            ["Condominio mensile", mortgageCondoMonthly, setMortgageCondoMonthly, "Spese condominiali ordinarie."],
+                            ["Utenze mensili", mortgageUtilitiesMonthly, setMortgageUtilitiesMonthly, "Luce, gas, acqua, internet e costi simili."],
+                            ["Assicurazioni annue", mortgageInsuranceYearly, setMortgageInsuranceYearly, "Polizze casa, incendio/scoppio o altre coperture collegate."],
+                            ["Manutenzione annua", mortgageMaintenanceYearly, setMortgageMaintenanceYearly, "Piccoli lavori, riparazioni, manutenzione ordinaria."],
+                            ["Spese fisse mensili familiari", mortgageFixedExpensesMonthly, setMortgageFixedExpensesMonthly, "Spese essenziali escluse rata e costi casa gia inseriti."],
+                            ["Liquidita residua dopo acquisto", mortgageLiquidAfterPurchase, setMortgageLiquidAfterPurchase, "Soldi che ti restano dopo anticipo e costi iniziali."],
+                            ["Mesi fondo emergenza", mortgageEmergencyMonths, setMortgageEmergencyMonths, "Quanti mesi di sicurezza vuoi mantenere dopo l'acquisto."],
+                          ].map(([label, value, setter, help]) => (
+                            <label key={String(label)} className="text-sm font-medium text-slate-700">
+                              {label as string}
+                              <input
+                                value={value as string}
+                                onChange={(e) => (setter as (value: string) => void)(e.target.value)}
+                                className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                              />
+                              <span className="mt-1 block text-xs leading-5 text-slate-500">{help as string}</span>
+                            </label>
+                          ))}
                         </div>
                       </div>
                     </div>
 
-                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                      <h4 className="text-xl font-bold text-slate-950">Costi iniziali e fondo emergenza</h4>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">La casa deve essere sostenibile anche dopo il rogito. Non consumare tutta la liquidita per comprare.</p>
-                      <div className="mt-4 grid gap-4 md:grid-cols-2">
-                        <PremiumStatCard eyebrow="Soldi iniziali necessari" value={formatEuro(mortgageFrontCashNeeded)} note="Anticipo + costi iniziali stimati" />
-                        <PremiumStatCard eyebrow="Fondo emergenza consigliato" value={formatEuro(mortgageEmergencyNeeded)} note={`${mortgage.emergencyMonths} mesi di sicurezza`} />
-                      </div>
-                      <div className={`mt-4 rounded-2xl border p-4 ${mortgageEmergencyGap >= 0 ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-                        <p className="text-sm font-semibold text-slate-950">
-                          {mortgageEmergencyGap >= 0 ? "Fondo emergenza adeguato" : "Fondo emergenza da rafforzare"}
+                    <div className="space-y-4">
+                      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Lettura semplice</p>
+                        <h4 className="mt-2 text-xl font-bold text-slate-950">Rata, costo casa e sostenibilita</h4>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          {mortgagePrincipalForCalc <= 0
+                            ? "Inserisci almeno prezzo casa e anticipo, oppure direttamente l'importo del mutuo, per vedere una stima piu utile."
+                            : mortgageUsesDeclaredPayment
+                            ? "Stiamo usando la rata che hai inserito. La stima del tasso resta utile come controllo, ma il dato dichiarato e quello piu concreto."
+                            : "Non hai inserito una rata dichiarata: la rata viene stimata usando importo, tasso e durata."}
                         </p>
-                        <p className="mt-1 text-sm leading-6 text-slate-700">
-                          {mortgageEmergencyGap >= 0
-                            ? `Dopo l'acquisto ti resterebbe un margine di circa ${formatEuro(mortgageEmergencyGap)} rispetto al fondo emergenza scelto.`
-                            : `Dopo l'acquisto ti mancherebbero circa ${formatEuro(Math.abs(mortgageEmergencyGap))} per arrivare al fondo emergenza scelto.`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <h4 className="text-xl font-bold text-slate-950">Stress test</h4>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">{mortgageStressIntroText}</p>
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          <PremiumStatCard eyebrow={mortgageUsesDeclaredPayment ? "Rata dichiarata" : "Rata stimata"} value={formatEuro(mortgageMonthlyPayment)} note="Quello che paghi alla banca ogni mese" />
+                          <PremiumStatCard eyebrow="Costo reale mensile" value={formatEuro(mortgageRealMonthlyHomeCost)} note="Rata + costi ricorrenti della casa" />
+                          <PremiumStatCard eyebrow="Totale rimborsato stimato" value={formatEuro(mortgageTotalPaid)} note={`Rate mutuo per ${mortgageMonths} mesi, esclusi costi casa separati`} />
+                          <PremiumStatCard eyebrow="Interessi stimati" value={formatEuro(mortgageTotalInterest)} note="Totale rimborsato meno capitale richiesto" />
+                          <PremiumStatCard eyebrow="Peso rata/reddito" value={`${Math.round(mortgagePaymentIncomeRatio * 100)}%`} note="Solo rata mutuo" />
+                          <PremiumStatCard eyebrow="Debiti/reddito" value={`${Math.round(mortgageDebtIncomeRatio * 100)}%`} note="Rata mutuo + altre rate" />
                         </div>
-                        <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                          {mortgageRateType === "fisso" ? "Tasso fisso" : mortgageRateType === "variabile" ? "Tasso variabile" : "Variabile con cap"}
-                        </span>
                       </div>
 
-                      <div className={`mt-4 rounded-2xl border p-4 ${
-                        mortgageRateType === "fisso"
+                      <div className={`rounded-3xl border p-6 shadow-sm ${
+                        mortgageSustainabilityLevel === "buono"
                           ? "border-emerald-200 bg-emerald-50"
-                          : mortgageRateType === "variabile"
+                          : mortgageSustainabilityLevel === "medio"
                           ? "border-amber-200 bg-amber-50"
-                          : "border-indigo-200 bg-indigo-50"
+                          : "border-red-200 bg-red-50"
                       }`}>
-                        <p className="text-sm font-semibold text-slate-950">Consiglio mirato</p>
-                        <p className="mt-1 text-sm leading-6 text-slate-700">{mortgageStressAdvice}</p>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Semaforo mutuo</p>
+                            <h4 className="mt-2 text-xl font-bold text-slate-950">{mortgageTrafficLight.title}</h4>
+                          </div>
+                          <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-bold ${mortgageTrafficLight.badgeClass}`}>
+                            <span className={`h-2.5 w-2.5 rounded-full ${mortgageTrafficLight.dotClass}`} />
+                            {mortgageTrafficLight.label}
+                          </span>
+                        </div>
+                        <p className="mt-4 text-sm leading-6 text-slate-700">{mortgageTrafficLight.shortText}</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-700">{mortgageTrafficLight.advice}</p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          <div className="rounded-2xl bg-white/80 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Margine mensile residuo</p>
+                            <p className="mt-1 text-2xl font-bold text-slate-950">{formatEuro(mortgageMonthlyMargin)}</p>
+                            <p className="mt-1 text-xs text-slate-600">Reddito meno spese fisse, altri debiti e costo reale casa.</p>
+                          </div>
+                          <div className="rounded-2xl bg-white/80 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Fondo emergenza</p>
+                            <p className="mt-1 text-2xl font-bold text-slate-950">{formatEuro(mortgageEmergencyNeeded)}</p>
+                            <p className="mt-1 text-xs text-slate-600">Sicurezza consigliata per {mortgage.emergencyMonths} mesi.</p>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="mt-4 grid gap-3">
-                        {mortgageRateType === "fisso" ? (
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p className="font-semibold text-slate-950">Rata prevedibile</p>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">Con il tasso fisso, la rata non dovrebbe cambiare per effetto dei tassi. Per questo, in questo caso, lo stress test piu utile riguarda reddito, spese e fondo emergenza.</p>
+                      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h4 className="text-xl font-bold text-slate-950">Costi iniziali e liquidita</h4>
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          <PremiumStatCard eyebrow="Soldi iniziali necessari" value={formatEuro(mortgageFrontCashNeeded)} note="Anticipo + costi iniziali" />
+                          <PremiumStatCard eyebrow="Liquidita residua" value={formatEuro(mortgage.liquidAfterPurchase)} note="Dopo acquisto" />
+                        </div>
+                        <div className={`mt-4 rounded-2xl border p-4 ${mortgageEmergencyGap >= 0 ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+                          <p className="text-sm font-semibold text-slate-950">
+                            {mortgageEmergencyGap >= 0 ? "Fondo emergenza adeguato" : "Fondo emergenza da rafforzare"}
+                          </p>
+                          <p className="mt-1 text-sm leading-6 text-slate-700">
+                            {mortgageEmergencyGap >= 0
+                              ? `Dopo l'acquisto ti resterebbe un margine di circa ${formatEuro(mortgageEmergencyGap)} rispetto al fondo emergenza scelto.`
+                              : `Dopo l'acquisto ti mancherebbero circa ${formatEuro(Math.abs(mortgageEmergencyGap))} per arrivare al fondo emergenza scelto.`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <h4 className="text-xl font-bold text-slate-950">Stress test</h4>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">{mortgageStressIntroText}</p>
                           </div>
-                        ) : (
-                          mortgageStressTests.map((test) => (
-                            <div key={test.shock} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                            {mortgageRateType === "fisso" ? "Tasso fisso" : mortgageRateType === "variabile" ? "Tasso variabile" : "Variabile con cap"}
+                          </span>
+                        </div>
+                        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm font-semibold text-slate-950">Consiglio mirato</p>
+                          <p className="mt-1 text-sm leading-6 text-slate-700">{mortgageStressAdvice}</p>
+                        </div>
+                        <div className="mt-4 grid gap-3">
+                          {mortgageRateType === "fisso" ? (
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                              <p className="font-semibold text-slate-950">Rata prevedibile</p>
+                              <p className="mt-2 text-sm leading-6 text-slate-600">Con il tasso fisso la rata non dovrebbe cambiare per effetto dei tassi. Qui lo stress test piu utile riguarda reddito, spese e fondo emergenza.</p>
+                            </div>
+                          ) : (
+                            mortgageStressTests.map((test) => (
+                              <div key={test.shock} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="font-semibold text-slate-950">Tasso +{test.shock}% {test.isCapped ? `(limitato dal cap a ${test.appliedRate}%)` : ""}</p>
+                                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${test.risk === "alto" ? "bg-red-100 text-red-700" : test.risk === "medio" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+                                    rischio {test.risk}
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-sm text-slate-600">Rata stimata {formatEuro(test.payment)} - costo casa/reddito {Math.round(test.realRatio * 100)}%</p>
+                              </div>
+                            ))
+                          )}
+                          {mortgageRateType === "cap" && (
+                            <div className={`rounded-2xl border p-4 ${mortgageHasValidCap ? "border-indigo-200 bg-indigo-50" : "border-amber-200 bg-amber-50"}`}>
+                              <p className="font-semibold text-slate-950">Rata massima stimata al cap</p>
+                              <p className="mt-2 text-sm leading-6 text-slate-700">
+                                {mortgageHasValidCap
+                                  ? `Se il tasso arrivasse al cap del ${mortgage.capRate}%, la rata stimata sarebbe circa ${formatEuro(mortgageCapPayment)}/mese e il costo casa peserebbe circa ${Math.round(mortgageCapRealRatio * 100)}% del reddito.`
+                                  : "Inserisci il tasso massimo / cap per vedere la rata nello scenario peggiore previsto dal contratto."}
+                              </p>
+                            </div>
+                          )}
+                          {mortgageIncomeStressTests.map((test) => (
+                            <div key={test.drop} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                               <div className="flex items-center justify-between gap-3">
-                                <p className="font-semibold text-slate-950">
-                                  Tasso +{test.shock}% {test.isCapped ? `(limitato dal cap a ${test.appliedRate}%)` : ""}
-                                </p>
-                                <span className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                  test.risk === "alto" ? "bg-red-100 text-red-700" : test.risk === "medio" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
-                                }`}>
+                                <p className="font-semibold text-slate-950">Reddito -{test.drop}%</p>
+                                <span className={`rounded-full px-3 py-1 text-xs font-bold ${test.risk === "alto" ? "bg-red-100 text-red-700" : test.risk === "medio" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
                                   rischio {test.risk}
                                 </span>
                               </div>
-                              <p className="mt-2 text-sm text-slate-600">
-                                Rata stimata {formatEuro(test.payment)} - costo casa/reddito {Math.round(test.realRatio * 100)}%
-                              </p>
+                              <p className="mt-2 text-sm text-slate-600">Reddito stimato {formatEuro(test.stressedIncome)} - costo casa/reddito {Math.round(test.ratio * 100)}%</p>
                             </div>
-                          ))
-                        )}
-
-                        {mortgageRateType === "cap" && (
-                          <div className={`rounded-2xl border p-4 ${mortgageHasValidCap ? "border-indigo-200 bg-indigo-50" : "border-amber-200 bg-amber-50"}`}>
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="font-semibold text-slate-950">Rata massima stimata al cap</p>
-                              {mortgageHasValidCap && (
-                                <span className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                  mortgageCapRisk === "alto" ? "bg-red-100 text-red-700" : mortgageCapRisk === "medio" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
-                                }`}>
-                                  rischio {mortgageCapRisk}
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-2 text-sm leading-6 text-slate-700">
-                              {mortgageHasValidCap
-                                ? `Se il tasso arrivasse al cap del ${mortgage.capRate}%, la rata stimata sarebbe circa ${formatEuro(mortgageCapPayment)}/mese e il costo casa peserebbe circa ${Math.round(mortgageCapRealRatio * 100)}% del reddito.`
-                                : "Inserisci il tasso massimo / cap per vedere la rata nello scenario peggiore previsto dal contratto."}
-                            </p>
+                          ))}
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="font-semibold text-slate-950">Spese +200€/mese</p>
+                            <p className="mt-2 text-sm text-slate-600">Con 200€ di spese in piu, il costo casa peserebbe circa {Math.round(mortgageExpenseStress * 100)}% del reddito.</p>
                           </div>
-                        )}
-
-                        {mortgageIncomeStressTests.map((test) => (
-                          <div key={test.drop} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="font-semibold text-slate-950">Reddito -{test.drop}%</p>
-                              <span className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                test.risk === "alto" ? "bg-red-100 text-red-700" : test.risk === "medio" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
-                              }`}>
-                                rischio {test.risk}
-                              </span>
-                            </div>
-                            <p className="mt-2 text-sm text-slate-600">
-                              Reddito stimato {formatEuro(test.stressedIncome)} - costo casa/reddito {Math.round(test.ratio * 100)}%
-                            </p>
-                          </div>
-                        ))}
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <p className="font-semibold text-slate-950">Spese +200€/mese</p>
-                          <p className="mt-2 text-sm text-slate-600">Con 200€ di spese in piu, il costo casa peserebbe circa {Math.round(mortgageExpenseStress * 100)}% del reddito.</p>
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
 
-                    <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
-                      <h4 className="text-xl font-bold text-emerald-950">Cosa puoi fare ora</h4>
-                      <ul className="mt-3 space-y-2 text-sm leading-6 text-emerald-900">
-                        <li>• Se la rata pesa troppo: aumenta anticipo, riduci budget immobile o allunga la ricerca.</li>
-                        <li>• Se scegli il fisso: concentrati su margine mensile, fondo emergenza e costi iniziali.</li>
-                        <li>• Se scegli il variabile: guarda sempre gli scenari di aumento tasso prima di firmare.</li>
-                        <li>• Se scegli il variabile con cap: controlla la rata massima stimata al cap, non solo la rata iniziale.</li>
-                        <li>• Se i costi iniziali sono sottostimati: crea un fondo extra acquisto prima di firmare.</li>
-                        <li>• Se la liquidita residua e bassa: non consumare tutto l'anticipo, proteggi prima il fondo emergenza.</li>
-                        <li>• Se il tasso non e competitivo: confronta piu banche e ricordati della surroga in futuro.</li>
-                      </ul>
+                {mortgageMode === "pies" && (
+                  <div className="space-y-6">
+                    <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+                      <div className="space-y-6">
+                        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+                          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Percorso 2</p>
+                          <h4 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Verifica PIES guidata</h4>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                            Apri il PIES e controlla i blocchi sotto. Dove la risposta e guidata, scegli dal menu a tendina. Se inserisci un dato, l'app lo segna automaticamente come trovato; se resta assente o ambiguo, puoi comunque selezionare Non trovato o Non chiaro.
+                          </p>
+                          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-sm font-bold text-slate-950">Non hai ancora il PIES?</p>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">Prima di valutare seriamente il mutuo chiedi PIES aggiornato, piano di ammortamento e condizioni economiche complete.</p>
+                            <textarea
+                              readOnly
+                              value={mortgageRequestPiesEmail}
+                              className="mt-3 min-h-[180px] w-full rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className={`rounded-3xl border p-6 shadow-sm ${mortgageClarityCopy.className}`}>
+                          <p className="text-sm font-semibold uppercase tracking-[0.2em] opacity-80">Indice di chiarezza</p>
+                          <div className="mt-3 flex items-end gap-3">
+                            <p className="text-5xl font-black tracking-tight">{mortgageClarityScore}</p>
+                            <p className="pb-2 text-lg font-bold">/100</p>
+                          </div>
+                          <h4 className="mt-3 text-xl font-bold">{mortgageClarityCopy.label}</h4>
+                          <p className="mt-2 text-sm leading-6">{mortgageClarityCopy.message}</p>
+                          <p className="mt-2 text-xs font-semibold opacity-80">Il punteggio cresce man mano che i dati vengono segnati come trovati. I dati non trovati o non chiari non fanno aumentare l'indice.</p>
+                          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                            <div className="rounded-2xl bg-white/70 p-3">
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-70">Dati trovati</p>
+                              <p className="mt-1 text-2xl font-bold">{mortgagePiesFound.length}/{mortgagePiesFieldDefinitions.length}</p>
+                            </div>
+                            <div className="rounded-2xl bg-white/70 p-3">
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-70">Da chiarire</p>
+                              <p className="mt-1 text-2xl font-bold">{mortgagePiesIssues.length}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                          <h4 className="text-xl font-bold text-slate-950">Aree controllate</h4>
+                          <div className="mt-4 grid gap-3">
+                            {mortgageAreaCards.map((area) => (
+                              <div key={area.label} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-sm font-bold text-slate-950">{area.label}</p>
+                                <span className={`rounded-full border px-3 py-1 text-xs font-bold ${area.status.className}`}>{area.status.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-5">
+                        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <h4 className="text-lg font-bold text-slate-950">Blocchi della verifica</h4>
+                              <p className="mt-1 text-sm leading-6 text-slate-600">
+                                Apri un blocco alla volta, compila i dati che trovi e poi passa al successivo. I contatori ti aiutano a capire subito cosa manca.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                                {mortgagePiesSections.length} blocchi
+                              </span>
+                              <button
+                                type="button"
+                                onClick={resetMortgagePiesCheck}
+                                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+                              >
+                                Reset verifica PIES
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {mortgagePiesSections.map((section, index) => {
+                          const sectionStates = section.fields.map((field) => mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" });
+                          const foundCount = sectionStates.filter((fieldState) => fieldState.status === "found").length;
+                          const unclearCount = sectionStates.filter((fieldState) => fieldState.status === "unclear").length;
+                          const missingCount = sectionStates.filter((fieldState) => fieldState.status === "missing").length;
+                          const isOpen = openMortgagePiesSectionId === section.id;
+                          const allFound = foundCount === section.fields.length;
+                          const hasIssues = unclearCount + missingCount > 0;
+                          const summaryLabel = allFound
+                            ? "Completato"
+                            : hasIssues
+                            ? `${missingCount + unclearCount} da chiarire`
+                            : "Da compilare";
+                          const summaryClass = allFound
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                            : hasIssues
+                            ? "border-amber-200 bg-amber-50 text-amber-800"
+                            : "border-slate-200 bg-slate-100 text-slate-700";
+
+                          return (
+                            <div
+                              key={section.id}
+                              className={`relative overflow-hidden rounded-3xl border transition-all duration-300 ${
+                                isOpen
+                                  ? "border-emerald-300 bg-white shadow-xl shadow-emerald-100/80 ring-4 ring-emerald-50"
+                                  : "border-slate-200 bg-white shadow-sm hover:border-slate-300 hover:shadow-md"
+                              }`}
+                            >
+                              {isOpen && <span className="absolute left-0 top-0 z-10 h-full w-1.5 bg-emerald-500" aria-hidden="true" />}
+                              <button
+                                type="button"
+                                onClick={() => setOpenMortgagePiesSectionId(isOpen ? "" : section.id)}
+                                className={`relative flex w-full flex-col gap-4 p-5 text-left transition md:p-6 ${
+                                  isOpen ? "bg-gradient-to-br from-emerald-50 via-white to-white" : "hover:bg-slate-50"
+                                }`}
+                              >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                  <div className="flex gap-3">
+                                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-sm font-black transition ${
+                                      isOpen ? "bg-emerald-600 text-white shadow-sm shadow-emerald-200" : "bg-slate-100 text-slate-700"
+                                    }`}>
+                                      {index + 1}
+                                    </span>
+                                    <div>
+                                      <h4 className="text-xl font-bold text-slate-950">{section.title}</h4>
+                                      <p className="mt-2 text-sm leading-6 text-slate-600">{section.explanation}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                    <span className={`rounded-full border px-3 py-1 text-xs font-bold ${summaryClass}`}>{summaryLabel}</span>
+                                    <span className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700">
+                                      {isOpen ? "Chiudi" : "Apri"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-3">
+                                  <div className={`rounded-2xl p-3 transition ${isOpen ? "border border-emerald-100 bg-white shadow-sm" : "bg-slate-50"}`}>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Trovati</p>
+                                    <p className="mt-1 text-lg font-black text-emerald-700">{foundCount}</p>
+                                  </div>
+                                  <div className={`rounded-2xl p-3 transition ${isOpen ? "border border-slate-200 bg-white shadow-sm" : "bg-slate-50"}`}>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Non trovati</p>
+                                    <p className="mt-1 text-lg font-black text-slate-700">{missingCount}</p>
+                                  </div>
+                                  <div className={`rounded-2xl p-3 transition ${isOpen ? "border border-amber-100 bg-white shadow-sm" : "bg-slate-50"}`}>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Non chiari</p>
+                                    <p className="mt-1 text-lg font-black text-amber-700">{unclearCount}</p>
+                                  </div>
+                                </div>
+                              </button>
+
+                              {isOpen && (
+                                <div className="border-t border-emerald-100 bg-gradient-to-b from-emerald-50/40 to-white p-5 pt-4 md:p-6 md:pt-5">
+                                  <p className="rounded-2xl border border-emerald-100 bg-white p-3 text-xs leading-5 text-slate-700 shadow-sm"><strong>Dove cercare:</strong> {section.where}</p>
+                                  <div className="mt-5 space-y-4">
+                                    {section.fields.map((field) => {
+                                      const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+                                      return (
+                                        <div key={field.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                            <div>
+                                              <p className="font-bold text-slate-950">{field.label}</p>
+                                              <p className="mt-1 text-xs leading-5 text-slate-500">{field.placeholder}</p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                              {[
+                                                ["found", "Trovato"],
+                                                ["missing", "Non trovato"],
+                                                ["unclear", "Non chiaro"],
+                                              ].map(([status, label]) => (
+                                                <button
+                                                  key={status}
+                                                  type="button"
+                                                  onClick={() => updateMortgagePiesField(field.id, { status: status as MortgagePiesStatus })}
+                                                  className={`rounded-full border px-3 py-1 text-xs font-bold transition ${
+                                                    state.status === status
+                                                      ? status === "found"
+                                                        ? "border-emerald-200 bg-emerald-100 text-emerald-800"
+                                                        : status === "unclear"
+                                                        ? "border-amber-200 bg-amber-100 text-amber-800"
+                                                        : "border-slate-300 bg-slate-200 text-slate-800"
+                                                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                                  }`}
+                                                >
+                                                  {label}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                            {field.selectOptions ? (
+                                              <select
+                                                value={state.value}
+                                                onChange={(e) => updateMortgagePiesSelectValue(field.id, e.target.value)}
+                                                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                                              >
+                                                <option value="">Seleziona una risposta</option>
+                                                {field.selectOptions.map((option) => (
+                                                  <option key={option} value={option}>{option}</option>
+                                                ))}
+                                              </select>
+                                            ) : (
+                                              <input
+                                                value={state.value}
+                                                onChange={(e) => updateMortgagePiesInputValue(field.id, e.target.value)}
+                                                placeholder={field.placeholder || "Valore trovato o riferimento"}
+                                                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                                              />
+                                            )}
+                                            <input
+                                              value={state.notes}
+                                              onChange={(e) => updateMortgagePiesField(field.id, { notes: e.target.value })}
+                                              placeholder="Note, pagina, dubbio"
+                                              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400"
+                                            />
+                                          </div>
+                                          {state.status !== "found" && (
+                                            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+                                              <strong>Perche conta:</strong> {field.why}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Risultato verifica mutuo</p>
+                          <h4 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Report operativo prima della firma</h4>
+                          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                            Questa sintesi non giudica se il mutuo conviene: misura quanto la proposta e chiara, documentata e verificabile.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={openMortgagePdfReport}
+                          className="w-fit rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                        >
+                          Salva report PDF
+                        </button>
+                      </div>
+
+                      <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+                        <label className="text-sm font-bold text-emerald-950" htmlFor="mortgage-offer-name">Nome preventivo / banca</label>
+                        <input
+                          id="mortgage-offer-name"
+                          value={mortgageOfferName}
+                          onChange={(e) => setMortgageOfferName(e.target.value)}
+                          placeholder="Es. Mutuo Banca X - prima casa"
+                          className="mt-2 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400"
+                        />
+                        <p className="mt-2 text-xs leading-5 text-emerald-800">Questo nome comparira nel report PDF e ti aiutera a distinguere piu preventivi.</p>
+                      </div>
+
+                      <div className="mt-6 grid gap-4 md:grid-cols-3">
+                        <PremiumStatCard eyebrow="Indice chiarezza" value={`${mortgageClarityScore}/100`} note={mortgageClarityCopy.label} />
+                        <PremiumStatCard eyebrow="Dati trovati" value={`${mortgagePiesFound.length}`} note="Campi confermati" />
+                        <PremiumStatCard eyebrow="Punti da chiarire" value={`${mortgagePiesIssues.length}`} note="Domande per la banca" />
+                      </div>
+
+                      <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+                        <div className="space-y-4">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <h5 className="font-bold text-slate-950">Riepilogo economico semplice</h5>
+                            <div className="mt-3 space-y-2">
+                              {mortgageMainNumbers.map((item) => (
+                                <div key={item.label} className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2 text-sm last:border-b-0 last:pb-0">
+                                  <span className="text-slate-600">{item.label}</span>
+                                  <span className="font-bold text-slate-950">{item.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="mt-3 text-xs leading-5 text-slate-500">Questo numero ti aiuta a non valutare il mutuo solo sulla rata mensile.</p>
+                          </div>
+
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                            <h5 className="font-bold text-slate-950">Punti critici: problema, perche conta, cosa chiedere</h5>
+                            <div className="mt-4 space-y-3">
+                              {mortgagePiesIssues.length === 0 ? (
+                                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+                                  Nessuna criticita documentale rilevante tra i dati controllati. Verifica comunque che il PIES sia aggiornato alle condizioni definitive.
+                                </div>
+                              ) : (
+                                mortgagePiesIssues.slice(0, 8).map((item) => (
+                                  <div key={item.field.id} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                    <p className="font-bold text-amber-950">{item.field.issue}</p>
+                                    <p className="mt-1 text-sm leading-6 text-amber-900"><strong>Perche conta:</strong> {item.field.why}</p>
+                                    <p className="mt-1 text-sm leading-6 text-amber-900"><strong>Cosa chiedere:</strong> {item.field.question}</p>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <h5 className="font-bold text-slate-950">Email generata per la banca</h5>
+                              <button
+                                type="button"
+                                onClick={() => navigator.clipboard?.writeText(mortgageGeneratedEmail)}
+                                className="w-fit rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"
+                              >
+                                Copia email
+                              </button>
+                            </div>
+                            <textarea
+                              readOnly
+                              value={mortgageGeneratedEmail}
+                              className="mt-3 min-h-[260px] w-full rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 outline-none"
+                            />
+                          </div>
+
+                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                            <h5 className="font-bold text-emerald-950">Prossimi passi</h5>
+                            <ul className="mt-2 space-y-2 text-sm leading-6 text-emerald-900">
+                              {mortgagePiesIssues.length === 0 ? (
+                                <>
+                                  <li>• Salva il report e confronta l'offerta con almeno un'altra proposta prima di decidere.</li>
+                                  <li>• Verifica che il PIES sia aggiornato alle condizioni definitive prima della firma.</li>
+                                </>
+                              ) : mortgageClarityScore < 60 ? (
+                                <>
+                                  <li>• Non firmare senza chiarimenti scritti sui punti evidenziati.</li>
+                                  <li>• Invia l'email alla banca e attendi una conferma scritta sui punti evidenziati.</li>
+                                </>
+                              ) : (
+                                <>
+                                  <li>• Invia la richiesta di chiarimento alla banca.</li>
+                                  <li>• Se la banca chiarisce un dato, puoi tornare nel relativo blocco PIES e aggiornarlo manualmente.</li>
+                                </>
+                              )}
+                              <li>• Usa il report PDF per confrontarti con banca, consulente o professionista di fiducia.</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -10028,6 +11554,71 @@ function PortfolioPieChart({ composition }: { composition: PortfolioTemplate["co
       <p className="mt-5 text-xs leading-5 text-slate-500">
         Colori: rosso azionario, blu obbligazioni, giallo oro, grigio materie prime, verde liquidita.
       </p>
+    </div>
+  );
+}
+
+
+function SoldiSempliciLogo({
+  size = "compact",
+  showTagline = false,
+  className = "",
+}: {
+  size?: "compact" | "large";
+  showTagline?: boolean;
+  className?: string;
+}) {
+  const isLarge = size === "large";
+
+  return (
+    <div className={`flex items-center gap-3 ${className}`}>
+      <div
+        className={`grid shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-sm ${
+          isLarge ? "h-16 w-16" : "h-12 w-12"
+        }`}
+      >
+        <svg viewBox="0 0 96 96" aria-hidden="true" className={isLarge ? "h-12 w-12" : "h-9 w-9"}>
+          <path
+            d="M70 18C59 9 41 8 27 17C12 27 8 48 18 64C28 81 51 87 68 76"
+            fill="none"
+            stroke="white"
+            strokeWidth="7.5"
+            strokeLinecap="round"
+            opacity="0.95"
+          />
+          <path
+            d="M61 69C71 64 77 55 80 44"
+            fill="none"
+            stroke="white"
+            strokeWidth="7.5"
+            strokeLinecap="round"
+            opacity="0.95"
+          />
+          <path d="M80 44L88 57L73 55Z" fill="white" opacity="0.95" />
+          <text
+            x="48"
+            y="62"
+            textAnchor="middle"
+            fontSize="47"
+            fontWeight="900"
+            fontFamily="Inter, Arial, sans-serif"
+            fill="white"
+          >
+            S
+          </text>
+        </svg>
+      </div>
+      <div className="leading-none">
+        <div className={`${isLarge ? "text-3xl md:text-4xl" : "text-xl"} font-extrabold tracking-tight text-slate-950`}>
+          <span>soldi </span>
+          <span className="text-emerald-600">semplici</span>
+        </div>
+        {showTagline ? (
+          <p className="mt-2 text-xs font-bold uppercase tracking-[0.28em] text-slate-500">
+            La tua finanza. <span className="text-emerald-600">In modo semplice.</span>
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }
