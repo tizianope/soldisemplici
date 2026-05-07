@@ -899,7 +899,7 @@ const mortgagePiesSections: MortgagePiesSection[] = [
       { id: "rateType", label: "Tipo di tasso", placeholder: "Seleziona il tipo indicato nel PIES", penalty: 8, area: "tasso", issue: "Tipo di tasso non chiaro", why: "Il rischio cambia molto tra fisso, variabile e variabile con cap.", question: "Potete confermarmi se il mutuo e a tasso fisso, variabile, misto o variabile con cap?", selectOptions: ["Tasso fisso", "Tasso variabile", "Tasso variabile con cap", "Tasso misto", "Non trovato nel PIES", "Non chiaro"] },
       { id: "tan", label: "TAN", placeholder: "Es. 3,20%", penalty: 8, area: "tasso", issue: "TAN non trovato o non chiaro", why: "Serve per capire il tasso nominale applicato al capitale.", question: "Potete confermarmi il TAN applicato alla proposta?" },
       { id: "taeg", label: "TAEG", placeholder: "Es. 3,74%", penalty: 15, area: "costo", issue: "TAEG non trovato o non chiaro", why: "Il TAEG e fondamentale per confrontare offerte e capire i costi accessori inclusi.", question: "Potete confermarmi il TAEG e quali costi sono inclusi o esclusi dal calcolo?" },
-      { id: "rateLocked", label: "Tasso bloccato fino alla stipula", placeholder: "Seleziona la risposta indicata nel PIES", penalty: 8, area: "tasso", issue: "Blocco tasso fino al rogito non chiaro", why: "Se il tasso non e bloccato, le condizioni potrebbero cambiare prima della firma.", question: "Il tasso indicato e bloccato fino alla stipula? Fino a quale data?", selectOptions: ["Si, fino alla stipula", "Si, fino a una data indicata", "No", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "rateLocked", label: "Tasso bloccato fino alla stipula", placeholder: "Seleziona la risposta indicata nel PIES", penalty: 8, area: "tasso", issue: "Blocco tasso fino al rogito non chiaro", why: "Per un tasso fisso e importante capire se le condizioni restano valide fino alla firma. Per i mutui variabili questo controllo di solito non e applicabile: contano parametro, spread e simulazioni.", question: "Il tasso fisso indicato e bloccato fino alla stipula? Fino a quale data?", selectOptions: ["Si, fino alla stipula", "Si, fino a una data indicata", "No", "Non applicabile: tasso variabile", "Non trovato nel PIES", "Non chiaro"] },
     ],
   },
   {
@@ -928,7 +928,9 @@ const mortgagePiesSections: MortgagePiesSection[] = [
     explanation: "Questa e una delle aree piu delicate: bisogna distinguere obbligo reale, proposta commerciale e sconto condizionato.",
     fields: [
       { id: "policiesObligation", label: "Polizze obbligatorie o facoltative", placeholder: "Seleziona la situazione indicata", penalty: 15, area: "polizze", issue: "Obbligatorieta delle polizze non chiara", why: "Una polizza collegata puo incidere sul costo o sulle condizioni del tasso.", question: "Le polizze indicate sono obbligatorie o facoltative? Se non le sottoscrivo, il tasso o le condizioni cambiano?", selectOptions: ["Nessuna polizza indicata", "Solo polizze obbligatorie", "Solo polizze facoltative", "Polizze sia obbligatorie sia facoltative", "Polizze presenti ma obbligatorieta non chiara", "Non trovato nel PIES", "Non chiaro"] },
-      { id: "policyCost", label: "Costo polizze e inclusione nel TAEG", placeholder: "Seleziona come viene indicato il costo", penalty: 10, area: "polizze", issue: "Costo polizze o inclusione nel TAEG non chiari", why: "Il costo puo essere rilevante, soprattutto se finanziato o collegato allo sconto.", question: "Qual e il costo di ciascuna polizza? Il costo e incluso nel TAEG? Il premio viene finanziato?", selectOptions: ["Costo indicato e incluso nel TAEG", "Costo indicato ma non incluso nel TAEG", "Costo indicato ma inclusione nel TAEG non chiara", "Costo non indicato", "Non ci sono polizze", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "policyChoiceFreedom", label: "Liberta di scelta della polizza", placeholder: "Seleziona se puoi scegliere una compagnia esterna", penalty: 8, area: "polizze", issue: "Liberta di scelta della polizza non chiara", why: "Se la polizza e vincolata alla banca puo incidere su costo e flessibilita. Se invece puoi sceglierla liberamente, il rischio documentale e piu basso.", question: "Potete confermarmi se posso sottoscrivere la polizza anche presso una compagnia esterna senza modifiche al tasso o alle condizioni economiche?", selectOptions: ["Si, scegliibile anche presso compagnia esterna", "No, proposta o vincolata dalla banca", "Non ci sono polizze", "Non indicato nel PIES", "Non chiaro"] },
+      { id: "policyCost", label: "Costo polizze e inclusione nel TAEG", placeholder: "Seleziona come viene indicato il costo", penalty: 10, area: "polizze", issue: "Costo polizze o inclusione nel TAEG non chiari", why: "Il costo puo essere rilevante, soprattutto se finanziato o collegato allo sconto. Se la polizza e obbligatoria ma scegliibile liberamente, il costo non indicato e soprattutto un dato da stimare per confrontare l'offerta, non per forza una criticita grave.", question: "Qual e il costo di ciascuna polizza? Il costo e incluso nel TAEG? Il premio viene finanziato?", selectOptions: ["Costo indicato e incluso nel TAEG", "Costo indicato ma non incluso nel TAEG", "Costo indicato ma inclusione nel TAEG non chiara", "Costo non indicato", "Non ci sono polizze", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "policyCostAmount", label: "Importo polizze (€)", placeholder: "Es. 6900", penalty: 6, area: "polizze", issue: "Importo delle polizze non indicato", why: "Se una polizza ha un costo rilevante, l'importo serve per capire quanto pesa sul costo complessivo e per confrontare offerte diverse.", question: "Potete indicarmi l'importo di ciascuna polizza, se il premio viene pagato subito o finanziato e se e incluso nel TAEG?" },
       { id: "linkedProducts", label: "Prodotti collegati", placeholder: "Seleziona se ci sono prodotti collegati", penalty: 8, area: "polizze", issue: "Prodotti collegati non quantificati", why: "Prodotti aggiuntivi possono creare costi o vincoli nel tempo.", question: "Quali prodotti collegati sono richiesti o proposti? Quali costi hanno e sono necessari per ottenere le condizioni indicate?", selectOptions: ["Nessun prodotto collegato indicato", "Prodotti collegati facoltativi", "Prodotti collegati necessari per ottenere il tasso", "Prodotti collegati presenti ma costi non chiari", "Non trovato nel PIES", "Non chiaro"] },
       { id: "discountConditions", label: "Sconto tasso condizionato", placeholder: "Seleziona se lo sconto dipende da condizioni", penalty: 15, area: "polizze", issue: "Condizioni dello sconto tasso non chiare", why: "Uno sconto non e davvero valutabile se non sai cosa succede quando chiudi o recedi dai prodotti collegati.", question: "Da quali condizioni dipende lo sconto sul tasso? Cosa accade se non sottoscrivo, chiudo o recedo dai prodotti collegati?", selectOptions: ["Nessuno sconto indicato", "Sconto indicato senza condizioni", "Sconto collegato a polizze", "Sconto collegato a conto/accredito/prodotti", "Sconto indicato ma condizioni non chiare", "Non trovato nel PIES", "Non chiaro"] },
     ],
@@ -2368,6 +2370,7 @@ const [authReady, setAuthReady] = useState(false);
     getDefaultMortgagePiesFields()
   );
   const [openMortgagePiesSectionId, setOpenMortgagePiesSectionId] = useState(mortgagePiesSections[0]?.id ?? "");
+  const mortgagePiesSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [fraudAnswers, setFraudAnswers] = useState<Record<string, boolean>>({});
   const [fraudContext, setFraudContext] = useState("sms");
   const [scamGameQuestions, setScamGameQuestions] = useState<ScamScenario[]>([]);
@@ -3223,17 +3226,232 @@ const [authReady, setAuthReady] = useState(false);
     });
   };
 
-  const updateMortgagePiesSelectValue = (fieldId: string, value: string) => {
-    const normalized = value.toLowerCase();
-    const nextStatus: MortgagePiesStatus = !value
-      ? "missing"
-      : normalized.includes("non trovato") || normalized.includes("non presente") || normalized.includes("costo non indicato")
-      ? "missing"
-      : normalized.includes("non chiaro") || normalized.includes("non chiare") || normalized.includes("non chiara") || normalized.includes("incomplete")
-      ? "unclear"
-      : "found";
+  const isPolicyCostSoftFound = (fields: Record<string, MortgagePiesFieldState>) => {
+    const obligationValue = (fields.policiesObligation?.value || "").toLowerCase();
+    const freedomValue = (fields.policyChoiceFreedom?.value || "").toLowerCase();
+    const costValue = (fields.policyCost?.value || "").toLowerCase();
+    const hasNoPolicies = obligationValue.includes("nessuna polizza") || costValue.includes("non ci sono polizze");
+    const isOnlyMandatoryPolicy = obligationValue.includes("solo polizze obbligatorie");
+    const isFreelySelectable = freedomValue.includes("compagnia esterna");
+    const costNotIndicated = costValue.includes("costo non indicato");
 
-    updateMortgagePiesField(fieldId, { value, status: nextStatus });
+    return hasNoPolicies || (isOnlyMandatoryPolicy && isFreelySelectable && costNotIndicated);
+  };
+
+  const getMortgageRateTypeCategory = (fields = mortgagePiesFields) => {
+    const value = (fields.rateType?.value || "").toLowerCase();
+    if (value.includes("variabile con cap")) return "cap";
+    if (value.includes("tasso variabile")) return "variable";
+    if (value.includes("tasso fisso")) return "fixed";
+    if (value.includes("tasso misto")) return "mixed";
+    if (value.includes("non trovato")) return "missing";
+    if (value.includes("non chiaro")) return "unclear";
+    return "unknown";
+  };
+
+  const getMortgagePiesEffectiveStatus = (fieldId: string, state: MortgagePiesFieldState, fields = mortgagePiesFields): MortgagePiesStatus => {
+    if (fieldId === "rateLocked") {
+      const rateTypeCategory = getMortgageRateTypeCategory(fields);
+      const rateLockedValue = (fields.rateLocked?.value || "").toLowerCase();
+
+      if (rateTypeCategory === "variable" || rateTypeCategory === "cap" || rateTypeCategory === "mixed") {
+        return "found";
+      }
+
+      if (rateTypeCategory === "missing" || rateTypeCategory === "unclear" || rateTypeCategory === "unknown") {
+        if (!rateLockedValue || rateLockedValue.includes("non applicabile") || rateLockedValue.includes("non trovato") || rateLockedValue.includes("non chiaro")) return "found";
+      }
+    }
+
+    if (fieldId === "variableSimulation") {
+      const rateTypeCategory = getMortgageRateTypeCategory(fields);
+      const simulationValue = (fields.variableSimulation?.value || "").toLowerCase();
+
+      if (rateTypeCategory === "fixed") {
+        return "found";
+      }
+
+      if (rateTypeCategory === "cap") {
+        if (simulationValue.includes("presenti per +1%") || simulationValue.includes("presente solo scenario al cap")) return "found";
+        if (simulationValue.includes("incomplete") || simulationValue.includes("non chiaro")) return "unclear";
+        return state.status;
+      }
+
+      if (rateTypeCategory === "mixed") {
+        if (!simulationValue || simulationValue.includes("non presente") || simulationValue.includes("non trovato") || simulationValue.includes("non chiaro")) return "unclear";
+        return state.status;
+      }
+
+      if (rateTypeCategory === "missing" || rateTypeCategory === "unclear" || rateTypeCategory === "unknown") {
+        if (!simulationValue || simulationValue.includes("non presente") || simulationValue.includes("non trovato") || simulationValue.includes("non chiaro")) return "found";
+      }
+    }
+
+    if (fieldId === "policyChoiceFreedom") {
+      const obligationValue = (fields.policiesObligation?.value || "").toLowerCase();
+      if (obligationValue.includes("nessuna polizza")) return "found";
+    }
+
+    if (fieldId === "policyCost" && isPolicyCostSoftFound(fields)) {
+      return "found";
+    }
+
+    if (fieldId === "policyCostAmount") {
+      const obligationValue = (fields.policiesObligation?.value || "").toLowerCase();
+      const costValue = (fields.policyCost?.value || "").toLowerCase();
+      if (obligationValue.includes("nessuna polizza") || costValue.includes("non ci sono polizze") || isPolicyCostSoftFound(fields)) return "found";
+    }
+
+    return state.status;
+  };
+
+  const updateMortgagePiesSelectValue = (fieldId: string, value: string) => {
+    setMortgagePiesFields((prev) => {
+      const normalized = value.toLowerCase();
+      const baseStatus: MortgagePiesStatus = !value
+        ? "missing"
+        : normalized.includes("non trovato") || normalized.includes("non presente") || normalized.includes("non indicato") || normalized.includes("costo non indicato")
+        ? "missing"
+        : normalized.includes("non chiaro") || normalized.includes("non chiare") || normalized.includes("non chiara") || normalized.includes("incomplete")
+        ? "unclear"
+        : "found";
+
+      const current = prev[fieldId] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+      const nextFields = {
+        ...prev,
+        [fieldId]: {
+          ...current,
+          value,
+          status: baseStatus,
+        },
+      };
+
+      if (fieldId === "policyChoiceFreedom" && isPolicyCostSoftFound(nextFields)) {
+        const currentPolicyCost = nextFields.policyCost ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+        nextFields.policyCost = { ...currentPolicyCost, status: "found" };
+      }
+
+      if (fieldId === "policyCost" && isPolicyCostSoftFound(nextFields)) {
+        nextFields.policyCost = { ...nextFields.policyCost, status: "found" };
+      }
+
+      if (fieldId === "policiesObligation" && (value.toLowerCase().includes("nessuna polizza") || isPolicyCostSoftFound(nextFields))) {
+        const currentFreedom = nextFields.policyChoiceFreedom ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+        const currentPolicyCost = nextFields.policyCost ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+        if (value.toLowerCase().includes("nessuna polizza")) {
+          const currentPolicyCostAmount = nextFields.policyCostAmount ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+          nextFields.policyChoiceFreedom = { ...currentFreedom, value: currentFreedom.value || "Non ci sono polizze", status: "found" };
+          nextFields.policyCost = { ...currentPolicyCost, value: currentPolicyCost.value || "Non ci sono polizze", status: "found" };
+          nextFields.policyCostAmount = { ...currentPolicyCostAmount, value: currentPolicyCostAmount.value || "", status: "found" };
+        } else if (isPolicyCostSoftFound(nextFields)) {
+          nextFields.policyCost = { ...currentPolicyCost, status: "found" };
+        }
+      }
+
+      return nextFields;
+    });
+  };
+
+  const getMortgageRateLockInfo = () => {
+    const rateTypeCategory = getMortgageRateTypeCategory();
+
+    if (rateTypeCategory === "fixed") {
+      return "Per un mutuo a tasso fisso questo controllo e importante: verifica se tasso e condizioni restano validi fino alla stipula o fino a una data precisa.";
+    }
+
+    if (rateTypeCategory === "variable") {
+      return "Per un mutuo a tasso variabile la data di blocco del tasso di solito non e applicabile. Contano soprattutto parametro di riferimento, spread, periodicita di aggiornamento e simulazioni di aumento rata.";
+    }
+
+    if (rateTypeCategory === "cap") {
+      return "Per un variabile con cap il punto centrale non e il blocco del tasso, ma capire valore del cap, eventuale floor e rata massima stimata.";
+    }
+
+    if (rateTypeCategory === "mixed") {
+      return "Per un tasso misto e piu utile chiarire quando puo cambiare il tasso, se il passaggio e automatico o facoltativo e quali condizioni si applicano dopo il cambio.";
+    }
+
+    return "Se non e chiaro il tipo di tasso, prima chiedi conferma se il mutuo e fisso, variabile, misto o variabile con cap.";
+  };
+
+  const getMortgageRateSimulationInfo = () => {
+    const rateTypeCategory = getMortgageRateTypeCategory();
+
+    if (rateTypeCategory === "fixed") {
+      return "Per un mutuo a tasso fisso la simulazione di aumento rata non e essenziale: il controllo importante e verificare che tasso e condizioni siano bloccati fino alla stipula.";
+    }
+
+    if (rateTypeCategory === "variable") {
+      return "Per un mutuo variabile la simulazione di aumento rata e importante: aiuta a capire quanto potrebbe salire la rata in scenari +1%, +2% e +3%.";
+    }
+
+    if (rateTypeCategory === "cap") {
+      return "Per un variabile con cap serve capire la rata nello scenario peggiore: valore del cap, eventuale floor e rata massima stimata.";
+    }
+
+    if (rateTypeCategory === "mixed") {
+      return "Per un tasso misto il punto principale e capire quando il tasso puo cambiare, se il passaggio e automatico o facoltativo e quali condizioni si applicano dopo il cambio.";
+    }
+
+    return "Prima di valutare le simulazioni, chiarisci se il mutuo e fisso, variabile, misto o variabile con cap.";
+  };
+
+  const getMortgagePiesIssueCopy = (field: MortgagePiesFieldDefinition, status?: MortgagePiesStatus) => {
+    if (field.id === "rateLocked") {
+      const rateTypeCategory = getMortgageRateTypeCategory();
+
+      if (rateTypeCategory === "variable" || rateTypeCategory === "cap" || rateTypeCategory === "mixed") {
+        return {
+          issue: "Blocco tasso non applicabile al tipo di tasso selezionato",
+          why: getMortgageRateLockInfo(),
+          question: rateTypeCategory === "variable"
+            ? "Potete confermarmi parametro di riferimento, spread, periodicita di aggiornamento e simulazioni della rata in caso di aumento dei tassi?"
+            : rateTypeCategory === "cap"
+            ? "Potete confermarmi valore del cap, eventuale floor e rata massima stimata?"
+            : "Potete confermarmi quando il tasso puo cambiare e con quali condizioni?",
+        };
+      }
+    }
+
+    if (field.id !== "variableSimulation") {
+      return { issue: field.issue, why: field.why, question: field.question };
+    }
+
+    const rateTypeCategory = getMortgageRateTypeCategory();
+
+    if (rateTypeCategory === "cap") {
+      return {
+        issue: "Scenario massimo del variabile con cap da chiarire",
+        why: "Il cap limita il rischio massimo, ma l'utente deve sapere quale sarebbe la rata al raggiungimento del cap e se esiste un eventuale floor.",
+        question: "Potete indicarmi il valore del cap, l'eventuale floor e la rata massima stimata al raggiungimento del cap?",
+      };
+    }
+
+    if (rateTypeCategory === "mixed") {
+      return {
+        issue: "Condizioni del tasso misto da chiarire",
+        why: "Nel tasso misto e importante capire quando puo cambiare il tasso, se il passaggio e automatico o facoltativo e quali condizioni si applicano dopo il cambio.",
+        question: "Potete confermarmi quando il tasso puo cambiare, se il passaggio e automatico o facoltativo e quali condizioni si applicano dopo il cambio?",
+      };
+    }
+
+    if (rateTypeCategory === "fixed") {
+      return {
+        issue: "Simulazioni non essenziali per tasso fisso",
+        why: "Per un mutuo a tasso fisso la rata non varia per effetto dei tassi. Conta soprattutto verificare che le condizioni siano bloccate fino alla stipula.",
+        question: "Potete confermarmi che il tasso fisso e le condizioni indicate restano valide fino alla stipula?",
+      };
+    }
+
+    if (rateTypeCategory === "missing" || rateTypeCategory === "unclear" || rateTypeCategory === "unknown") {
+      return {
+        issue: "Prima chiarire il tipo di tasso",
+        why: "Prima di valutare le simulazioni serve capire se il mutuo e fisso, variabile, misto o variabile con cap.",
+        question: "Potete confermarmi se il mutuo e a tasso fisso, variabile, misto o variabile con cap?",
+      };
+    }
+
+    return { issue: field.issue, why: field.why, question: field.question };
   };
 
   const resetMortgagePiesCheck = () => {
@@ -3241,12 +3459,42 @@ const [authReady, setAuthReady] = useState(false);
     setOpenMortgagePiesSectionId(mortgagePiesSections[0]?.id ?? "");
   };
 
+  const scrollToMortgagePiesSection = (sectionId: string) => {
+    if (!sectionId || typeof window === "undefined") return;
+
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        const sectionElement = mortgagePiesSectionRefs.current[sectionId];
+        if (!sectionElement) return;
+
+        const topOffset = 88;
+        const top = sectionElement.getBoundingClientRect().top + window.scrollY - topOffset;
+        window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+      }, 40);
+    });
+  };
+
+  const toggleMortgagePiesSection = (sectionId: string, isOpen: boolean) => {
+    const nextSectionId = isOpen ? "" : sectionId;
+    setOpenMortgagePiesSectionId(nextSectionId);
+
+    if (!isOpen) {
+      scrollToMortgagePiesSection(sectionId);
+    }
+  };
+
   const mortgagePiesIssues = mortgagePiesFieldDefinitions
-    .map((field) => ({ field, state: mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" } }))
+    .map((field) => {
+      const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+      return { field, state: { ...state, status: getMortgagePiesEffectiveStatus(field.id, state) } };
+    })
     .filter((item) => item.state.status !== "found")
     .sort((a, b) => b.field.penalty - a.field.penalty);
   const mortgagePiesFound = mortgagePiesFieldDefinitions
-    .map((field) => ({ field, state: mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" } }))
+    .map((field) => {
+      const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+      return { field, state: { ...state, status: getMortgagePiesEffectiveStatus(field.id, state) } };
+    })
     .filter((item) => item.state.status === "found");
   const mortgagePiesTotalWeight = mortgagePiesFieldDefinitions.reduce((sum, field) => sum + field.penalty, 0);
   const mortgagePiesFoundWeight = mortgagePiesFound.reduce((sum, item) => sum + item.field.penalty, 0);
@@ -3275,12 +3523,135 @@ const [authReady, setAuthReady] = useState(false);
         message: "La documentazione e troppo incompleta o ambigua. Non firmare senza chiarimenti scritti sui punti critici.",
         className: "border-red-200 bg-red-50 text-red-900",
       };
+  const mortgagePiesRawValue = (fieldId: string) => (mortgagePiesFields[fieldId]?.value ?? "").trim();
+  const parseMortgageLooseNumber = (value: string) => {
+    const cleaned = value
+      .replace(/\s/g, "")
+      .replace(/€/g, "")
+      .replace(/%/g, "")
+      .replace(/\./g, "")
+      .replace(/,/g, ".");
+
+    const parsed = Number.parseFloat(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const mortgagePiesTanNumberForAttention = parseMortgageLooseNumber(mortgagePiesRawValue("tan"));
+  const mortgagePiesTaegNumberForAttention = parseMortgageLooseNumber(mortgagePiesRawValue("taeg"));
+  const mortgageTaegTanDifference = mortgagePiesTaegNumberForAttention > 0 && mortgagePiesTanNumberForAttention > 0
+    ? mortgagePiesTaegNumberForAttention - mortgagePiesTanNumberForAttention
+    : 0;
+  const mortgagePiesAmountNumberForAttention = parseMortgageLooseNumber(mortgagePiesRawValue("amount"));
+  const mortgagePolicyCostAmountNumber = parseMortgageLooseNumber(mortgagePiesRawValue("policyCostAmount"));
+  const mortgagePolicyCostRatio = mortgagePiesAmountNumberForAttention > 0 && mortgagePolicyCostAmountNumber > 0
+    ? mortgagePolicyCostAmountNumber / mortgagePiesAmountNumberForAttention
+    : 0;
+  const mortgagePolicyCostValue = mortgagePiesRawValue("policyCost").toLowerCase();
+  const mortgagePolicyFreedomValue = mortgagePiesRawValue("policyChoiceFreedom").toLowerCase();
+  const mortgageLinkedProductsValue = mortgagePiesRawValue("linkedProducts").toLowerCase();
+  const mortgageDiscountConditionsValue = mortgagePiesRawValue("discountConditions").toLowerCase();
+
+  const mortgageEconomicAttentionFlags = [
+    ...(mortgageTaegTanDifference > 0.8 ? [{
+      id: "taeg_tan_high_gap",
+      sectionId: "rate-costs",
+      area: "costo" as const,
+      severity: "Alta" as const,
+      title: "TAEG sensibilmente superiore al TAN",
+      why: `Il TAEG supera il TAN di circa ${mortgageTaegTanDifference.toFixed(2).replace(".", ",")} punti percentuali. Questo non indica automaticamente un problema, ma segnala costi accessori rilevanti da comprendere prima della firma.`,
+      question: "Potete dettagliare quali costi, polizze e spese sono inclusi nel TAEG e quali restano eventualmente esclusi?",
+    }] : mortgageTaegTanDifference > 0.3 ? [{
+      id: "taeg_tan_medium_gap",
+      sectionId: "rate-costs",
+      area: "costo" as const,
+      severity: "Media" as const,
+      title: "TAEG superiore al TAN: da controllare",
+      why: `Il TAEG supera il TAN di circa ${mortgageTaegTanDifference.toFixed(2).replace(".", ",")} punti percentuali. La differenza puo dipendere da spese o prodotti collegati: va capita per confrontare correttamente l'offerta.`,
+      question: "Potete indicarmi in modo sintetico quali costi spiegano la differenza tra TAN e TAEG?",
+    }] : []),
+    ...(mortgagePolicyCostAmountNumber >= 5000 || mortgagePolicyCostRatio >= 0.03 ? [{
+      id: "policy_cost_high",
+      sectionId: "policies-products",
+      area: "polizze" as const,
+      severity: "Alta" as const,
+      title: "Polizza di importo rilevante",
+      why: `Nel PIES risulta una polizza di circa ${formatEuro(mortgagePolicyCostAmountNumber)}${mortgagePolicyCostRatio > 0 ? `, pari a circa ${(mortgagePolicyCostRatio * 100).toFixed(1).replace(".", ",")}% dell'importo del mutuo` : ""}. Non e automaticamente un problema, ma e un costo importante da verificare.`,
+      question: "Potete confermarmi se la polizza e facoltativa, se il premio viene finanziato, se e incluso nel TAEG e cosa succede in caso di recesso, estinzione anticipata o surroga?",
+    }] : mortgagePolicyCostAmountNumber >= 2000 || mortgagePolicyCostRatio >= 0.015 ? [{
+      id: "policy_cost_medium",
+      sectionId: "policies-products",
+      area: "polizze" as const,
+      severity: "Media" as const,
+      title: "Costo polizza da valutare",
+      why: `Nel PIES risulta una polizza di circa ${formatEuro(mortgagePolicyCostAmountNumber)}. E utile capire se e obbligatoria, facoltativa o collegata a condizioni economiche della proposta.`,
+      question: "Potete confermarmi il ruolo della polizza nella proposta, se il costo e incluso nel TAEG e se posso scegliere una compagnia esterna senza modifiche al tasso?",
+    }] : []),
+    ...(mortgagePolicyCostValue.includes("inclusione nel taeg non chiara") ? [{
+      id: "policy_taeg_unclear",
+      sectionId: "policies-products",
+      area: "polizze" as const,
+      severity: "Media" as const,
+      title: "Inclusione della polizza nel TAEG non chiara",
+      why: "Quando una polizza incide sul costo, e importante sapere se il suo premio e incluso nel TAEG e se viene finanziato.",
+      question: "Potete confermarmi se il costo della polizza e incluso integralmente nel TAEG e se il premio viene finanziato nel mutuo?",
+    }] : []),
+    ...(mortgagePolicyCostValue.includes("non incluso nel taeg") ? [{
+      id: "policy_not_in_taeg",
+      sectionId: "policies-products",
+      area: "polizze" as const,
+      severity: "Media" as const,
+      title: "Costo polizza indicato come non incluso nel TAEG",
+      why: "Un costo non incluso nel TAEG puo rendere meno immediato il confronto tra offerte. Va considerato separatamente nel costo complessivo.",
+      question: "Potete confermarmi quali costi assicurativi non sono inclusi nel TAEG e come devo considerarli nel costo complessivo dell'operazione?",
+    }] : []),
+    ...(mortgagePolicyFreedomValue.includes("vincolata dalla banca") ? [{
+      id: "policy_bank_bound",
+      sectionId: "policies-products",
+      area: "polizze" as const,
+      severity: "Alta" as const,
+      title: "Liberta di scelta della polizza da verificare",
+      why: "Se la polizza e proposta o vincolata dalla banca, puo incidere su costo, flessibilita e possibilita di confronto con compagnie esterne.",
+      question: "Potete confermarmi se posso sottoscrivere una polizza equivalente presso una compagnia esterna senza modifiche al tasso o alle condizioni economiche?",
+    }] : []),
+    ...(mortgageDiscountConditionsValue.includes("sconto collegato a polizze") || mortgageDiscountConditionsValue.includes("sconto collegato a conto") ? [{
+      id: "discount_linked_products",
+      sectionId: "policies-products",
+      area: "polizze" as const,
+      severity: "Alta" as const,
+      title: "Sconto sul tasso collegato a prodotti o polizze",
+      why: "Uno sconto collegato a prodotti o polizze va capito bene: l'utente deve sapere cosa cambia se non sottoscrive, chiude o recede dai prodotti collegati.",
+      question: "Da quali prodotti o polizze dipende lo sconto sul tasso? Cosa accade al TAN, al TAEG o alle altre condizioni se non sottoscrivo o se recedo?",
+    }] : []),
+    ...(mortgageLinkedProductsValue.includes("necessari per ottenere il tasso") || mortgageLinkedProductsValue.includes("costi non chiari") ? [{
+      id: "linked_products_conditions",
+      sectionId: "policies-products",
+      area: "polizze" as const,
+      severity: mortgageLinkedProductsValue.includes("necessari per ottenere il tasso") ? "Alta" as const : "Media" as const,
+      title: "Prodotti collegati da verificare",
+      why: "Prodotti collegati a condizioni promozionali possono incidere sul costo reale o sui vincoli nel tempo, anche quando non sono formalmente obbligatori.",
+      question: "Quali prodotti collegati sono necessari per mantenere le condizioni indicate? Quali costi cambiano se non li apro o se li chiudo?",
+    }] : []),
+  ];
+
 
   const getMortgageAreaStatus = (area: MortgagePiesFieldDefinition["area"]) => {
     const areaItems = mortgagePiesFieldDefinitions.filter((field) => field.area === area);
-    const issueCount = areaItems.filter((field) => (mortgagePiesFields[field.id]?.status ?? "missing") !== "found").length;
-    const unclearCount = areaItems.filter((field) => mortgagePiesFields[field.id]?.status === "unclear").length;
-    if (issueCount === 0) return { label: "Chiaro", className: "border-emerald-200 bg-emerald-50 text-emerald-800" };
+    const issueCount = areaItems.filter((field) => {
+      const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+      return getMortgagePiesEffectiveStatus(field.id, state) !== "found";
+    }).length;
+    const unclearCount = areaItems.filter((field) => {
+      const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+      return getMortgagePiesEffectiveStatus(field.id, state) === "unclear";
+    }).length;
+    const areaEconomicFlags = mortgageEconomicAttentionFlags.filter((flag) => flag.area === area);
+    if (issueCount === 0 && areaEconomicFlags.length === 0) return { label: "Chiaro", className: "border-emerald-200 bg-emerald-50 text-emerald-800" };
+    if (issueCount === 0 && areaEconomicFlags.length > 0) {
+      const hasHighEconomicFlag = areaEconomicFlags.some((flag) => flag.severity === "Alta");
+      return hasHighEconomicFlag
+        ? { label: "Da verificare", className: "border-orange-200 bg-orange-50 text-orange-800" }
+        : { label: "Da controllare", className: "border-amber-200 bg-amber-50 text-amber-800" };
+    }
     if (issueCount >= Math.max(2, areaItems.length) || unclearCount > 0) return { label: "Non chiaro", className: "border-red-200 bg-red-50 text-red-800" };
     return { label: "Da controllare", className: "border-amber-200 bg-amber-50 text-amber-800" };
   };
@@ -3296,16 +3667,39 @@ const [authReady, setAuthReady] = useState(false);
   const mortgageEmailSections = mortgagePiesSections
     .map((section) => {
       const issues = section.fields
-        .map((field) => ({ field, state: mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" } }))
+        .map((field) => {
+          const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+          return { field, state: { ...state, status: getMortgagePiesEffectiveStatus(field.id, state) } };
+        })
         .filter((item) => item.state.status !== "found");
 
       return { section, issues };
     })
     .filter((item) => item.issues.length > 0);
 
-  const mortgageGeneratedEmail = mortgageEmailSections.length === 0
+  const mortgageCombinedEmailSections = mortgagePiesSections
+    .map((section) => {
+      const documentQuestions = section.fields
+        .map((field) => {
+          const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+          const effectiveStatus = getMortgagePiesEffectiveStatus(field.id, state);
+          return effectiveStatus !== "found"
+            ? { question: getMortgagePiesIssueCopy(field, effectiveStatus).question, type: effectiveStatus === "unclear" ? "Dato non chiaro" : "Dato non trovato" }
+            : null;
+        })
+        .filter((item): item is { question: string; type: string } => Boolean(item));
+      const economicQuestions = mortgageEconomicAttentionFlags
+        .filter((flag) => flag.sectionId === section.id)
+        .map((flag) => ({ question: flag.question, type: `Segnale economico ${flag.severity.toLowerCase()}` }));
+      return { section, questions: [...documentQuestions, ...economicQuestions] };
+    })
+    .filter((item) => item.questions.length > 0);
+
+  const mortgageHasQuestionsForBank = mortgageCombinedEmailSections.length > 0;
+
+  const mortgageGeneratedEmail = !mortgageHasQuestionsForBank
     ? "Oggetto: Conferma condizioni proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo. Al momento i dati principali risultano individuati.\n\nVi chiedo cortesemente di confermarmi che il PIES ricevuto e aggiornato alle condizioni definitive e che non ci sono ulteriori costi, polizze o prodotti obbligatori non indicati nella documentazione.\n\nGrazie.\nCordiali saluti"
-    : `Oggetto: Richiesta chiarimenti su proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo e avrei bisogno di chiarire alcuni punti prima di procedere.\n\nVi chiedo cortesemente di confermarmi per iscritto i seguenti chiarimenti, ordinati secondo le sezioni del PIES:\n\n${mortgageEmailSections.map(({ section, issues }, sectionIndex) => `${sectionIndex + 1}. ${section.title.replace(/^\d+\.\s*/, "")}\n${issues.map((item, issueIndex) => `   ${sectionIndex + 1}.${issueIndex + 1} ${item.field.question}`).join("\n")}`).join("\n\n")}\n\nLa richiesta e finalizzata esclusivamente a comprendere correttamente la proposta prima della firma.\n\nGrazie.\nCordiali saluti`;
+    : `Oggetto: Richiesta chiarimenti su proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo e avrei bisogno di chiarire alcuni punti prima di procedere.\n\nVi chiedo cortesemente di confermarmi per iscritto i seguenti chiarimenti, ordinati secondo le sezioni del PIES:\n\n${mortgageCombinedEmailSections.map(({ section, questions }, sectionIndex) => `${sectionIndex + 1}. ${section.title.replace(/^\d+\.\s*/, "")}\n${questions.map((item, issueIndex) => `   ${sectionIndex + 1}.${issueIndex + 1} ${item.question}`).join("\n")}`).join("\n\n")}\n\nLa richiesta e finalizzata esclusivamente a comprendere correttamente la proposta prima della firma.\n\nGrazie.\nCordiali saluti`;
 
   const mortgageRequestPiesEmail = "Oggetto: Richiesta PIES e documentazione mutuo\n\nBuongiorno,\nprima di procedere con la valutazione del mutuo, vi chiedo cortesemente di inviarmi il PIES aggiornato relativo alla proposta, insieme al piano di ammortamento e al prospetto completo delle condizioni economiche.\n\nVi chiedo inoltre di indicarmi eventuali polizze, prodotti collegati o condizioni necessarie per ottenere o mantenere il tasso proposto.\n\nGrazie.\nCordiali saluti";
 
@@ -3396,16 +3790,29 @@ const [authReady, setAuthReady] = useState(false);
               <article class="issue-card ${item.state.status === "unclear" ? "is-unclear" : "is-missing"}">
                 <div class="issue-header">
                   <span class="status-pill ${item.state.status === "unclear" ? "pill-unclear" : "pill-missing"}">${item.state.status === "unclear" ? "Non chiaro" : "Non trovato"}</span>
-                  <strong>${escapeReportHtml(item.field.issue)}</strong>
+                  <strong>${escapeReportHtml(getMortgagePiesIssueCopy(item.field, item.state.status).issue)}</strong>
                 </div>
-                <p>${escapeReportHtml(item.field.why)}</p>
-                <div class="question-box">${escapeReportHtml(item.field.question)}</div>
+                <p>${escapeReportHtml(getMortgagePiesIssueCopy(item.field, item.state.status).why)}</p>
+                <div class="question-box">${escapeReportHtml(getMortgagePiesIssueCopy(item.field, item.state.status).question)}</div>
               </article>
             `).join("")}
           </div>
         </section>
       `).join("")
       : `<div class="empty-state avoid-break"><strong>Nessuna criticita documentale rilevante.</strong><span>I dati principali controllati risultano segnati come trovati.</span></div>`;
+
+    const economicAttentionCards = mortgageEconomicAttentionFlags.length
+      ? mortgageEconomicAttentionFlags.map((flag) => `
+        <article class="issue-card economic-card ${flag.severity === "Alta" ? "is-economic-high" : "is-economic-medium"}">
+          <div class="issue-header">
+            <span class="status-pill ${flag.severity === "Alta" ? "pill-economic-high" : "pill-economic-medium"}">${escapeReportHtml(flag.severity)}</span>
+            <strong>${escapeReportHtml(flag.title)}</strong>
+          </div>
+          <p>${escapeReportHtml(flag.why)}</p>
+          <div class="question-box">${escapeReportHtml(flag.question)}</div>
+        </article>
+      `).join("")
+      : `<div class="empty-state avoid-break"><strong>Nessun segnale economico rilevante.</strong><span>Il documento puo comunque essere confrontato con altre offerte prima della firma.</span></div>`;
 
     const foundItems = mortgagePiesFound.length
       ? mortgagePiesFound.map((item) => `
@@ -3681,6 +4088,8 @@ const [authReady, setAuthReady] = useState(false);
     }
     .issue-card.is-missing { border-color: #fed7aa; background: var(--warning-bg); }
     .issue-card.is-unclear { border-color: #fecaca; background: var(--risk-bg); }
+    .issue-card.is-economic-high { border-color: #fdba74; background: #fff7ed; }
+    .issue-card.is-economic-medium { border-color: #fde68a; background: #fffbeb; }
     .issue-header { display: flex; gap: 9px; align-items: center; margin-bottom: 7px; }
     .issue-header strong { font-size: 14px; }
     .status-pill {
@@ -3696,6 +4105,9 @@ const [authReady, setAuthReady] = useState(false);
     }
     .pill-missing { background: #fed7aa; color: #9a3412; }
     .pill-unclear { background: #fecaca; color: #991b1b; }
+    .pill-economic-high { background: #fdba74; color: #9a3412; }
+    .pill-economic-medium { background: #fde68a; color: #92400e; }
+    .neutral-note { margin: 0 0 12px; color: #475569; font-size: 13px; }
     .issue-card p { margin: 0 0 8px; color: #334155; font-size: 13px; }
     .question-box {
       border-radius: 13px;
@@ -3801,6 +4213,15 @@ const [authReady, setAuthReady] = useState(false);
       <section class="area-grid avoid-break">${areaCards}</section>
 
       <div class="section-title-row">
+        <h2>Segnali di attenzione economica</h2>
+        <span>Costi o vincoli da comprendere meglio</span>
+      </div>
+      <section class="report-section avoid-break">
+        <p class="neutral-note">Questi segnali non indicano irregolarita. Servono a evidenziare elementi economici che possono incidere sul costo complessivo o sulla liberta di scelta dell'utente.</p>
+        <div class="issue-list">${economicAttentionCards}</div>
+      </section>
+
+      <div class="section-title-row">
         <h2>Dati trovati</h2>
         <span>Valori individuati nel PIES</span>
       </div>
@@ -3812,16 +4233,28 @@ const [authReady, setAuthReady] = useState(false);
       </div>
       ${issueCards}
 
-      <section class="email-card avoid-break">
-        <h2>Email pronta per la banca</h2>
-        <pre>${escapeReportHtml(mortgageGeneratedEmail)}</pre>
-      </section>
+      ${mortgageHasQuestionsForBank ? `
+        <section class="email-card avoid-break">
+          <h2>Email pronta per la banca</h2>
+          <pre>${escapeReportHtml(mortgageGeneratedEmail)}</pre>
+        </section>
+      ` : `
+        <section class="next-card avoid-break">
+          <h2>Nessuna email necessaria al momento</h2>
+          <p>I dati principali risultano presenti e non sono emerse criticita documentali o segnali economici rilevanti. Prima della firma verifica comunque che il PIES sia aggiornato alle condizioni definitive.</p>
+        </section>
+      `}
 
       <section class="next-card avoid-break">
         <h2>Prossimi passi</h2>
         <ul class="next-list">
-          <li>Invia la richiesta di chiarimento se ci sono punti non trovati o non chiari.</li>
-          <li>Chiedi conferme scritte quando una condizione incide su costo, tasso, polizze o vincoli.</li>
+          ${mortgageHasQuestionsForBank ? `
+            <li>Invia la richiesta di chiarimento alla banca e attendi una conferma scritta sui punti evidenziati.</li>
+            <li>Chiedi conferme scritte quando una condizione incide su costo, tasso, polizze o vincoli.</li>
+          ` : `
+            <li>Conserva questo report e usalo per confrontare l'offerta con eventuali altre proposte.</li>
+            <li>Non serve inviare una richiesta alla banca se non emergono punti mancanti, non chiari o segnali economici da verificare.</li>
+          `}
           <li>Prima della firma verifica di avere il PIES aggiornato alle condizioni definitive.</li>
         </ul>
       </section>
@@ -9286,7 +9719,10 @@ const [authReady, setAuthReady] = useState(false);
                         </div>
 
                         {mortgagePiesSections.map((section, index) => {
-                          const sectionStates = section.fields.map((field) => mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" });
+                          const sectionStates = section.fields.map((field) => {
+                            const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+                            return { ...state, status: getMortgagePiesEffectiveStatus(field.id, state) };
+                          });
                           const foundCount = sectionStates.filter((fieldState) => fieldState.status === "found").length;
                           const unclearCount = sectionStates.filter((fieldState) => fieldState.status === "unclear").length;
                           const missingCount = sectionStates.filter((fieldState) => fieldState.status === "missing").length;
@@ -9307,7 +9743,10 @@ const [authReady, setAuthReady] = useState(false);
                           return (
                             <div
                               key={section.id}
-                              className={`relative overflow-hidden rounded-3xl border transition-all duration-300 ${
+                              ref={(element) => {
+                                mortgagePiesSectionRefs.current[section.id] = element;
+                              }}
+                              className={`relative scroll-mt-24 overflow-hidden rounded-3xl border transition-all duration-300 ${
                                 isOpen
                                   ? "border-emerald-300 bg-white shadow-xl shadow-emerald-100/80 ring-4 ring-emerald-50"
                                   : "border-slate-200 bg-white shadow-sm hover:border-slate-300 hover:shadow-md"
@@ -9316,7 +9755,7 @@ const [authReady, setAuthReady] = useState(false);
                               {isOpen && <span className="absolute left-0 top-0 z-10 h-full w-1.5 bg-emerald-500" aria-hidden="true" />}
                               <button
                                 type="button"
-                                onClick={() => setOpenMortgagePiesSectionId(isOpen ? "" : section.id)}
+                                onClick={() => toggleMortgagePiesSection(section.id, isOpen)}
                                 className={`relative flex w-full flex-col gap-4 p-5 text-left transition md:p-6 ${
                                   isOpen ? "bg-gradient-to-br from-emerald-50 via-white to-white" : "hover:bg-slate-50"
                                 }`}
@@ -9361,7 +9800,9 @@ const [authReady, setAuthReady] = useState(false);
                                   <p className="rounded-2xl border border-emerald-100 bg-white p-3 text-xs leading-5 text-slate-700 shadow-sm"><strong>Dove cercare:</strong> {section.where}</p>
                                   <div className="mt-5 space-y-4">
                                     {section.fields.map((field) => {
-                                      const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+                                      const rawState = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+                                      const state = { ...rawState, status: getMortgagePiesEffectiveStatus(field.id, rawState) };
+                                      const isExternalPolicyCostNote = field.id === "policyCost" && rawState.value.toLowerCase().includes("costo non indicato") && isPolicyCostSoftFound(mortgagePiesFields);
                                       return (
                                         <div key={field.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -9421,9 +9862,24 @@ const [authReady, setAuthReady] = useState(false);
                                               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400"
                                             />
                                           </div>
+                                          {isExternalPolicyCostNote && (
+                                            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-900">
+                                              <strong>Nota:</strong> se la polizza e obbligatoria ma scegliibile presso compagnia esterna, il costo non indicato non e una criticita documentale grave. E comunque utile stimarlo per confrontare meglio le offerte.
+                                            </div>
+                                          )}
+                                          {field.id === "rateLocked" && (
+                                            <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">
+                                              <strong>Nota:</strong> {getMortgageRateLockInfo()}
+                                            </div>
+                                          )}
+                                          {field.id === "variableSimulation" && (
+                                            <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">
+                                              <strong>Nota:</strong> {getMortgageRateSimulationInfo()}
+                                            </div>
+                                          )}
                                           {state.status !== "found" && (
                                             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
-                                              <strong>Perche conta:</strong> {field.why}
+                                              <strong>Perche conta:</strong> {getMortgagePiesIssueCopy(field, state.status).why}
                                             </div>
                                           )}
                                         </div>
@@ -9468,10 +9924,11 @@ const [authReady, setAuthReady] = useState(false);
                         <p className="mt-2 text-xs leading-5 text-emerald-800">Questo nome comparira nel report PDF e ti aiutera a distinguere piu preventivi.</p>
                       </div>
 
-                      <div className="mt-6 grid gap-4 md:grid-cols-3">
+                      <div className="mt-6 grid gap-4 md:grid-cols-4">
                         <PremiumStatCard eyebrow="Indice chiarezza" value={`${mortgageClarityScore}/100`} note={mortgageClarityCopy.label} />
                         <PremiumStatCard eyebrow="Dati trovati" value={`${mortgagePiesFound.length}`} note="Campi confermati" />
-                        <PremiumStatCard eyebrow="Punti da chiarire" value={`${mortgagePiesIssues.length}`} note="Domande per la banca" />
+                        <PremiumStatCard eyebrow="Punti da chiarire" value={`${mortgagePiesIssues.length}`} note="Domande documentali" />
+                        <PremiumStatCard eyebrow="Segnali economici" value={`${mortgageEconomicAttentionFlags.length}`} note="Costi o vincoli da verificare" />
                       </div>
 
                       <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -9489,6 +9946,29 @@ const [authReady, setAuthReady] = useState(false);
                             <p className="mt-3 text-xs leading-5 text-slate-500">Questo numero ti aiuta a non valutare il mutuo solo sulla rata mensile.</p>
                           </div>
 
+                          <div className="rounded-2xl border border-orange-100 bg-orange-50/70 p-4">
+                            <h5 className="font-bold text-slate-950">Segnali di attenzione economica</h5>
+                            <p className="mt-2 text-xs leading-5 text-orange-900">Questi segnali non indicano irregolarita: servono a evidenziare costi o vincoli da capire meglio prima della firma.</p>
+                            <div className="mt-4 space-y-3">
+                              {mortgageEconomicAttentionFlags.length === 0 ? (
+                                <div className="rounded-2xl border border-emerald-200 bg-white p-4 text-sm leading-6 text-emerald-900">
+                                  Nessun segnale economico rilevante emerso dai dati inseriti.
+                                </div>
+                              ) : (
+                                mortgageEconomicAttentionFlags.map((flag) => (
+                                  <div key={flag.id} className={`rounded-2xl border p-4 ${flag.severity === "Alta" ? "border-orange-200 bg-white text-orange-950" : "border-amber-200 bg-white text-amber-950"}`}>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wide ${flag.severity === "Alta" ? "bg-orange-100 text-orange-800" : "bg-amber-100 text-amber-800"}`}>{flag.severity}</span>
+                                      <p className="font-bold">{flag.title}</p>
+                                    </div>
+                                    <p className="mt-2 text-sm leading-6 text-slate-700">{flag.why}</p>
+                                    <p className="mt-2 rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-800"><strong>Cosa chiedere:</strong> {flag.question}</p>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
                         </div>
 
                         <div className="space-y-4">
@@ -9502,9 +9982,9 @@ const [authReady, setAuthReady] = useState(false);
                               ) : (
                                 mortgagePiesIssues.slice(0, 8).map((item) => (
                                   <div key={item.field.id} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                                    <p className="font-bold text-amber-950">{item.field.issue}</p>
-                                    <p className="mt-1 text-sm leading-6 text-amber-900"><strong>Perche conta:</strong> {item.field.why}</p>
-                                    <p className="mt-1 text-sm leading-6 text-amber-900"><strong>Cosa chiedere:</strong> {item.field.question}</p>
+                                    <p className="font-bold text-amber-950">{getMortgagePiesIssueCopy(item.field, item.state.status).issue}</p>
+                                    <p className="mt-1 text-sm leading-6 text-amber-900"><strong>Perche conta:</strong> {getMortgagePiesIssueCopy(item.field, item.state.status).why}</p>
+                                    <p className="mt-1 text-sm leading-6 text-amber-900"><strong>Cosa chiedere:</strong> {getMortgagePiesIssueCopy(item.field, item.state.status).question}</p>
                                   </div>
                                 ))
                               )}
