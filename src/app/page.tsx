@@ -231,12 +231,18 @@ type PortfolioTemplate = {
 
 type PurchasePlan = "core" | "pro";
 
+type PurchasePaymentType = "new_core" | "new_pro" | "upgrade_core_to_pro" | "renew_core" | "renew_pro";
+
 type PurchaseState = {
   unlocked: boolean;
   email: string;
   selectedPortfolio?: FinalPortfolioKey;
   plan?: PurchasePlan;
   paidAmount?: number;
+  purchasedAt?: string;
+  upgradedAt?: string;
+  expiresAt?: string;
+  lastPaymentType?: PurchasePaymentType;
 };
 
 type Holding = {
@@ -1477,6 +1483,81 @@ function formatEuro(value: number): string {
   }).format(value);
 }
 
+const PLAN_VALIDITY_DAYS = 365;
+
+function addDaysIso(baseDate: Date, days: number): string {
+  const next = new Date(baseDate);
+  next.setDate(next.getDate() + days);
+  return next.toISOString();
+}
+
+function formatItalianDate(value?: string): string {
+  if (!value) return "Non disponibile";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Non disponibile";
+  return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "long", year: "numeric" }).format(date);
+}
+
+function getPlanDaysRemaining(value?: string): number | null {
+  if (!value) return null;
+  const expires = new Date(value).getTime();
+  if (Number.isNaN(expires)) return null;
+  const remaining = Math.ceil((expires - Date.now()) / (1000 * 60 * 60 * 24));
+  return Math.max(remaining, 0);
+}
+
+function isPurchaseDateValid(value?: string): boolean {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getTime() > Date.now();
+}
+
+function normalizePurchaseState(raw: Partial<PurchaseState> | null | undefined, fallbackEmail = ""): PurchaseState {
+  const plan = raw?.plan === "pro" ? "pro" : raw?.plan === "core" ? "core" : undefined;
+  const fallbackPaidAmount = plan === "core" ? 29 : plan === "pro" ? 59 : 0;
+  const purchasedAt = raw?.purchasedAt;
+  const expiresAt = raw?.expiresAt || (raw?.unlocked ? addDaysIso(purchasedAt ? new Date(purchasedAt) : new Date(), PLAN_VALIDITY_DAYS) : undefined);
+  const active = !!raw?.unlocked && isPurchaseDateValid(expiresAt);
+
+  return {
+    unlocked: active,
+    email: raw?.email || fallbackEmail || "",
+    selectedPortfolio: raw?.selectedPortfolio,
+    plan,
+    paidAmount: raw?.paidAmount ?? fallbackPaidAmount,
+    purchasedAt,
+    upgradedAt: raw?.upgradedAt,
+    expiresAt,
+    lastPaymentType: raw?.lastPaymentType,
+  };
+}
+
+function getPurchaseStatusCopy(purchase: PurchaseState) {
+  const days = getPlanDaysRemaining(purchase.expiresAt);
+  const planLabel = purchase.plan === "pro" ? "Pro" : purchase.plan === "core" ? "Core" : "Nessun piano";
+  const isActive = !!purchase.unlocked && isPurchaseDateValid(purchase.expiresAt);
+
+  if (!isActive) {
+    return {
+      planLabel,
+      statusLabel: purchase.expiresAt ? "Piano scaduto" : "Nessun piano attivo",
+      expiresLabel: purchase.expiresAt ? formatItalianDate(purchase.expiresAt) : "Non disponibile",
+      daysLabel: "0 giorni rimanenti",
+      days,
+      isActive,
+    };
+  }
+
+  return {
+    planLabel,
+    statusLabel: `Piano ${planLabel} attivo`,
+    expiresLabel: formatItalianDate(purchase.expiresAt),
+    daysLabel: days === 1 ? "1 giorno rimanente" : `${days ?? 0} giorni rimanenti`,
+    days,
+    isActive,
+  };
+}
+
 function getPortfolioFromScores(scores: ScoreMap): FinalPortfolioKey {
   const ordered = [
     { key: "stabilita" as BaseProfile, value: scores.stabilita },
@@ -2154,6 +2235,7 @@ export default function Home() {
     void trackEvent("open_app");
   }, []);
 const [authReady, setAuthReady] = useState(false);
+  const [appBootLoading, setAppBootLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authEmail, setAuthEmail] = useState("");
@@ -2172,6 +2254,19 @@ const [authReady, setAuthReady] = useState(false);
   const [goalReason, setGoalReason] = useState<GoalChangeReason>("stabile");
   const [goalEndYear, setGoalEndYear] = useState(String(new Date().getFullYear() + 10));
   const [goalLoaded, setGoalLoaded] = useState(false);
+  const [draftGoalTitle, setDraftGoalTitle] = useState("Liberta finanziaria");
+  const [draftGoalTarget, setDraftGoalTarget] = useState("100000");
+  const [draftGoalCurrentValue, setDraftGoalCurrentValue] = useState("0");
+  const [draftGoalPreviousValue, setDraftGoalPreviousValue] = useState("0");
+  const [draftGoalReason, setDraftGoalReason] = useState<GoalChangeReason>("stabile");
+  const [draftGoalEndYear, setDraftGoalEndYear] = useState(String(new Date().getFullYear() + 10));
+  const draftGoalTitleRef = useRef<HTMLInputElement | null>(null);
+  const draftGoalCurrentValueRef = useRef<HTMLInputElement | null>(null);
+  const draftGoalPreviousValueRef = useRef<HTMLInputElement | null>(null);
+  const draftGoalTargetRef = useRef<HTMLInputElement | null>(null);
+  const draftGoalEndYearRef = useRef<HTMLInputElement | null>(null);
+  const draftGoalReasonRef = useRef<HTMLSelectElement | null>(null);
+  const [goalSaveStatus, setGoalSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [progressStartValue, setProgressStartValue] = useState("0");
   const [progressStartMonth, setProgressStartMonth] = useState("");
 
@@ -2198,6 +2293,9 @@ const [authReady, setAuthReady] = useState(false);
   const mortgageSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pacHistoryLoadKeyRef = useRef<string | null>(null);
   const pacHistoryRequestIdRef = useRef(0);
+  const profileLoadKeyRef = useRef<string | null>(null);
+  const checklistLoadKeyRef = useRef<string | null>(null);
+  const checklistLoadRequestIdRef = useRef(0);
   const goalLoadKeyRef = useRef<string | null>(null);
   const goalLoadRequestIdRef = useRef(0);
   const lastScamPerfectGameSignatureRef = useRef<string | null>(null);
@@ -2330,7 +2428,8 @@ const [authReady, setAuthReady] = useState(false);
   const isProPlan = isPurchaseUnlocked && purchase.plan === "pro";
   const isCorePlan = isPurchaseUnlocked && purchase.plan === "core";
   const paidAmount = purchase.paidAmount ?? (purchase.plan === "core" ? 29 : purchase.plan === "pro" ? 59 : 0);
-  const proPriceToPay = Math.max(59 - paidAmount, 0);
+  const purchaseStatus = getPurchaseStatusCopy(purchase);
+  const proPriceToPay = isCorePlan ? 30 : Math.max(59 - paidAmount, 0);
 
   const allInstrumentsByCategory = useMemo<Record<StrumentiCategory, InstrumentOption[]>>(() => {
     const merged = Object.fromEntries(
@@ -2420,47 +2519,64 @@ const [authReady, setAuthReady] = useState(false);
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-
-    purchaseLoadedRef.current = false;
-
-    const savedPurchase = localStorage.getItem(getPurchaseKey(user.id));
-    const savedHoldings = localStorage.getItem(getHoldingsKey(user.id));
-
-    try {
-      if (savedPurchase) {
-        const parsedPurchase = JSON.parse(savedPurchase) as PurchaseState;
-        setPurchase({
-          unlocked: !!parsedPurchase.unlocked,
-          email: parsedPurchase.email || user.email || "",
-          selectedPortfolio: parsedPurchase.selectedPortfolio,
-          plan: parsedPurchase.plan,
-          paidAmount:
-            parsedPurchase.paidAmount ??
-            (parsedPurchase.plan === "core" ? 29 : parsedPurchase.plan === "pro" ? 59 : 0),
-        });
-      } else {
-        setPurchase((prev) => ({
-          ...prev,
-          email: user.email || prev.email || "",
-        }));
-      }
-    } catch {
-      setPurchase((prev) => ({
-        ...prev,
-        email: user.email || prev.email || "",
-      }));
-    } finally {
-      purchaseLoadedRef.current = true;
+    if (!user) {
+      setAppBootLoading(false);
+      purchaseLoadedRef.current = false;
+      return;
     }
 
-    if (savedHoldings) setHoldings(JSON.parse(savedHoldings));
-    else setHoldings([]);
+    const currentUser = user;
+    let cancelled = false;
 
-    loadUserProfile(user);
-    loadHoldingsFromDb(user);
-    loadCustomInstrumentsFromDb(user);
-    loadShoppingItemsFromDb(user);
+    async function hydrateUserData() {
+      setAppBootLoading(true);
+      purchaseLoadedRef.current = false;
+
+      const savedPurchase = localStorage.getItem(getPurchaseKey(currentUser.id));
+      const savedHoldings = localStorage.getItem(getHoldingsKey(currentUser.id));
+
+      try {
+        if (savedPurchase) {
+          const parsedPurchase = normalizePurchaseState(JSON.parse(savedPurchase) as PurchaseState, currentUser.email || "");
+          setPurchase(parsedPurchase);
+        } else {
+          setPurchase((prev) => ({
+            ...prev,
+            email: currentUser.email || prev.email || "",
+          }));
+        }
+      } catch {
+        setPurchase((prev) => ({
+          ...prev,
+          email: currentUser.email || prev.email || "",
+        }));
+      } finally {
+        purchaseLoadedRef.current = true;
+      }
+
+      if (savedHoldings) setHoldings(JSON.parse(savedHoldings));
+      else setHoldings([]);
+
+      try {
+        // Dati essenziali per decidere la schermata iniziale: profilo e piano.
+        // Li attendiamo prima di mostrare l'app per evitare passaggi rapidi
+        // visibili tra home, paywall, onboarding e dashboard.
+        await Promise.all([loadUserProfile(currentUser), loadPurchaseFromDb(currentUser)]);
+      } finally {
+        if (!cancelled) setAppBootLoading(false);
+      }
+
+      // Dati non essenziali: possono caricarsi in background senza bloccare la UI.
+      loadHoldingsFromDb(currentUser);
+      loadCustomInstrumentsFromDb(currentUser);
+      loadShoppingItemsFromDb(currentUser);
+    }
+
+    void hydrateUserData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   useEffect(() => {
@@ -2471,7 +2587,7 @@ const [authReady, setAuthReady] = useState(false);
     let savedUnlocked = false;
 
     try {
-      savedUnlocked = savedPurchase ? !!(JSON.parse(savedPurchase) as PurchaseState).unlocked : false;
+      savedUnlocked = savedPurchase ? normalizePurchaseState(JSON.parse(savedPurchase) as PurchaseState, user.email || "").unlocked : false;
     } catch {
       savedUnlocked = false;
     }
@@ -2481,12 +2597,28 @@ const [authReady, setAuthReady] = useState(false);
     if (savedUnlocked && !purchase.unlocked) return;
 
     localStorage.setItem(key, JSON.stringify(purchase));
+
+    // Se il piano e sbloccato, lo salviamo anche su Supabase: cosi lo stesso
+    // utente resta sbloccato anche da un altro dispositivo/browser.
+    if (purchase.unlocked) {
+      void savePurchaseToDb(purchase);
+    }
   }, [purchase, user]);
 
   useEffect(() => {
     if (!purchase.unlocked || step !== "paywall") return;
     setStep(purchase.plan === "core" ? "onboarding" : "dashboard");
   }, [purchase.unlocked, purchase.plan, step]);
+
+  useEffect(() => {
+    const paidSteps: AppStep[] = ["portfolio", "guide", "dashboard", "awareness", "strumentis", "rebalance", "exit"];
+    const hasExpiredPlan = !!purchase.expiresAt && !isPurchaseDateValid(purchase.expiresAt);
+
+    if (!hasExpiredPlan) return;
+    if (paidSteps.includes(step) || step === "onboarding") {
+      setStep("paywall");
+    }
+  }, [purchase.expiresAt, step]);
 
   // Mantiene la schermata selezionata stabile anche dopo refresh sessione,
   // inattivita o cambio scheda del browser. La navigazione cambia solo quando
@@ -2640,18 +2772,23 @@ const [authReady, setAuthReady] = useState(false);
   }, [selectedPortfolio.key, user]);
 
   useEffect(() => {
-    saveGoalToDb();
+    if (!goalLoaded) return;
+
+    setDraftGoalTitle(goalTitle);
+    setDraftGoalTarget(goalTarget);
+    setDraftGoalCurrentValue(goalCurrentValue);
+    setDraftGoalPreviousValue(goalPreviousValue);
+    setDraftGoalReason(goalReason);
+    setDraftGoalEndYear(goalEndYear);
   }, [
     goalLoaded,
+    selectedPortfolio.key,
     goalTitle,
     goalTarget,
     goalCurrentValue,
     goalPreviousValue,
     goalReason,
     goalEndYear,
-    portMonthly,
-    selectedPortfolio.key,
-    user,
   ]);
 
   useEffect(() => {
@@ -3172,13 +3309,56 @@ const [authReady, setAuthReady] = useState(false);
 
   const mortgageRequestPiesEmail = "Oggetto: Richiesta PIES e documentazione mutuo\n\nBuongiorno,\nprima di procedere con la valutazione del mutuo, vi chiedo cortesemente di inviarmi il PIES aggiornato relativo alla proposta, insieme al piano di ammortamento e al prospetto completo delle condizioni economiche.\n\nVi chiedo inoltre di indicarmi eventuali polizze, prodotti collegati o condizioni necessarie per ottenere o mantenere il tasso proposto.\n\nGrazie.\nCordiali saluti";
 
+  const getMortgagePiesValue = (fieldId: string) => (mortgagePiesFields[fieldId]?.value ?? "").trim();
+
+  const parseMortgagePiesNumber = (value: string) => {
+    const cleaned = value
+      .replace(/\s/g, "")
+      .replace(/€/g, "")
+      .replace(/%/g, "")
+      .replace(/\./g, "")
+      .replace(/,/g, ".");
+
+    const parsed = Number.parseFloat(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const formatMortgagePiesEuro = (value: string, options?: { decimals?: boolean }) => {
+    const parsed = parseMortgagePiesNumber(value);
+    if (!parsed) return "Da inserire";
+
+    return new Intl.NumberFormat("it-IT", {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: options?.decimals ? 2 : 0,
+      maximumFractionDigits: options?.decimals ? 2 : 0,
+    }).format(parsed);
+  };
+
+  const formatMortgagePiesPercent = (value: string) => {
+    const parsed = parseMortgagePiesNumber(value);
+    if (!parsed) return "Da inserire";
+    return `${new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(parsed)}%`;
+  };
+
+  const mortgagePiesAmountValue = getMortgagePiesValue("amount");
+  const mortgagePiesDurationValue = getMortgagePiesValue("duration");
+  const mortgagePiesInstallmentValue = getMortgagePiesValue("installment");
+  const mortgagePiesTanValue = getMortgagePiesValue("tan");
+  const mortgagePiesTotalToRepayValue = getMortgagePiesValue("totalToRepay");
+  const mortgagePiesAmountNumber = parseMortgagePiesNumber(mortgagePiesAmountValue);
+  const mortgagePiesTotalToRepayNumber = parseMortgagePiesNumber(mortgagePiesTotalToRepayValue);
+  const mortgagePiesInterestAndCosts = mortgagePiesAmountNumber > 0 && mortgagePiesTotalToRepayNumber > 0
+    ? mortgagePiesTotalToRepayNumber - mortgagePiesAmountNumber
+    : 0;
+
   const mortgageMainNumbers = [
-    { label: "Importo mutuo", value: mortgagePrincipalForCalc > 0 ? formatEuro(mortgagePrincipalForCalc) : "Da inserire" },
-    { label: "Durata", value: `${mortgage.years} anni` },
-    { label: mortgageUsesDeclaredPayment ? "Rata dichiarata" : "Rata stimata", value: mortgageMonthlyPayment > 0 ? formatEuro(mortgageMonthlyPayment) : "Da inserire" },
-    { label: "TAN / tasso", value: `${mortgage.annualRate || 0}%` },
-    { label: "Totale stimato rate", value: mortgageTotalPaid > 0 ? formatEuro(mortgageTotalPaid) : "Da inserire" },
-    { label: "Interessi stimati", value: mortgageTotalInterest > 0 ? formatEuro(mortgageTotalInterest) : "Da inserire" },
+    { label: "Importo mutuo", value: formatMortgagePiesEuro(mortgagePiesAmountValue) },
+    { label: "Durata", value: mortgagePiesDurationValue ? `${mortgagePiesDurationValue.replace(/\s*anni?$/i, "")} anni` : "Da inserire" },
+    { label: "Rata mensile", value: formatMortgagePiesEuro(mortgagePiesInstallmentValue, { decimals: true }) },
+    { label: "TAN / tasso", value: formatMortgagePiesPercent(mortgagePiesTanValue) },
+    { label: "Totale da rimborsare", value: formatMortgagePiesEuro(mortgagePiesTotalToRepayValue) },
+    { label: "Interessi e costi", value: mortgagePiesInterestAndCosts > 0 ? formatEuro(mortgagePiesInterestAndCosts) : "Da inserire" },
   ];
 
   const escapeReportHtml = (value: string | number) => String(value)
@@ -3658,22 +3838,128 @@ const [authReady, setAuthReady] = useState(false);
     reportWindow.document.close();
   };
 
-  const fraudQuestions = [
-    { id: "urgency", text: "Ti chiedono di agire subito?", weight: 1 },
-    { id: "unknown_link", text: "C'e un link o numero non verificato?", weight: 1 },
-    { id: "credentials", text: "Ti chiedono codici, password o documenti?", weight: 2 },
-    { id: "guaranteed_gain", text: "Promettono guadagni sicuri o molto alti?", weight: 2 },
-    { id: "outside_payment", text: "Ti chiedono di pagare fuori da canali ufficiali?", weight: 2 },
-    { id: "pressure", text: "La comunicazione ti mette paura o pressione?", weight: 1 },
+  type FraudRiskLevel = "basso" | "medio" | "alto" | "molto alto";
+  type FraudQuestion = {
+    id: string;
+    text: string;
+    weight: number;
+    severity: "critico" | "forte" | "attenzione";
+    minRisk?: FraudRiskLevel;
+    why: string;
+    action: string;
+  };
+
+  const fraudRiskRank: Record<FraudRiskLevel, number> = {
+    basso: 0,
+    medio: 1,
+    alto: 2,
+    "molto alto": 3,
+  };
+
+  const fraudQuestions: FraudQuestion[] = [
+    {
+      id: "credentials",
+      text: "Ti chiedono codici, password, PIN, OTP o documenti?",
+      weight: 45,
+      severity: "critico",
+      minRisk: "alto",
+      why: "Codici, password, PIN, OTP e documenti possono dare accesso ai tuoi conti, alla tua identita o ai tuoi servizi digitali.",
+      action: "Non inviare nulla. Chiudi la conversazione e contatta banca, ente o piattaforma solo da canali ufficiali.",
+    },
+    {
+      id: "remote_access",
+      text: "Ti chiedono di installare app o dare accesso remoto al telefono/PC?",
+      weight: 60,
+      severity: "critico",
+      minRisk: "molto alto",
+      why: "L'accesso remoto puo permettere a un truffatore di controllare dispositivo, conto, carte o app di pagamento.",
+      action: "Non installare nulla e non condividere lo schermo. Se lo hai gia fatto, disconnetti internet e contatta subito la banca.",
+    },
+    {
+      id: "safe_account",
+      text: "Ti chiedono di spostare soldi su un conto sicuro o temporaneo?",
+      weight: 60,
+      severity: "critico",
+      minRisk: "molto alto",
+      why: "Nessuna banca seria ti chiede di trasferire denaro su un conto 'sicuro' indicato durante una chiamata o chat.",
+      action: "Non fare bonifici. Chiama la banca dal numero ufficiale e verifica la situazione con un operatore reale.",
+    },
+    {
+      id: "outside_payment",
+      text: "Ti chiedono pagamenti fuori da canali ufficiali, gift card, crypto o bonifici istantanei?",
+      weight: 42,
+      severity: "critico",
+      minRisk: "alto",
+      why: "Pagamenti fuori piattaforma, crypto, gift card e bonifici istantanei sono difficili da recuperare e spesso usati nelle truffe.",
+      action: "Non pagare fuori dai canali ufficiali. Usa solo metodi tracciabili e protetti dalla piattaforma.",
+    },
+    {
+      id: "guaranteed_gain",
+      text: "Promettono guadagni sicuri, molto alti o senza rischio?",
+      weight: 40,
+      severity: "critico",
+      minRisk: "alto",
+      why: "Negli investimenti non esistono guadagni elevati e garantiti senza rischio. Questa promessa e un segnale molto pericoloso.",
+      action: "Non versare soldi. Verifica intermediario, autorizzazioni e documenti ufficiali prima di qualunque decisione.",
+    },
+    {
+      id: "secrecy",
+      text: "Ti chiedono di non parlarne con nessuno o di mantenere il segreto?",
+      weight: 35,
+      severity: "critico",
+      minRisk: "alto",
+      why: "La segretezza serve a isolarti e impedirti di chiedere aiuto o fare verifiche.",
+      action: "Parlane subito con una persona fidata e verifica da un canale ufficiale prima di fare qualsiasi cosa.",
+    },
+    {
+      id: "urgency",
+      text: "Ti chiedono di agire subito o ti mettono fretta?",
+      weight: 18,
+      severity: "forte",
+      why: "La fretta riduce la lucidita e ti spinge a saltare controlli importanti.",
+      action: "Fermati almeno qualche minuto. Una richiesta seria puo aspettare una verifica.",
+    },
+    {
+      id: "unknown_link",
+      text: "C'e un link, QR code, numero o email non verificato?",
+      weight: 18,
+      severity: "forte",
+      why: "Link, QR e numeri non verificati possono portarti a pagine clone o finti operatori.",
+      action: "Non usare il link ricevuto. Apri sito o app ufficiale digitando tu l'indirizzo.",
+    },
+    {
+      id: "pressure",
+      text: "La comunicazione ti mette paura, ansia o pressione emotiva?",
+      weight: 18,
+      severity: "forte",
+      why: "Paura, urgenza e pressione emotiva sono usate per farti reagire senza ragionare.",
+      action: "Interrompi il contatto e verifica con calma usando canali ufficiali o persone fidate.",
+    },
   ];
-  const fraudRiskScore = fraudQuestions.reduce((sum, q) => sum + (fraudAnswers[q.id] ? q.weight : 0), 0);
-  const fraudRiskLevel = fraudRiskScore >= 5 ? "alto" : fraudRiskScore >= 3 ? "medio" : "basso";
+
+  const selectedFraudQuestions = fraudQuestions.filter((question) => fraudAnswers[question.id]);
+  const fraudRiskScore = selectedFraudQuestions.reduce((sum, q) => sum + q.weight, 0);
+  const fraudCriticalCount = selectedFraudQuestions.filter((question) => question.severity === "critico").length;
+  const fraudStrongCount = selectedFraudQuestions.filter((question) => question.severity === "forte").length;
+  const baseFraudRiskLevel: FraudRiskLevel =
+    fraudRiskScore >= 70 ? "molto alto" : fraudRiskScore >= 40 ? "alto" : fraudRiskScore >= 20 ? "medio" : "basso";
+  const minimumFraudRiskLevel = selectedFraudQuestions.reduce<FraudRiskLevel>((current, question) => {
+    if (!question.minRisk) return current;
+    return fraudRiskRank[question.minRisk] > fraudRiskRank[current] ? question.minRisk : current;
+  }, "basso");
+  const combinationFraudRiskLevel: FraudRiskLevel =
+    fraudCriticalCount >= 2 || (fraudCriticalCount >= 1 && fraudStrongCount >= 1) ? "molto alto" : minimumFraudRiskLevel;
+  const fraudRiskLevel: FraudRiskLevel =
+    fraudRiskRank[combinationFraudRiskLevel] > fraudRiskRank[baseFraudRiskLevel] ? combinationFraudRiskLevel : baseFraudRiskLevel;
+  const mainFraudSignal = selectedFraudQuestions.find((question) => question.severity === "critico") ?? selectedFraudQuestions[0];
   const fraudPrimaryAction =
-    fraudRiskLevel === "alto"
-      ? "Non procedere. Verifica tramite canale ufficiale."
-      : fraudRiskLevel === "medio"
-        ? "Fermati e verifica prima di continuare."
-        : "Resta prudente e controlla comunque i dettagli.";
+    fraudRiskLevel === "molto alto"
+      ? "Fermati subito. Non pagare, non inviare dati e verifica da un canale ufficiale."
+      : fraudRiskLevel === "alto"
+        ? "Non procedere. Il segnale rilevato e importante e richiede verifica scritta o canale ufficiale."
+        : fraudRiskLevel === "medio"
+          ? "Fermati e verifica prima di continuare."
+          : "Resta prudente e controlla comunque i dettagli.";
 
   const currentScamScenario = scamGameQuestions[scamGameIndex];
   const scamGameComplete = scamGameQuestions.length > 0 && scamGameAnswers.length === scamGameQuestions.length && scamSelectedChoice === null;
@@ -4198,6 +4484,11 @@ const [authReady, setAuthReady] = useState(false);
   const safeGoalEndYear = Math.max(currentYear, goalEndYearNumber);
   const goalDurationYears = safeGoalEndYear - currentYear;
   const goalDurationMonths = goalDurationYears * 12;
+  const draftGoalEndYearNumber = Number(draftGoalEndYear || currentYear);
+  const safeDraftGoalEndYear = Math.max(currentYear, draftGoalEndYearNumber);
+  const draftGoalDurationYears = safeDraftGoalEndYear - currentYear;
+  const draftGoalDurationMonths = draftGoalDurationYears * 12;
+  const goalDraftFormKey = `${selectedPortfolio.key}-${goalTitle}-${goalTarget}-${goalCurrentValue}-${goalPreviousValue}-${goalReason}-${goalEndYear}`;
 
   const goalTargetNumber = Number(goalTarget || 0);
   const goalCurrentNumber = Number(goalCurrentValue || 0);
@@ -5705,23 +5996,56 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   async function loadChecklistFromDb(currentUser: User) {
-    const { data, error } = await supabase
-      .from("user_checklist")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .eq("portfolio_key", selectedPortfolio.key);
+    const portfolioKey = selectedPortfolio.key;
+    const loadKey = `${currentUser.id}:${portfolioKey}`;
 
-    if (error) {
-      console.error("Errore caricamento guida operativa:", error.message);
-      return;
-    }
+    // Evita richieste sovrapposte in sviluppo/refresh sessione: Supabase può
+    // interromperne una con AbortError/lock broken. Non è un errore bloccante.
+    if (checklistLoadKeyRef.current === loadKey) return;
 
-    if (data && data.length > 0) {
-      const mapped: Record<string, boolean> = {};
-      data.forEach((row: any) => {
-        mapped[row.item_id] = !!row.completed;
-      });
-      setChecklistState(mapped);
+    checklistLoadKeyRef.current = loadKey;
+    const requestId = checklistLoadRequestIdRef.current + 1;
+    checklistLoadRequestIdRef.current = requestId;
+
+    try {
+      const { data, error } = await supabase
+        .from("user_checklist")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .eq("portfolio_key", portfolioKey);
+
+      if (requestId !== checklistLoadRequestIdRef.current) return;
+
+      if (error) {
+        const message = getErrorMessage(error);
+        if (isSupabaseLockAbortError(error)) {
+          console.warn("Caricamento guida operativa rimandato: richiesta Supabase sovrapposta.", message);
+        } else {
+          console.error("Errore caricamento guida operativa:", message);
+        }
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const mapped: Record<string, boolean> = {};
+        data.forEach((row: any) => {
+          mapped[row.item_id] = !!row.completed;
+        });
+        setChecklistState(mapped);
+      }
+    } catch (error) {
+      if (requestId !== checklistLoadRequestIdRef.current) return;
+
+      const message = getErrorMessage(error);
+      if (isSupabaseLockAbortError(error)) {
+        console.warn("Caricamento guida operativa rimandato: richiesta Supabase sovrapposta.", message);
+      } else {
+        console.error("Errore caricamento guida operativa:", message);
+      }
+    } finally {
+      if (checklistLoadKeyRef.current === loadKey) {
+        checklistLoadKeyRef.current = null;
+      }
     }
   }
 
@@ -5825,17 +6149,36 @@ const [authReady, setAuthReady] = useState(false);
     }
   }
 
-  async function saveGoalToDb(forceSave = false) {
+  async function saveGoalToDb(
+    forceSave = false,
+    nextGoal?: {
+      title?: string;
+      target?: string;
+      currentValue?: string;
+      previousValue?: string;
+      reason?: GoalChangeReason;
+      endYear?: string;
+      monthly?: string;
+    }
+  ) {
     if (!user || (!goalLoaded && !forceSave)) return;
 
+    const titleToSave = nextGoal?.title ?? goalTitle;
+    const targetToSave = nextGoal?.target ?? goalTarget;
+    const currentValueToSave = nextGoal?.currentValue ?? goalCurrentValue;
+    const previousValueToSave = nextGoal?.previousValue ?? goalPreviousValue;
+    const reasonToSave = nextGoal?.reason ?? goalReason;
+    const endYearToSave = nextGoal?.endYear ?? goalEndYear;
+    const monthlyToSave = nextGoal?.monthly ?? portMonthly;
+
     const storagePayload = {
-      goalTitle,
-      goalTarget,
-      goalCurrentValue,
-      goalPreviousValue,
-      goalReason,
-      goalEndYear,
-      portMonthly,
+      goalTitle: titleToSave,
+      goalTarget: targetToSave,
+      goalCurrentValue: currentValueToSave,
+      goalPreviousValue: previousValueToSave,
+      goalReason: reasonToSave,
+      goalEndYear: endYearToSave,
+      portMonthly: monthlyToSave,
     };
 
     // Salviamo sempre prima in locale: se Supabase ha una policy RLS da correggere,
@@ -5857,13 +6200,13 @@ const [authReady, setAuthReady] = useState(false);
       const payload = {
         user_id: authUserId,
         portfolio_key: selectedPortfolio.key,
-        goal_title: goalTitle,
-        goal_target: Number(goalTarget || 0),
-        goal_current_value: Number(goalCurrentValue || 0),
-        goal_previous_value: Number(goalPreviousValue || 0),
-        goal_reason: goalReason,
-        goal_end_year: Number(goalEndYear || new Date().getFullYear() + 10),
-        pac_monthly: Number(portMonthly || 0),
+        goal_title: titleToSave,
+        goal_target: Number(targetToSave || 0),
+        goal_current_value: Number(currentValueToSave || 0),
+        goal_previous_value: Number(previousValueToSave || 0),
+        goal_reason: reasonToSave,
+        goal_end_year: Number(endYearToSave || new Date().getFullYear() + 10),
+        pac_monthly: Number(monthlyToSave || 0),
         updated_at: new Date().toISOString(),
       };
 
@@ -5893,6 +6236,156 @@ const [authReady, setAuthReady] = useState(false);
     }
   }
 
+  async function saveGoalUpdateFromDashboard() {
+    setGoalSaveStatus("saving");
+
+    const nextGoal = {
+      title: draftGoalTitleRef.current?.value ?? draftGoalTitle,
+      target: draftGoalTargetRef.current?.value ?? draftGoalTarget,
+      currentValue: draftGoalCurrentValueRef.current?.value ?? draftGoalCurrentValue,
+      previousValue: draftGoalPreviousValueRef.current?.value ?? draftGoalPreviousValue,
+      reason: (draftGoalReasonRef.current?.value as GoalChangeReason | undefined) ?? draftGoalReason,
+      endYear: draftGoalEndYearRef.current?.value ?? draftGoalEndYear,
+      monthly: portMonthly,
+    };
+
+    setDraftGoalTitle(nextGoal.title);
+    setDraftGoalTarget(nextGoal.target);
+    setDraftGoalCurrentValue(nextGoal.currentValue);
+    setDraftGoalPreviousValue(nextGoal.previousValue);
+    setDraftGoalReason(nextGoal.reason);
+    setDraftGoalEndYear(nextGoal.endYear);
+    setGoalTitle(nextGoal.title);
+    setGoalTarget(nextGoal.target);
+    setGoalCurrentValue(nextGoal.currentValue);
+    setGoalPreviousValue(nextGoal.previousValue);
+    setGoalReason(nextGoal.reason);
+    setGoalEndYear(nextGoal.endYear);
+
+    try {
+      await saveGoalToDb(true, nextGoal);
+      setGoalSaveStatus("saved");
+      window.setTimeout(() => setGoalSaveStatus("idle"), 2200);
+    } catch {
+      setGoalSaveStatus("error");
+    }
+  }
+
+  async function savePurchaseToDb(nextPurchase: PurchaseState) {
+    if (!user || !nextPurchase.unlocked) return;
+
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const authUserId = authData.user?.id;
+
+      if (authError || !authUserId || authUserId !== user.id) {
+        console.warn("Salvataggio piano su Supabase saltato: utente autenticato non disponibile.");
+        return;
+      }
+
+      const plan = nextPurchase.plan || "core";
+      const paidAmount = nextPurchase.paidAmount ?? (plan === "core" ? 29 : plan === "pro" ? 59 : 0);
+
+      const { error } = await supabase.from("user_purchases").upsert(
+        {
+          user_id: authUserId,
+          email: nextPurchase.email || user.email || "",
+          unlocked: !!nextPurchase.unlocked,
+          plan,
+          paid_amount: paidAmount,
+          selected_portfolio: nextPurchase.selectedPortfolio || null,
+          purchased_at: nextPurchase.purchasedAt || new Date().toISOString(),
+          upgraded_at: nextPurchase.upgradedAt || null,
+          expires_at: nextPurchase.expiresAt || addDaysIso(new Date(), PLAN_VALIDITY_DAYS),
+          last_payment_type: nextPurchase.lastPaymentType || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+
+      if (error) {
+        if (isSupabaseRlsError(error)) {
+          console.warn("Salvataggio piano solo locale: policy RLS da verificare per user_purchases.", error.message);
+        } else {
+          console.warn("Salvataggio piano solo locale: errore Supabase.", error.message);
+        }
+      }
+    } catch (error) {
+      const message = getErrorMessage(error);
+      if (isSupabaseRlsError(error) || isSupabaseLockAbortError(error)) {
+        console.warn("Salvataggio piano solo locale: Supabase non disponibile o policy da verificare.", message);
+      } else {
+        console.warn("Salvataggio piano solo locale: errore non bloccante.", message);
+      }
+    }
+  }
+
+  async function loadPurchaseFromDb(currentUser: User) {
+    try {
+      const { data, error } = await supabase
+        .from("user_purchases")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+
+      if (error) {
+        if (error.code !== "PGRST116") {
+          console.warn("Caricamento piano da Supabase non riuscito:", error.message);
+        }
+        return;
+      }
+
+      if (!data?.unlocked) return;
+
+      const remotePlan = (data.plan === "pro" ? "pro" : "core") as PurchasePlan;
+      const remotePurchase = normalizePurchaseState(
+        {
+          unlocked: !!data.unlocked,
+          email: data.email || currentUser.email || "",
+          selectedPortfolio: data.selected_portfolio || undefined,
+          plan: remotePlan,
+          paidAmount: Number(data.paid_amount ?? (remotePlan === "core" ? 29 : 59)),
+          purchasedAt: data.purchased_at || undefined,
+          upgradedAt: data.upgraded_at || undefined,
+          expiresAt: data.expires_at || undefined,
+          lastPaymentType: data.last_payment_type || undefined,
+        },
+        currentUser.email || ""
+      );
+
+      localStorage.setItem(getPurchaseKey(currentUser.id), JSON.stringify(remotePurchase));
+      purchaseLoadedRef.current = true;
+
+      setPurchase((prev) => ({
+        ...remotePurchase,
+        email: remotePurchase.email || prev.email || "",
+        selectedPortfolio: remotePurchase.selectedPortfolio || prev.selectedPortfolio,
+      }));
+
+      const savedStep = localStorage.getItem(`soldi-semplici-last-step-${currentUser.id}`) as AppStep | null;
+      const allowedPaidSteps: AppStep[] = ["portfolio", "guide", "dashboard", "awareness", "strumentis", "rebalance", "exit"];
+      const shouldAutoRoute = ["home", "quiz", "preview", "paywall", "onboarding"].includes(step);
+
+      if (!remotePurchase.unlocked) {
+        if (shouldAutoRoute || step === "dashboard") setStep("paywall");
+        return;
+      }
+
+      if (savedStep && allowedPaidSteps.includes(savedStep)) {
+        setStep(savedStep);
+      } else if (shouldAutoRoute) {
+        setStep(remotePlan === "core" ? "onboarding" : "dashboard");
+      }
+    } catch (error) {
+      const message = getErrorMessage(error);
+      if (isSupabaseLockAbortError(error)) {
+        console.warn("Caricamento piano da Supabase ignorato per richiesta interrotta:", message);
+      } else {
+        console.warn("Caricamento piano da Supabase non riuscito:", message);
+      }
+    }
+  }
+
   async function saveUserProfile(profile: {
     selected_portfolio: string;
     quiz_answers: number[];
@@ -5916,63 +6409,96 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   async function loadUserProfile(currentUser: User) {
-    const { data, error } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("id", currentUser.id)
-      .single();
+    const loadKey = currentUser.id;
 
-    if (error) {
-      if (error.code !== "PGRST116") {
-        console.error("Errore caricamento profilo:", error.message);
-      }
-      return;
-    }
+    // Evita richieste duplicate durante boot, login/logout o refresh sessione.
+    // In sviluppo Next/React Supabase può interrompere una richiesta sovrapposta
+    // con AbortError/lock broken: non deve aprire l'overlay di errore.
+    if (profileLoadKeyRef.current === loadKey) return;
 
-    if (data) {
-      const savedPortfolio = data.selected_portfolio || undefined;
-      const localPurchaseRaw = localStorage.getItem(getPurchaseKey(currentUser.id));
-      let localPurchase: PurchaseState | null = null;
+    profileLoadKeyRef.current = loadKey;
 
-      try {
-        localPurchase = localPurchaseRaw ? JSON.parse(localPurchaseRaw) : null;
-      } catch {
-        localPurchase = null;
-      }
+    try {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", currentUser.id)
+        .single();
 
-      const paidUnlocked = !!localPurchase?.unlocked;
-
-      setPurchase((prev) => {
-        const shouldStayUnlocked = !!prev.unlocked || paidUnlocked;
-        const resolvedPlan = prev.unlocked ? prev.plan : localPurchase?.plan;
-        const resolvedPaidAmount =
-          prev.unlocked
-            ? prev.paidAmount ?? (prev.plan === "core" ? 29 : prev.plan === "pro" ? 59 : 0)
-            : localPurchase?.paidAmount ?? (localPurchase?.plan === "core" ? 29 : localPurchase?.plan === "pro" ? 59 : 0);
-
-        return {
-          unlocked: shouldStayUnlocked,
-          email: data.email || currentUser.email || prev.email || "",
-          selectedPortfolio: savedPortfolio || prev.selectedPortfolio,
-          plan: resolvedPlan,
-          paidAmount: resolvedPaidAmount,
-        };
-      });
-
-      if (Array.isArray(data.quiz_answers) && data.quiz_answers.length === questions.length) {
-        setAnswers(data.quiz_answers);
-      }
-
-      if (savedPortfolio) {
-        const savedStep = localStorage.getItem(`soldi-semplici-last-step-${currentUser.id}`) as AppStep | null;
-        const allowedPaidSteps: AppStep[] = ["portfolio", "guide", "dashboard", "awareness", "strumentis", "rebalance", "exit"];
-        const shouldAutoRoute = ["home", "quiz", "preview", "paywall", "onboarding"].includes(step);
-
-        if (paidUnlocked && savedStep && allowedPaidSteps.includes(savedStep)) {
-          setStep(savedStep);
-        } else if (shouldAutoRoute) {
-          setStep(paidUnlocked ? "dashboard" : "portfolio");
+      if (error) {
+        if (error.code !== "PGRST116") {
+          const message = getErrorMessage(error);
+          if (isSupabaseLockAbortError(error)) {
+            console.warn("Caricamento profilo rimandato: richiesta Supabase sovrapposta.", message);
+          } else {
+            console.error("Errore caricamento profilo:", message);
+          }
         }
+        return;
+      }
+
+      if (data) {
+        const savedPortfolio = data.selected_portfolio || undefined;
+        const localPurchaseRaw = localStorage.getItem(getPurchaseKey(currentUser.id));
+        let localPurchase: PurchaseState | null = null;
+
+        try {
+          localPurchase = localPurchaseRaw ? normalizePurchaseState(JSON.parse(localPurchaseRaw), currentUser.email || "") : null;
+        } catch {
+          localPurchase = null;
+        }
+
+        const paidUnlocked = !!localPurchase?.unlocked;
+
+        setPurchase((prev) => {
+          const sourcePurchase = prev.unlocked ? prev : localPurchase || prev;
+          const shouldStayUnlocked = !!prev.unlocked || paidUnlocked;
+          const resolvedPlan = prev.unlocked ? prev.plan : localPurchase?.plan;
+          const resolvedPaidAmount =
+            prev.unlocked
+              ? prev.paidAmount ?? (prev.plan === "core" ? 29 : prev.plan === "pro" ? 59 : 0)
+              : localPurchase?.paidAmount ?? (localPurchase?.plan === "core" ? 29 : localPurchase?.plan === "pro" ? 59 : 0);
+
+          return {
+            ...sourcePurchase,
+            unlocked: shouldStayUnlocked,
+            email: data.email || currentUser.email || prev.email || "",
+            selectedPortfolio: savedPortfolio || prev.selectedPortfolio || localPurchase?.selectedPortfolio,
+            plan: resolvedPlan,
+            paidAmount: resolvedPaidAmount,
+            purchasedAt: sourcePurchase.purchasedAt,
+            upgradedAt: sourcePurchase.upgradedAt,
+            expiresAt: sourcePurchase.expiresAt,
+            lastPaymentType: sourcePurchase.lastPaymentType,
+          };
+        });
+
+        if (Array.isArray(data.quiz_answers) && data.quiz_answers.length === questions.length) {
+          setAnswers(data.quiz_answers);
+        }
+
+        if (savedPortfolio) {
+          const savedStep = localStorage.getItem(`soldi-semplici-last-step-${currentUser.id}`) as AppStep | null;
+          const allowedPaidSteps: AppStep[] = ["portfolio", "guide", "dashboard", "awareness", "strumentis", "rebalance", "exit"];
+          const shouldAutoRoute = ["home", "quiz", "preview", "paywall", "onboarding"].includes(step);
+
+          if (paidUnlocked && savedStep && allowedPaidSteps.includes(savedStep)) {
+            setStep(savedStep);
+          } else if (shouldAutoRoute) {
+            setStep(paidUnlocked ? "dashboard" : "portfolio");
+          }
+        }
+      }
+    } catch (error) {
+      const message = getErrorMessage(error);
+      if (isSupabaseLockAbortError(error)) {
+        console.warn("Caricamento profilo rimandato: richiesta Supabase sovrapposta.", message);
+      } else {
+        console.error("Errore caricamento profilo:", message);
+      }
+    } finally {
+      if (profileLoadKeyRef.current === loadKey) {
+        profileLoadKeyRef.current = null;
       }
     }
   }
@@ -6069,18 +6595,31 @@ const [authReady, setAuthReady] = useState(false);
   async function unlockPlan(plan: PurchasePlan = "core") {
     const finalPortfolio = purchase.selectedPortfolio || scoreResult.finalPortfolio;
     const currentPaid = purchase.paidAmount ?? (purchase.plan === "core" ? 29 : purchase.plan === "pro" ? 59 : 0);
+    const now = new Date();
+    const isActiveCoreUpgrade = plan === "pro" && purchase.unlocked && purchase.plan === "core" && isPurchaseDateValid(purchase.expiresAt);
+    const isRenewal = !purchase.unlocked && !!purchase.expiresAt;
     const nextPaidAmount = plan === "pro" ? 59 : Math.max(currentPaid, 29);
+    const paymentType: PurchasePaymentType = isActiveCoreUpgrade
+      ? "upgrade_core_to_pro"
+      : plan === "pro"
+        ? isRenewal ? "renew_pro" : "new_pro"
+        : isRenewal ? "renew_core" : "new_core";
     const updatedPurchase: PurchaseState = {
       unlocked: true,
       email: user?.email || purchase.email,
       selectedPortfolio: finalPortfolio,
       plan,
       paidAmount: nextPaidAmount,
+      purchasedAt: isActiveCoreUpgrade ? purchase.purchasedAt || now.toISOString() : now.toISOString(),
+      upgradedAt: isActiveCoreUpgrade ? now.toISOString() : undefined,
+      expiresAt: addDaysIso(now, PLAN_VALIDITY_DAYS),
+      lastPaymentType: paymentType,
     };
 
     setPurchase(updatedPurchase);
     if (user) {
       localStorage.setItem(getPurchaseKey(user.id), JSON.stringify(updatedPurchase));
+      await savePurchaseToDb(updatedPurchase);
     }
 
     if (plan === "core") {
@@ -6101,10 +6640,10 @@ const [authReady, setAuthReady] = useState(false);
     });
 
     if (plan === "core") {
-      await trackEvent("buy_core", { amount: 29, portfolio: portfolioMap[finalPortfolio].title });
+      await trackEvent("buy_core", { amount: 29, validity_days: PLAN_VALIDITY_DAYS, portfolio: portfolioMap[finalPortfolio].title });
     } else {
-      const eventName = currentPaid >= 29 ? "upgrade_pro" : "buy_pro";
-      await trackEvent(eventName, { amount: Math.max(59 - currentPaid, 0), portfolio: portfolioMap[finalPortfolio].title });
+      const eventName = isActiveCoreUpgrade ? "upgrade_pro" : "buy_pro";
+      await trackEvent(eventName, { amount: isActiveCoreUpgrade ? 30 : 59, validity_days: PLAN_VALIDITY_DAYS, portfolio: portfolioMap[finalPortfolio].title });
     }
 
     setShowProUpgradeModal(false);
@@ -6230,10 +6769,9 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   function goToFirstTimeGuide() {
-    setStep("dashboard");
+    setStep("guide");
     window.setTimeout(() => {
       window.scrollTo({ top: 0, behavior: "auto" });
-      document.getElementById("prima-volta-qui")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 120);
   }
 
@@ -6284,7 +6822,7 @@ const [authReady, setAuthReady] = useState(false);
   function resetClientState() {
     setAnswers(Array(questions.length).fill(-1));
     setCurrentQuestion(0);
-    setPurchase({ unlocked: false, email: user?.email || "", selectedPortfolio: undefined, paidAmount: 0 });
+    setPurchase({ unlocked: false, email: user?.email || "", selectedPortfolio: undefined, paidAmount: 0, expiresAt: undefined, purchasedAt: undefined, upgradedAt: undefined, lastPaymentType: undefined });
     setHoldings([]);
     setChecklistState({});
     setPacHistory(generateRecentMonths(12).map((month) => ({ month, completed: false })));
@@ -6324,6 +6862,7 @@ const [authReady, setAuthReady] = useState(false);
       supabase.from("user_checklist").delete().eq("user_id", user.id),
       supabase.from("user_goals").delete().eq("user_id", user.id),
       supabase.from("user_custom_instruments").delete().eq("user_id", user.id),
+      supabase.from("user_purchases").delete().eq("user_id", user.id),
     ]);
 
     // Seconda protezione per i test: se la DELETE del profilo non passa per policy/RLS,
@@ -6357,12 +6896,25 @@ const [authReady, setAuthReady] = useState(false);
     setProfileResetMessage("Profilo azzerato. Puoi rifare il test come nuovo utente.");
   }
 
-  if (!authReady) {
+  if (!authReady || (user && appBootLoading)) {
     return (
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto flex min-h-screen max-w-xl items-center justify-center px-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-            <p className="text-lg font-semibold">Caricamento in corso...</p>
+          <div className="w-full rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto inline-flex rounded-3xl border border-emerald-100 bg-white/90 p-4 shadow-sm">
+              <SoldiSempliciLogo size="compact" showTagline={false} />
+            </div>
+            <div className="mx-auto mt-6 h-2 w-40 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full w-1/2 animate-pulse rounded-full bg-emerald-600" />
+            </div>
+            <p className="mt-6 text-lg font-bold text-slate-950">
+              {user ? "Sto preparando la tua area personale..." : "Caricamento in corso..."}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              {user
+                ? "Controllo piano, profilo e dati principali prima di aprire la Dashboard."
+                : "Verifico la sessione prima di mostrarti l'app."}
+            </p>
           </div>
         </div>
       </main>
@@ -6926,6 +7478,10 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
+            {(purchase.expiresAt || isCorePlan) && (
+              <PlanValidityBox purchase={purchase} context="paywall" />
+            )}
+
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="relative rounded-3xl border-2 border-slate-900 bg-white p-8 shadow-sm">
                 <div className="absolute right-6 top-6 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
@@ -6963,7 +7519,7 @@ const [authReady, setAuthReady] = useState(false);
                 <h3 className="mt-3 text-4xl font-bold tracking-tight">{isCorePlan ? proPriceToPay + " EUR upgrade" : "59 EUR / anno"}</h3>
                 <p className="mt-4 text-sm leading-6 text-slate-600">
                   Il Pro e pensato per una fase piu matura: dal secondo anno, oppure quando il portafoglio cresce e vuoi gestire scostamenti, ribilanciamento e strategie di uscita.
-                  {isCorePlan ? " Hai gia il Core: per passare al Pro paghi solo la differenza, " + proPriceToPay + " EUR." : ""}
+                  {isCorePlan ? " Hai gia il Core: per passare al Pro paghi 30 EUR e il piano Pro sara valido per 365 giorni dalla data di upgrade." : ""}
                 </p>
                 <div className="mt-6 rounded-2xl bg-slate-50 p-5">
                   <p className="text-sm font-bold text-slate-900">Include tutto il Core, piu:</p>
@@ -6981,7 +7537,7 @@ const [authReady, setAuthReady] = useState(false);
                   onClick={requestProUpgrade}
                   className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isCorePlan ? "Passa a Pro - paghi " + proPriceToPay + " EUR" : "Passa al livello avanzato - 59 EUR/anno"}
+                  {isCorePlan ? "Passa a Pro - paghi 30 EUR" : "Passa al livello avanzato - 59 EUR/anno"}
                 </button>
               </div>
             </div>
@@ -9199,7 +9755,7 @@ const [authReady, setAuthReady] = useState(false);
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Motore anti-truffe</p>
                     <h3 className="mt-2 text-2xl font-bold tracking-tight">Controlla prima di cliccare o pagare</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Questo motore resta disponibile: seleziona il contesto e spunta i segnali che noti per ottenere una lettura rapida del rischio.
+                      Questo motore resta disponibile: seleziona il contesto e spunta i segnali che noti. Alcuni segnali critici, come codici, password, accesso remoto o spostamento di denaro, alzano subito il rischio anche se sono l'unico elemento presente.
                     </p>
 
                     <label className="mt-5 block text-sm font-medium text-slate-700">
@@ -9225,7 +9781,14 @@ const [authReady, setAuthReady] = useState(false);
                             fraudAnswers[question.id] ? "border-red-300 bg-red-50" : "border-slate-200 bg-white hover:bg-slate-50"
                           }`}
                         >
-                          <span className="font-medium text-slate-800">{question.text}</span>
+                          <span className="space-y-1">
+                            <span className="block font-medium text-slate-800">{question.text}</span>
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                              question.severity === "critico" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+                            }`}>
+                              {question.severity === "critico" ? "Segnale critico" : "Segnale forte"}
+                            </span>
+                          </span>
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                             {fraudAnswers[question.id] ? "Si" : "No"}
                           </span>
@@ -9246,16 +9809,41 @@ const [authReady, setAuthReady] = useState(false);
 
                   <div className="space-y-4">
                     <div className={`rounded-3xl border p-6 shadow-sm ${
-                      fraudRiskLevel === "alto"
-                        ? "border-red-200 bg-red-50"
-                        : fraudRiskLevel === "medio"
-                          ? "border-amber-200 bg-amber-50"
-                          : "border-emerald-200 bg-emerald-50"
+                      fraudRiskLevel === "molto alto"
+                        ? "border-red-300 bg-red-50"
+                        : fraudRiskLevel === "alto"
+                          ? "border-red-200 bg-red-50"
+                          : fraudRiskLevel === "medio"
+                            ? "border-amber-200 bg-amber-50"
+                            : "border-emerald-200 bg-emerald-50"
                     }`}>
                       <p className="text-sm font-semibold uppercase tracking-[0.2em]">Rischio stimato</p>
                       <h3 className="mt-2 text-4xl font-bold tracking-tight">{fraudRiskLevel.toUpperCase()}</h3>
                       <p className="mt-3 text-base font-semibold">{fraudPrimaryAction}</p>
                       <p className="mt-2 text-sm leading-6">Score: {fraudRiskScore}. Contesto: {fraudContext}.</p>
+                      {mainFraudSignal && (
+                        <div className="mt-4 rounded-2xl bg-white/80 p-4 text-sm leading-6 ring-1 ring-slate-200">
+                          <p className="font-bold text-slate-950">Segnale principale: {mainFraudSignal.text}</p>
+                          <p className="mt-2 text-slate-700"><strong>Perche conta:</strong> {mainFraudSignal.why}</p>
+                          <p className="mt-2 text-slate-700"><strong>Cosa fare:</strong> {mainFraudSignal.action}</p>
+                        </div>
+                      )}
+                      {selectedFraudQuestions.length > 1 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {selectedFraudQuestions.map((question) => (
+                            <span
+                              key={question.id}
+                              className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                                question.severity === "critico"
+                                  ? "bg-red-100 text-red-800 ring-red-200"
+                                  : "bg-amber-100 text-amber-800 ring-amber-200"
+                              }`}
+                            >
+                              {question.severity === "critico" ? "Critico" : "Forte"}: {question.text}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -9322,6 +9910,8 @@ const [authReady, setAuthReady] = useState(false);
                 </div>
               </div>
             </div>
+
+            <PlanValidityBox purchase={purchase} compact />
 
             <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-6 shadow-sm md:p-8">
               <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-center">
@@ -9904,14 +10494,15 @@ const [authReady, setAuthReady] = useState(false);
                     Inserisci manualmente il valore aggiornato del capitale. Questo dato puo includere fluttuazioni di mercato, prelievi o variazioni che gli holdings non mostrano. Non serve aggiornarlo ogni giorno: usalo per avere consapevolezza, non per reagire al mercato.
                   </p>
 
-                  <div className="mt-5 space-y-4">
+                  <div key={goalDraftFormKey} className="mt-5 space-y-4">
                     <div>
                       <label className="text-sm font-medium text-slate-700">
                         Nome obiettivo
                       </label>
                       <input
-                        value={goalTitle}
-                        onChange={(e) => setGoalTitle(e.target.value)}
+                        ref={draftGoalTitleRef}
+                        defaultValue={draftGoalTitle}
+                        onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
                         placeholder="Es. Liberta finanziaria"
                         className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
                       />
@@ -9923,8 +10514,9 @@ const [authReady, setAuthReady] = useState(false);
                           Valore attuale aggiornato
                         </label>
                         <input
-                          value={goalCurrentValue}
-                          onChange={(e) => setGoalCurrentValue(e.target.value)}
+                          ref={draftGoalCurrentValueRef}
+                          defaultValue={draftGoalCurrentValue}
+                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
                           placeholder="Es. 12000"
                           className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
                         />
@@ -9935,8 +10527,9 @@ const [authReady, setAuthReady] = useState(false);
                           Valore precedente
                         </label>
                         <input
-                          value={goalPreviousValue}
-                          onChange={(e) => setGoalPreviousValue(e.target.value)}
+                          ref={draftGoalPreviousValueRef}
+                          defaultValue={draftGoalPreviousValue}
+                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
                           placeholder="Es. 10000"
                           className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
                         />
@@ -9949,8 +10542,9 @@ const [authReady, setAuthReady] = useState(false);
                           Target finale
                         </label>
                         <input
-                          value={goalTarget}
-                          onChange={(e) => setGoalTarget(e.target.value)}
+                          ref={draftGoalTargetRef}
+                          defaultValue={draftGoalTarget}
+                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
                           placeholder="Es. 100000"
                           className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
                         />
@@ -9962,8 +10556,10 @@ const [authReady, setAuthReady] = useState(false);
                         </label>
                         <input
                           type="number"
-                          value={goalEndYear}
-                          onChange={(e) => setGoalEndYear(e.target.value)}
+                          ref={draftGoalEndYearRef}
+                          defaultValue={draftGoalEndYear}
+                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
+                          onBlur={(e) => setDraftGoalEndYear(e.target.value)}
                           placeholder="Es. 2055"
                           className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
                         />
@@ -9975,10 +10571,10 @@ const [authReady, setAuthReady] = useState(false);
                         Durata calcolata
                       </p>
                       <p className="mt-2 text-lg font-bold text-slate-900">
-                        {goalDurationYears} anni - {goalDurationMonths} mesi
+                        {draftGoalDurationYears} anni - {draftGoalDurationMonths} mesi
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        Calcolata automaticamente dall'anno corrente fino al {safeGoalEndYear}.
+                        Calcolata automaticamente dall'anno corrente fino al {safeDraftGoalEndYear}.
                       </p>
                     </div>
 
@@ -9987,7 +10583,7 @@ const [authReady, setAuthReady] = useState(false);
                         Salvataggio
                       </p>
                       <p className="mt-2 text-sm leading-6 text-emerald-900">
-                        I dati dell'obiettivo e il PAC mensile vengono salvati automaticamente su Supabase e ricaricati dopo refresh o nuovo accesso.
+                        I campi restano fluidi mentre scrivi. Quando hai finito, premi <strong>Salva aggiornamento</strong>: l'app aggiorna la Dashboard e salva su Supabase.
                       </p>
                     </div>
 
@@ -9996,8 +10592,9 @@ const [authReady, setAuthReady] = useState(false);
                         Motivo del cambiamento
                       </label>
                       <select
-                        value={goalReason}
-                        onChange={(e) => setGoalReason(e.target.value as GoalChangeReason)}
+                        ref={draftGoalReasonRef}
+                        defaultValue={draftGoalReason}
+                        onChange={() => setGoalSaveStatus("idle")}
                         className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
                       >
                         <option value="stabile">Aggiornamento periodico</option>
@@ -10005,6 +10602,23 @@ const [authReady, setAuthReady] = useState(false);
                         <option value="prelievo">Ho usato parte dei soldi</option>
                         <option value="mercato">Oscillazione di mercato</option>
                       </select>
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <button
+                        type="button"
+                        onClick={saveGoalUpdateFromDashboard}
+                        disabled={goalSaveStatus === "saving"}
+                        className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {goalSaveStatus === "saving" ? "Salvataggio..." : "Salva aggiornamento"}
+                      </button>
+                      {goalSaveStatus === "saved" ? (
+                        <span className="text-sm font-semibold text-emerald-700">Aggiornamento salvato.</span>
+                      ) : null}
+                      {goalSaveStatus === "error" ? (
+                        <span className="text-sm font-semibold text-rose-700">Salvataggio non riuscito. Riprova.</span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -10743,7 +11357,7 @@ const [authReady, setAuthReady] = useState(false);
                   onClick={requestProUpgrade}
                   className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isCorePlan ? "Passa a Pro - paghi " + proPriceToPay + " EUR" : "Vedi piano Pro"}
+                  {isCorePlan ? "Passa a Pro - paghi 30 EUR" : "Vedi piano Pro"}
                 </button>
               </div>
             ) : (
@@ -11044,7 +11658,7 @@ const [authReady, setAuthReady] = useState(false);
                   onClick={requestProUpgrade}
                   className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isCorePlan ? "Passa a Pro - paghi " + proPriceToPay + " EUR" : "Vedi piano Pro"}
+                  {isCorePlan ? "Passa a Pro - paghi 30 EUR" : "Vedi piano Pro"}
                 </button>
               </div>
             ) : (
@@ -11637,6 +12251,49 @@ function MetricCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm h-full flex flex-col justify-between">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 truncate">{label}</p>
       <p className="mt-2 text-lg font-bold tracking-tight text-slate-900 break-words">{value}</p>
+    </div>
+  );
+}
+
+
+function PlanValidityBox({
+  purchase,
+  compact = false,
+  context = "dashboard",
+}: {
+  purchase: PurchaseState;
+  compact?: boolean;
+  context?: "dashboard" | "paywall" | "pro";
+}) {
+  const status = getPurchaseStatusCopy(purchase);
+  const tone = status.isActive ? "emerald" : "amber";
+  const days = status.days ?? 0;
+
+  return (
+    <div className={`rounded-3xl border p-5 shadow-sm ${tone === "emerald" ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className={`text-xs font-bold uppercase tracking-[0.2em] ${tone === "emerald" ? "text-emerald-700" : "text-amber-700"}`}>Validita piano</p>
+          <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950">{status.statusLabel}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-700">
+            {status.isActive ? <>Valido fino al <strong>{status.expiresLabel}</strong>.</> : <>Scadenza: <strong>{status.expiresLabel}</strong>.</>}
+          </p>
+          {!compact && context === "paywall" && purchase.plan === "core" && status.isActive && (
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              Passando a Pro oggi paghi 30 EUR e il piano Pro riparte per 365 giorni dalla data di upgrade.
+            </p>
+          )}
+          {!compact && context === "pro" && purchase.plan === "core" && status.isActive && (
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              Hai Core attivo: puoi passare a Pro pagando solo la differenza. Il Pro sara valido per 365 giorni dall'upgrade.
+            </p>
+          )}
+        </div>
+        <div className="rounded-2xl bg-white px-5 py-4 text-center shadow-sm ring-1 ring-white/70">
+          <p className="text-3xl font-black tracking-tight text-slate-950">{days}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">giorni rimasti</p>
+        </div>
+      </div>
     </div>
   );
 }
