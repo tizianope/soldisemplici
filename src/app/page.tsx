@@ -17,6 +17,7 @@ type TrackingEventName =
   | "buy_pro"
   | "upgrade_pro"
   | "open_rebalance"
+  | "open_rebalance_from_guide"
   | "open_exit_strategy";
 
 function getTrackingSessionId() {
@@ -266,6 +267,8 @@ type AppStep =
   | "dashboard"
   | "rebalance"
   | "exit";
+
+type DashboardTab = "monitor" | "guida" | "portafoglio" | "progressi";
 
 type ChecklistItem = {
   id: string;
@@ -814,14 +817,7 @@ const checklistItems: ChecklistItem[] = [
     group: "mantenimento",
     title: "Controlla una volta al mese",
     description:
-      "Apri l'app una volta al mese è verifica che il PAC sia stato eseguito. Non serve controllare ogni giorno: la costanza conta più della frequenza.",
-  },
-  {
-    id: "rebalance",
-    group: "mantenimento",
-    title: "Ribilancia solo quando serve",
-    description:
-      "Se il modello si allontana molto dal target, valuta un ribilanciamento. Non è urgente: e manutenzione periodica.",
+      "Apri l'app una volta al mese e verifica che il PAC sia stato eseguito. Non serve controllare ogni giorno: la costanza conta più della frequenza.",
   },
   {
     id: "aggiorna_capitale",
@@ -829,6 +825,13 @@ const checklistItems: ChecklistItem[] = [
     title: "Aggiorna il capitale",
     description:
       "Aggiorna il valore totale del capitale quando cambia in modo rilevante. Serve per mantenere consapevolezza, non per reagire al mercato.",
+  },
+  {
+    id: "rebalance",
+    group: "mantenimento",
+    title: "Ribilancia solo quando serve",
+    description:
+      "Il ribilanciamento non va fatto spesso: in genere ha senso valutarlo una volta ogni uno o due anni, oppure quando il portafoglio si allontana molto dal modello. È manutenzione periodica, non una reazione emotiva al mercato.",
   },
 ];
 
@@ -2285,6 +2288,9 @@ const [authReady, setAuthReady] = useState(false);
   const [progressStartMonth, setProgressStartMonth] = useState("");
 
   const [step, setStep] = useState<AppStep>("home");
+  const [dashboardActiveTab, setDashboardActiveTab] = useState<DashboardTab>("monitor");
+  const [showPacHistoryMonths, setShowPacHistoryMonths] = useState(false);
+  const dashboardRouteKeyRef = useRef("");
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>(Array(questions.length).fill(-1));
   const [showRetakeWarning, setShowRetakeWarning] = useState(false);
@@ -4862,9 +4868,21 @@ const [authReady, setAuthReady] = useState(false);
       .sort((a, b) => b.amount - a.amount);
   }, [investedByCategory, totalInvested]);
 
+  const isBondCategory = (category: StrumentiCategory) => category.startsWith("Obbligazioni");
+  const matchesPortfolioCategory = (holdingCategory: StrumentiCategory, targetCategory: StrumentiCategory) => {
+    if (holdingCategory === targetCategory) return true;
+    return isBondCategory(holdingCategory) && isBondCategory(targetCategory);
+  };
+
+  const getInvestedAmountForPortfolioCategory = (targetCategory: StrumentiCategory) => {
+    return holdings.reduce((sum, item) => {
+      return matchesPortfolioCategory(item.category, targetCategory) ? sum + item.amount : sum;
+    }, 0);
+  };
+
   const targetCoverage = useMemo(() => {
     return selectedPortfolio.composition.map((item) => {
-      const currentAmount = investedByCategory[item.category] || 0;
+      const currentAmount = getInvestedAmountForPortfolioCategory(item.category);
       const currentPercentage = totalInvested > 0 ? Math.round((currentAmount / totalInvested) * 100) : 0;
       const delta = currentPercentage - item.percentage;
 
@@ -4877,7 +4895,7 @@ const [authReady, setAuthReady] = useState(false);
         delta,
       };
     });
-  }, [selectedPortfolio, investedByCategory, totalInvested]);
+  }, [selectedPortfolio, holdings, totalInvested]);
 
   const biggestGap = useMemo(() => {
     if (targetCoverage.length === 0) return null;
@@ -5407,7 +5425,7 @@ const [authReady, setAuthReady] = useState(false);
     monthlyAllocationPlan.length > 0 && checkedAllocationCount === monthlyAllocationPlan.length;
 
   const monthlyAllocationAlignedCount = monthlyAllocationPlan.filter((item) => {
-    const investedAmount = investedByCategory[item.category] || 0;
+    const investedAmount = getInvestedAmountForPortfolioCategory(item.category);
     return item.roundedAmount > 0 && Math.abs(investedAmount - item.roundedAmount) <= 1;
   }).length;
   const monthlyAllocationIsAligned =
@@ -5467,6 +5485,17 @@ const [authReady, setAuthReady] = useState(false);
   const currentMonthLabel = getMonthLabel(currentMonthKey);
   const currentMonthCompleted = !!currentMonthEntry?.completed;
   const hasStartedPac = pacCompletedMonths > 0;
+
+  useEffect(() => {
+    if (!hasStartedPac || checklistState.pac_start) return;
+
+    setChecklistState((prev) => {
+      if (prev.pac_start) return prev;
+      return { ...prev, pac_start: true };
+    });
+    saveChecklistItemToDb("pac_start", true);
+  }, [hasStartedPac, checklistState.pac_start, selectedPortfolio.key, user?.id]);
+
   const nextChainTarget =
     currentStreak >= 12
       ? 12
@@ -7572,25 +7601,36 @@ const [authReady, setAuthReady] = useState(false);
     savePacMonthToDb(month, nextValue);
   }
 
-  function goToDashboardSection(sectionId: string) {
+  function openDashboardTab(tab: DashboardTab) {
     setStep("dashboard");
-    window.setTimeout(() => {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 80);
-  }
-
-  function goBackToGuideFromDashboard() {
-    setStep("guide");
+    setDashboardActiveTab(tab);
     window.setTimeout(() => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }, 80);
   }
 
-  function goToFirstTimeGuide() {
-    setStep("guide");
+  function goToDashboardSection(sectionId: string) {
+    const monitorSections = new Set(["azione-del-mese", "storico-pac", "validita-piano"]);
+    const guideSections = new Set(["prima-volta-qui"]);
+    const tab: DashboardTab = guideSections.has(sectionId)
+      ? "guida"
+      : monitorSections.has(sectionId)
+      ? "monitor"
+      : "portafoglio";
+
+    setStep("dashboard");
+    setDashboardActiveTab(tab);
     window.setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: "auto" });
-    }, 120);
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 160);
+  }
+
+  function goBackToGuideFromDashboard() {
+    openDashboardTab("guida");
+  }
+
+  function goToFirstTimeGuide() {
+    openDashboardTab("guida");
   }
 
   function getChecklistToolAction(id: string): { label: string; onClick: () => void } | null {
@@ -7601,8 +7641,15 @@ const [authReady, setAuthReady] = useState(false);
       strumenti: null,
       percentuali: { label: "Calcola quote PAC", onClick: () => goToDashboardSection("aggiungi-investimento") },
       pac_start: { label: "Segna PAC del mese", onClick: () => goToDashboardSection("azione-del-mese") },
-      controllo: { label: "Apri controllo mensile", onClick: () => goToDashboardSection("pac-mensile") },
-      rebalance: { label: "Controlla ripartizione", onClick: () => goToDashboardSection("ripartizione-attuale") },
+      controllo: null,
+      rebalance: {
+        label: "Ribilanciamento",
+        onClick: () => {
+          void trackEvent("open_rebalance_from_guide");
+          setStep("rebalance");
+          window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
+        },
+      },
       aggiorna_capitale: { label: "Aggiorna capitale", onClick: () => goToDashboardSection("obiettivo-personale") },
     };
 
@@ -7713,6 +7760,19 @@ const [authReady, setAuthReady] = useState(false);
 
     setProfileResetMessage("Profilo azzerato. Puoi rifare il test come nuovo utente.");
   }
+
+  useEffect(() => {
+    if (step !== "dashboard") {
+      dashboardRouteKeyRef.current = "";
+      return;
+    }
+
+    const routeKey = `${user?.id || "anon"}:${setupCompleted ? "ready" : "setup"}`;
+    if (dashboardRouteKeyRef.current === routeKey) return;
+
+    dashboardRouteKeyRef.current = routeKey;
+    setDashboardActiveTab(setupCompleted ? "monitor" : "guida");
+  }, [step, setupCompleted, user?.id]);
 
   if (!authReady || (user && appBootLoading)) {
     return (
@@ -7941,9 +8001,9 @@ const [authReady, setAuthReady] = useState(false);
           userEmail={user.email || ""}
           onGoHome={goToSafeHome}
           onGoPortfolio={() => setStep("portfolio")}
-          onGoGuide={() => setStep("guide")}
+          onGoGuide={() => openDashboardTab("guida")}
           onGoAwareness={() => setStep("awareness")}
-          onGoStrumentis={() => setStep("strumentis")}
+          onGoStrumentis={() => openDashboardTab("portafoglio")}
           onGoDashboard={() => setStep("dashboard")}
           onGoRebalance={() => {
             void trackEvent("open_rebalance");
@@ -8548,7 +8608,7 @@ const [authReady, setAuthReady] = useState(false);
                   Hai visto il modello. Ora segui la guida operativa per capire cosa fare, in che ordine e quali strumenti usare.
                 </p>
                 <button
-                  onClick={() => setStep("guide")}
+                  onClick={() => openDashboardTab("guida")}
                   className="mt-5 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
                 >
                   Attiva il mio piano
@@ -8577,7 +8637,7 @@ const [authReady, setAuthReady] = useState(false);
               <button
                 onClick={async () => {
                   if (purchase.unlocked) {
-                    setStep("guide");
+                    openDashboardTab("guida");
                   } else {
                     await trackEvent("click_paywall", { source: "portfolio_bottom_cta" });
                     goToPaywallTop();
@@ -8745,7 +8805,7 @@ const [authReady, setAuthReady] = useState(false);
                   </p>
                 </div>
                 <button
-                  onClick={() => setStep("guide")}
+                  onClick={() => openDashboardTab("guida")}
                   className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700"
                 >
                   Torna alla guida operativa
@@ -10787,7 +10847,79 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
-            <PlanValidityBox purchase={purchase} compact />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {([
+                {
+                  id: "monitor",
+                  icon: "📊",
+                  eyebrow: "Stato generale",
+                  title: "Monitor",
+                  text: "Piano, obiettivo, PAC e segnali principali in una vista breve.",
+                  badge: setupCompleted ? "Vista principale" : "Dopo la guida",
+                },
+                {
+                  id: "guida",
+                  icon: "🧭",
+                  eyebrow: "Percorso",
+                  title: "Guida",
+                  text: "I primi passi e le azioni mensili da completare con ordine.",
+                  badge: setupCompleted ? "Disponibile" : "Da completare",
+                },
+                {
+                  id: "portafoglio",
+                  icon: "💼",
+                  eyebrow: "Operativo",
+                  title: "Portafoglio",
+                  text: "Registra investimenti, controlla la ripartizione e gestisci gli strumenti.",
+                  badge: holdings.length ? `${holdings.length} investimenti` : "Da compilare",
+                },
+                {
+                  id: "progressi",
+                  icon: "🏅",
+                  eyebrow: "Percorso lungo",
+                  title: "Progressi",
+                  text: "Badge, titolo investitore e avanzamento nel tempo.",
+                  badge: `${unlockedBadges.length}/${badges.length} badge`,
+                },
+              ] as const).map((card) => {
+                const active = dashboardActiveTab === card.id;
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={() => setDashboardActiveTab(card.id)}
+                    className={`group relative overflow-hidden rounded-3xl border p-5 text-left transition-all duration-300 ${
+                      active
+                        ? "border-emerald-400 bg-emerald-50 shadow-sm ring-2 ring-emerald-100"
+                        : "border-slate-200 bg-white shadow-sm hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-slate-50 hover:shadow-md"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl transition ${
+                        active ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 group-hover:bg-emerald-100"
+                      }`}>
+                        {card.icon}
+                      </div>
+                      <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                        active ? "bg-white text-emerald-700 ring-1 ring-emerald-200" : "bg-slate-50 text-slate-500 ring-1 ring-slate-200"
+                      }`}>
+                        {active ? "Scheda aperta" : "Apri"}
+                      </span>
+                    </div>
+                    <p className={`mt-4 text-xs font-semibold uppercase tracking-[0.2em] ${active ? "text-emerald-700" : "text-slate-500"}`}>{card.eyebrow}</p>
+                    <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950">{card.title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">{card.text}</p>
+                    <div className={`mt-4 inline-flex rounded-full px-3 py-1 text-[11px] font-bold ${active ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                      {card.badge}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {dashboardActiveTab === "monitor" && (
+              <div className="space-y-6">
+                <PlanValidityBox purchase={purchase} compact />
 
             <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-6 shadow-sm md:p-8">
               <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-center">
@@ -10801,7 +10933,7 @@ const [authReady, setAuthReady] = useState(false);
                     <button
                       onClick={() => {
                         if (!setupCompleted) {
-                          setStep("guide");
+                          openDashboardTab("guida");
                           return;
                         }
 
@@ -10859,7 +10991,7 @@ const [authReady, setAuthReady] = useState(false);
               </button>
 
               <button
-                onClick={() => goToDashboardSection("aggiungi-investimento")}
+                onClick={() => setDashboardActiveTab("portafoglio")}
                 className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Portafoglio</p>
@@ -10868,7 +11000,7 @@ const [authReady, setAuthReady] = useState(false);
               </button>
 
               <button
-                onClick={() => goToDashboardSection("pac-mensile")}
+                onClick={() => setDashboardActiveTab("portafoglio")}
                 className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">PAC</p>
@@ -10877,7 +11009,7 @@ const [authReady, setAuthReady] = useState(false);
               </button>
 
               <button
-                onClick={() => goToDashboardSection("prima-volta-qui")}
+                onClick={() => setDashboardActiveTab("guida")}
                 className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Checklist</p>
@@ -10905,7 +11037,7 @@ const [authReady, setAuthReady] = useState(false);
                     number: "3",
                     title: "Attiva il mio piano",
                     done: setupCompleted,
-                    onClick: () => setStep("guide"),
+                    onClick: () => openDashboardTab("guida"),
                   },
                   {
                     number: "4",
@@ -10913,7 +11045,7 @@ const [authReady, setAuthReady] = useState(false);
                     done: checklistState.strumenti || holdings.length > 0,
                     onClick: () => {
                       completeChecklistItem("strumenti");
-                      setStep("strumentis");
+                      setDashboardActiveTab("portafoglio");
                     },
                   },
                   {
@@ -11271,250 +11403,29 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
-            <div id="obiettivo-personale" className="scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        Obiettivo personale
-                      </p>
-                      <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
-                        {goalTitle || "Il tuo obiettivo"}
-                      </h3>
-                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                        Aggiorna manualmente il valore reale del tuo capitale: così la barra tiene conto anche di mercato, prelievi e variazioni non visibili negli holdings.
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-slate-900 px-5 py-4 text-white">
-                      <p className="text-xs uppercase tracking-wide text-slate-300">
-                        Progresso
-                      </p>
-                      <p className="mt-1 text-3xl font-bold tracking-tight">
-                        {goalProgressPercent.toFixed(1)}%
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6">
-                    <div className="h-6 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className="h-full rounded-full bg-slate-900 transition-all duration-1000 ease-out"
-                        style={{ width: `${Math.min(goalProgressPercent, 100)}%` }}
-                      />
-                    </div>
-
-                    <div className="mt-3 flex flex-col gap-2 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
-                      <span>Valore aggiornato: {formatEuro(goalCurrentNumber || 0)}</span>
-                      <span>Target finale: {formatEuro(goalTargetNumber || 0)}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Capitale aggiornato
-                      </p>
-                      <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">
-                        {formatEuro(goalCurrentNumber || 0)}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Durata residua
-                      </p>
-                      <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">
-                        {goalDurationYears} anni
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {goalDurationMonths} mesi - fine {safeGoalEndYear}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Stima PAC a fine piano
-                      </p>
-                      <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">
-                        {formatEuro(goalEstimatedFinal || 0)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm font-medium leading-6 text-slate-800">
-                      {goalMessage}
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                      La stima a fine piano usa solo PAC mensile, anno finale e rendimento stimato. Il capitale aggiornato serve invece per misurare il progresso reale verso il target.
-                    </p>
-                    {hasReachedPersonalGoal ? (
-                      <button
-                        type="button"
-                        onClick={replayPersonalGoalCelebration}
-                        className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100"
-                      >
-                        Rivedi celebrazione obiettivo
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-                  <h4 className="text-lg font-semibold text-slate-900">
-                    Aggiorna obiettivo
-                  </h4>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Inserisci manualmente il valore aggiornato del capitale. Questo dato può includere fluttuazioni di mercato, prelievi o variazioni che gli holdings non mostrano. Non serve aggiornarlo ogni giorno: usalo per avere consapevolezza, non per reagire al mercato.
-                  </p>
-
-                  <div key={goalDraftFormKey} className="mt-5 space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-slate-700">
-                        Nome obiettivo
-                      </label>
-                      <input
-                        ref={draftGoalTitleRef}
-                        defaultValue={draftGoalTitle}
-                        onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
-                        placeholder="Es. Libertà finanziaria"
-                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
-                      />
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="text-sm font-medium text-slate-700">
-                          Valore attuale aggiornato
-                        </label>
-                        <input
-                          ref={draftGoalCurrentValueRef}
-                          defaultValue={draftGoalCurrentValue}
-                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
-                          placeholder="Es. 12000"
-                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-slate-700">
-                          Valore precedente
-                        </label>
-                        <input
-                          ref={draftGoalPreviousValueRef}
-                          defaultValue={draftGoalPreviousValue}
-                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
-                          placeholder="Es. 10000"
-                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="text-sm font-medium text-slate-700">
-                          Target finale
-                        </label>
-                        <input
-                          ref={draftGoalTargetRef}
-                          defaultValue={draftGoalTarget}
-                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
-                          placeholder="Es. 100000"
-                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-slate-700">
-                          Anno fine investimento
-                        </label>
-                        <input
-                          type="number"
-                          ref={draftGoalEndYearRef}
-                          defaultValue={draftGoalEndYear}
-                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
-                          onBlur={(e) => setDraftGoalEndYear(e.target.value)}
-                          placeholder="Es. 2055"
-                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Durata calcolata
-                      </p>
-                      <p className="mt-2 text-lg font-bold text-slate-900">
-                        {draftGoalDurationYears} anni - {draftGoalDurationMonths} mesi
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Calcolata automaticamente dall'anno corrente fino al {safeDraftGoalEndYear}.
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                        Salvataggio
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-emerald-900">
-                        I campi restano fluidi mentre scrivi. Quando hai finito, premi <strong>Salva aggiornamento</strong>: l'app aggiorna la Dashboard e salva su Supabase.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-slate-700">
-                        Motivo del cambiamento
-                      </label>
-                      <select
-                        ref={draftGoalReasonRef}
-                        defaultValue={draftGoalReason}
-                        onChange={() => setGoalSaveStatus("idle")}
-                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
-                      >
-                        <option value="stabile">Aggiornamento periodico</option>
-                        <option value="investimento">Nuovo investimento</option>
-                        <option value="prelievo">Ho usato parte dei soldi</option>
-                        <option value="mercato">Oscillazione di mercato</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <button
-                        type="button"
-                        onClick={saveGoalUpdateFromDashboard}
-                        disabled={goalSaveStatus === "saving"}
-                        className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {goalSaveStatus === "saving" ? "Salvataggio..." : "Salva aggiornamento"}
-                      </button>
-                      {goalSaveStatus === "saved" ? (
-                        <span className="text-sm font-semibold text-emerald-700">Aggiornamento salvato.</span>
-                      ) : null}
-                      {goalSaveStatus === "error" ? (
-                        <span className="text-sm font-semibold text-rose-700">Salvataggio non riuscito. Riprova.</span>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Storico PAC</p>
-                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Controlla la continuita nel tempo</h3>
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Controlla la continuità nel tempo</h3>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                     Qui trovi gli ultimi 12 mesi. Puoi correggere un mese se serve: i dati restano salvati su Supabase.
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold text-slate-700">
-                  {currentMonthCompleted
-                    ? `Mese corrente completato`
-                    : `Mese corrente da completare`}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold text-slate-700">
+                    {currentMonthCompleted
+                      ? `Mese corrente completato`
+                      : `Mese corrente da completare`}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPacHistoryMonths((value) => !value)}
+                    className="rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                  >
+                    {showPacHistoryMonths ? "Nascondi ultimi 12 mesi" : "Mostra ultimi 12 mesi"}
+                  </button>
                 </div>
               </div>
 
@@ -11524,7 +11435,7 @@ const [authReady, setAuthReady] = useState(false);
                   <p className="mt-2 text-2xl font-bold text-slate-900">{pacCompletedMonths}/{pacHistory.length}</p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Continuita attuale</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Continuità attuale</p>
                   <p className="mt-2 flex items-center gap-2 text-2xl font-bold text-slate-900">
                     <span>🔥</span>
                     <span>{currentStreak} {currentStreak === 1 ? "mese" : "mesi"}</span>
@@ -11557,6 +11468,7 @@ const [authReady, setAuthReady] = useState(false);
                 </div>
               </div>
 
+              {showPacHistoryMonths && (
               <div className="mt-6">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-sm font-semibold text-slate-700">Ultimi 12 mesi</p>
@@ -11592,39 +11504,148 @@ const [authReady, setAuthReady] = useState(false);
                   ))}
                 </div>
               </div>
+              )}
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Focus del mese</p>
-                <p className="mt-3 text-lg font-semibold text-slate-900">
-                  {currentMonthEntry?.completed ? "Mantieni il ritmo" : "Completa il PAC del mese"}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {currentMonthEntry?.completed
-                    ? "Hai già fatto il passo più importante: ora evita decisioni impulsive."
-                    : "Un solo click rende il mese visibile nella tua continuita."}
-                </p>
               </div>
+            )}
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Badge vicino</p>
-                <p className="mt-3 text-lg font-semibold text-slate-900">
-                  {nextBadge ? nextBadge.title : "Tutti i badge attivi"}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {nextBadge ? nextBadge.description : "Hai sbloccato tutti i badge disponibili in questa fase."}
-                </p>
-              </div>
+            {dashboardActiveTab === "guida" && (
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-sm">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Guida operativa</p>
+                  <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Il percorso operativo del tuo PAC</h3>
+                  <p className="mt-4 max-w-3xl text-base leading-7 text-slate-700">
+                    Questa card sostituisce la vecchia pagina Guida: qui trovi i primi 6 passi e le azioni di mantenimento, senza uscire dalla Dashboard.
+                  </p>
+                </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Regola sana</p>
-                <p className="mt-3 text-lg font-semibold text-slate-900">Costanza, non perfezione</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Il PAC funziona quando diventa sostenibile e ripetibile, non quando richiede sforzi estremi.
-                </p>
+                <div className="rounded-3xl border-2 border-emerald-300 bg-emerald-50 p-7 shadow-sm">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Prossimo passo consigliato</p>
+                  {nextGuideItem ? (
+                    <div className="mt-3">
+                      <h3 className="text-2xl font-bold tracking-tight text-emerald-950">{nextGuideItem.title}</h3>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">{nextGuideItem.description}</p>
+                      <div className="mt-5 flex flex-wrap gap-3">
+                        {(() => {
+                          const nextGuideAction = getChecklistToolAction(nextGuideItem.id);
+                          const hasRequiredAction = Boolean(nextGuideAction && !guideActionVisited[nextGuideItem.id]);
+                          const completeButtonClass = hasRequiredAction
+                            ? "rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            : "rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700";
+
+                          return (
+                            <>
+                              {nextGuideAction && (
+                                <button
+                                  onClick={() => handleGuideToolAction(nextGuideItem.id, nextGuideAction)}
+                                  className={hasRequiredAction
+                                    ? "rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                                    : "rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                  }
+                                >
+                                  {nextGuideAction.label}
+                                </button>
+                              )}
+                              <button onClick={() => toggleChecklist(nextGuideItem.id)} className={completeButtonClass}>
+                                Segna come completato
+                              </button>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <h3 className="text-2xl font-bold tracking-tight text-emerald-950">Guida completata</h3>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
+                        Hai completato i passaggi principali. Ora il Monitor diventa la vista più utile per seguire il piano mese dopo mese.
+                      </p>
+                      <button
+                        onClick={() => setDashboardActiveTab("monitor")}
+                        className="mt-5 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      >
+                        Vai al Monitor
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div id="prima-volta-qui" className="scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Guida operativa</p>
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Cosa fare, in che ordine e dove cliccare</h3>
+                  <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
+                    Segui il percorso una voce alla volta. Se un passaggio richiede un'azione operativa, il pulsante principale ti porta direttamente nella card giusta.
+                  </p>
+
+                  <div className="mt-5 rounded-2xl bg-slate-50 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">
+                          Guida iniziale: {completedInitialChecklist}/{initialChecklistItems.length}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Completa questi passaggi una sola volta. Poi il sistema lavora per te.
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-slate-900">{checklistPercent}%</p>
+                    </div>
+                    <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200">
+                      <div className="h-full rounded-full bg-slate-900 transition-all duration-700" style={{ width: `${checklistPercent}%` }} />
+                    </div>
+                    {setupCompleted && (
+                      <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                        <p className="text-sm font-semibold text-emerald-900">
+                          Sistema attivato. Ora concentrati su PAC e mantenimento.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                    <ChecklistGroup
+                      title="Setup iniziale"
+                      subtitle="Completa questi passaggi per rendere operativo il modello."
+                      items={initialChecklistItems}
+                      state={checklistState}
+                      onToggle={toggleChecklist}
+                      getToolAction={getChecklistToolAction}
+                      nextItemId={nextGuideItem?.id}
+                      actionVisited={guideActionVisited}
+                      onToolActionClick={handleGuideToolAction}
+                    />
+                    <ChecklistGroup
+                      title="Mantenimento nel tempo"
+                      subtitle={`Queste abitudini non bloccano il setup. Completate: ${completedMaintenanceChecklist}/${maintenanceChecklistItems.length}`}
+                      items={maintenanceChecklistItems}
+                      state={checklistState}
+                      onToggle={toggleChecklist}
+                      getToolAction={getChecklistToolAction}
+                      nextItemId={nextGuideItem?.id}
+                      actionVisited={guideActionVisited}
+                      onToolActionClick={handleGuideToolAction}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {dashboardActiveTab === "portafoglio" && (
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-sm">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Portafoglio</p>
+                  <h3 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Investimenti, strumenti e ripartizione</h3>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">
+                    Qui trovi la parte operativa del portafoglio: registri gli investimenti, controlli la ripartizione e gestisci gli strumenti personalizzati.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setStep("strumentis")}
+                    className="mt-5 rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-bold text-emerald-800 transition hover:bg-emerald-50"
+                  >
+                    Gestisci strumenti personalizzati
+                  </button>
+                </div>
 
             <div id="aggiungi-investimento" className="grid scroll-mt-6 gap-5 rounded-[2rem] border border-slate-200 bg-slate-50/80 p-4 shadow-sm md:p-5 xl:grid-cols-[1.08fr_1.18fr_0.92fr] xl:items-start">
               <div className="space-y-6">
@@ -11866,7 +11887,7 @@ const [authReady, setAuthReady] = useState(false);
 
                   <div className="mt-5 grid gap-3">
                     {monthlyAllocationPlan.map((item) => {
-                      const investedAmount = investedByCategory[item.category] || 0;
+                      const investedAmount = getInvestedAmountForPortfolioCategory(item.category);
                       const isInLine = item.roundedAmount > 0 && Math.abs(investedAmount - item.roundedAmount) <= 1;
 
                       return (
@@ -11953,6 +11974,275 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
+                <div id="obiettivo-personale" className="scroll-mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        Obiettivo personale
+                      </p>
+                      <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+                        {goalTitle || "Il tuo obiettivo"}
+                      </h3>
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                        Aggiorna manualmente il valore reale del tuo capitale: così la barra tiene conto anche di mercato, prelievi e variazioni non visibili negli holdings.
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-slate-900 px-5 py-4 text-white">
+                      <p className="text-xs uppercase tracking-wide text-slate-300">
+                        Progresso
+                      </p>
+                      <p className="mt-1 text-3xl font-bold tracking-tight">
+                        {goalProgressPercent.toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <div className="h-6 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-slate-900 transition-all duration-1000 ease-out"
+                        style={{ width: `${Math.min(goalProgressPercent, 100)}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-2 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
+                      <span>Valore aggiornato: {formatEuro(goalCurrentNumber || 0)}</span>
+                      <span>Target finale: {formatEuro(goalTargetNumber || 0)}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Capitale aggiornato
+                      </p>
+                      <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">
+                        {formatEuro(goalCurrentNumber || 0)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Durata residua
+                      </p>
+                      <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">
+                        {goalDurationYears} anni
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {goalDurationMonths} mesi - fine {safeGoalEndYear}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Stima PAC a fine piano
+                      </p>
+                      <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">
+                        {formatEuro(goalEstimatedFinal || 0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+                    <p className="text-sm font-medium leading-6 text-slate-800">
+                      {goalMessage}
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      La stima a fine piano usa solo PAC mensile, anno finale e rendimento stimato. Il capitale aggiornato serve invece per misurare il progresso reale verso il target.
+                    </p>
+                    {hasReachedPersonalGoal ? (
+                      <button
+                        type="button"
+                        onClick={replayPersonalGoalCelebration}
+                        className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100"
+                      >
+                        Rivedi celebrazione obiettivo
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+                  <h4 className="text-lg font-semibold text-slate-900">
+                    Aggiorna obiettivo
+                  </h4>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Inserisci manualmente il valore aggiornato del capitale. Questo dato può includere fluttuazioni di mercato, prelievi o variazioni che gli holdings non mostrano. Non serve aggiornarlo ogni giorno: usalo per avere consapevolezza, non per reagire al mercato.
+                  </p>
+
+                  <div key={goalDraftFormKey} className="mt-5 space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">
+                        Nome obiettivo
+                      </label>
+                      <input
+                        ref={draftGoalTitleRef}
+                        defaultValue={draftGoalTitle}
+                        onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
+                        placeholder="Es. Libertà finanziaria"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
+                      />
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="text-sm font-medium text-slate-700">
+                          Valore attuale aggiornato
+                        </label>
+                        <input
+                          ref={draftGoalCurrentValueRef}
+                          defaultValue={draftGoalCurrentValue}
+                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
+                          placeholder="Es. 12000"
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-slate-700">
+                          Valore precedente
+                        </label>
+                        <input
+                          ref={draftGoalPreviousValueRef}
+                          defaultValue={draftGoalPreviousValue}
+                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
+                          placeholder="Es. 10000"
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="text-sm font-medium text-slate-700">
+                          Target finale
+                        </label>
+                        <input
+                          ref={draftGoalTargetRef}
+                          defaultValue={draftGoalTarget}
+                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
+                          placeholder="Es. 100000"
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-slate-700">
+                          Anno fine investimento
+                        </label>
+                        <input
+                          type="number"
+                          ref={draftGoalEndYearRef}
+                          defaultValue={draftGoalEndYear}
+                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
+                          onBlur={(e) => setDraftGoalEndYear(e.target.value)}
+                          placeholder="Es. 2055"
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Durata calcolata
+                      </p>
+                      <p className="mt-2 text-lg font-bold text-slate-900">
+                        {draftGoalDurationYears} anni - {draftGoalDurationMonths} mesi
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Calcolata automaticamente dall'anno corrente fino al {safeDraftGoalEndYear}.
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                        Salvataggio
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-emerald-900">
+                        I campi restano fluidi mentre scrivi. Quando hai finito, premi <strong>Salva aggiornamento</strong>: l'app aggiorna la Dashboard e salva su Supabase.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">
+                        Motivo del cambiamento
+                      </label>
+                      <select
+                        ref={draftGoalReasonRef}
+                        defaultValue={draftGoalReason}
+                        onChange={() => setGoalSaveStatus("idle")}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
+                      >
+                        <option value="stabile">Aggiornamento periodico</option>
+                        <option value="investimento">Nuovo investimento</option>
+                        <option value="prelievo">Ho usato parte dei soldi</option>
+                        <option value="mercato">Oscillazione di mercato</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <button
+                        type="button"
+                        onClick={saveGoalUpdateFromDashboard}
+                        disabled={goalSaveStatus === "saving"}
+                        className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {goalSaveStatus === "saving" ? "Salvataggio..." : "Salva aggiornamento"}
+                      </button>
+                      {goalSaveStatus === "saved" ? (
+                        <span className="text-sm font-semibold text-emerald-700">Aggiornamento salvato.</span>
+                      ) : null}
+                      {goalSaveStatus === "error" ? (
+                        <span className="text-sm font-semibold text-rose-700">Salvataggio non riuscito. Riprova.</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Focus del mese</p>
+                <p className="mt-3 text-lg font-semibold text-slate-900">
+                  {currentMonthEntry?.completed ? "Mantieni il ritmo" : "Completa il PAC del mese"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {currentMonthEntry?.completed
+                    ? "Hai già fatto il passo più importante: ora evita decisioni impulsive."
+                    : "Un solo click rende il mese visibile nella tua continuita."}
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Badge vicino</p>
+                <p className="mt-3 text-lg font-semibold text-slate-900">
+                  {nextBadge ? nextBadge.title : "Tutti i badge attivi"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {nextBadge ? nextBadge.description : "Hai sbloccato tutti i badge disponibili in questa fase."}
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Regola sana</p>
+                <p className="mt-3 text-lg font-semibold text-slate-900">Costanza, non perfezione</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Il PAC funziona quando diventa sostenibile e ripetibile, non quando richiede sforzi estremi.
+                </p>
+              </div>
+            </div>
+
+
+              </div>
+            )}
+
+            {dashboardActiveTab === "progressi" && (
+              <div className="space-y-6">
                 <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
@@ -12145,6 +12435,8 @@ const [authReady, setAuthReady] = useState(false);
                     })}
                   </div>
                 </div>
+              </div>
+            )}
 
           </section>
         )}        {showRetakeWarning && (
@@ -12962,10 +13254,8 @@ function TopBar({
         {unlocked && (
           <>
             <NavButton active={step === "portfolio"} onClick={onGoPortfolio}>Modello</NavButton>
-            <NavButton active={step === "guide"} onClick={onGoGuide}>Guida</NavButton>
             <NavButton active={step === "dashboard"} onClick={onGoDashboard}>Dashboard</NavButton>
             <NavButton active={step === "awareness"} onClick={onGoAwareness}>Consapevolezza</NavButton>
-            <NavButton active={step === "strumentis"} onClick={onGoStrumentis}>Strumenti</NavButton>
             <NavButton active={step === "rebalance"} onClick={onGoRebalance}>Ribilanciamento</NavButton>
             <NavButton active={step === "exit"} onClick={onGoExit}>Strategia uscita</NavButton>
           </>
