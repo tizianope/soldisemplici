@@ -316,18 +316,18 @@ type CelebrationEvent = {
 type GoalChangeReason = "investimento" | "prelievo" | "mercato" | "stabile";
 
 const LEGAL_DISCLAIMER =
-  "Questa applicazione ha finalita esclusivamente educative e informative. Le informazioni fornite non costituiscono consulenza finanziaria personalizzata ne raccomandazioni di investimento. Qualsiasi decisione di investimento resta sotto la piena responsabilita dell'utente.";
+  "Questa applicazione ha finalità esclusivamente educative e informative. Le informazioni fornite non costituiscono consulenza finanziaria personalizzata ne raccomandazioni di investimento. Qualsiasi decisione di investimento resta sotto la piena responsabilita dell'utente.";
 
 const questions: Question[] = [
   {
     id: 1,
     text: "Se il valore dei tuoi investimenti scendesse del 20%, cosa faresti?",
-    helper: "Non cercare la risposta perfetta. Scegli quella piu vicina al tuo istinto.",
+    helper: "Non cercare la risposta perfetta. Scegli quella più vicina al tuo istinto.",
     options: [
       { label: "Venderei tutto", scores: { stabilita: 2, equilibrio: 0, crescita: 0 } },
       { label: "Aspetterei con difficolta", scores: { stabilita: 1, equilibrio: 1, crescita: 0 } },
       { label: "Non farei nulla", scores: { stabilita: 0, equilibrio: 2, crescita: 1 } },
-      { label: "Investirei di piu", scores: { stabilita: 0, equilibrio: 0, crescita: 2 } },
+      { label: "Investirei di più", scores: { stabilita: 0, equilibrio: 0, crescita: 2 } },
     ],
   },
   {
@@ -347,12 +347,12 @@ const questions: Question[] = [
       { label: "Meno di 3 anni", scores: { stabilita: 2, equilibrio: 0, crescita: 0 } },
       { label: "3 - 7 anni", scores: { stabilita: 1, equilibrio: 1, crescita: 0 } },
       { label: "7 - 15 anni", scores: { stabilita: 0, equilibrio: 2, crescita: 1 } },
-      { label: "Piu di 15 anni", scores: { stabilita: 0, equilibrio: 0, crescita: 2 } },
+      { label: "Più di 15 anni", scores: { stabilita: 0, equilibrio: 0, crescita: 2 } },
     ],
   },
   {
     id: 4,
-    text: "Qual e il tuo obiettivo principale?",
+    text: "Qual è il tuo obiettivo principale?",
     options: [
       { label: "Non perdere soldi", scores: { stabilita: 2, equilibrio: 0, crescita: 0 } },
       { label: "Proteggere il valore nel tempo", scores: { stabilita: 1, equilibrio: 1, crescita: 0 } },
@@ -476,7 +476,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     intro:
       "Questo modello punta prima di tutto a farti restare sereno nel tempo. Non cerca il massimo rendimento possibile, ma un equilibrio molto stabile.",
     whyItFits:
-      "E adatto a chi vuole una strategia semplice, con oscillazioni contenute e un approccio molto prudente.",
+      "È adatto a chi vuole una strategia semplice, con oscillazioni contenute e un approccio molto prudente.",
     composition: [
       { label: "Azioni", percentage: 25, category: "Azioni Globali" },
       { label: "Obbligazioni", percentage: 25, category: "Obbligazioni Lungo Termine" },
@@ -494,7 +494,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     attention: [
       "Non aspettarti una crescita esplosiva",
       "Non cambiare strategia nei momenti difficili",
-      "Rispettare le percentuali e importante",
+      "Rispettare le percentuali è importante",
     ],
     pacGuide: [
       "Parti da 50 EUR o 100 EUR al mese",
@@ -505,7 +505,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     psychology: [
       "Le oscillazioni non significano che la strategia non funziona",
       "Il risultato si vede nel lungo periodo",
-      "La costanza conta piu del momento perfetto",
+      "La costanza conta più del momento perfetto",
     ],
     growthProjection: {
       twenty: "circa 92.000 EUR",
@@ -522,16 +522,16 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     profileFamily: "stabilita",
     badge: "Prudenza con primo passo verso la crescita",
     intro:
-      "Mantiene una struttura prudente, ma introduce un po piu di crescita rispetto al profilo piu conservativo.",
+      "Mantiene una struttura prudente, ma introduce un po più di crescita rispetto al profilo più conservativo.",
     whyItFits:
-      "E adatto a chi vuole stabilita, ma sente di poter fare un primo passo in piu verso il lungo periodo.",
+      "È adatto a chi vuole stabilita, ma sente di poter fare un primo passo in più verso il lungo periodo.",
     composition: [
       { label: "Azioni", percentage: 25, category: "Azioni Globali" },
       { label: "Obbligazioni", percentage: 40, category: "Obbligazioni" },
       { label: "Oro", percentage: 20, category: "Oro" },
       { label: "Liquidita", percentage: 15, category: "Liquidita" },
     ],
-    structureSummary: ["Prudente ma non immobile", "Crescita graduale", "Buona sostenibilita emotiva"],
+    structureSummary: ["Prudente ma non immobile", "Crescita graduale", "Buona sostenibilità emotiva"],
     historical: {
       average: "5% - 6%",
       bestYear: "+15%",
@@ -551,8 +551,8 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
       "Ricorda che il tempo fa la differenza",
     ],
     psychology: [
-      "Una crescita lenta ma mantenibile vale piu di una strategia troppo spinta",
-      "La serenita operativa e un vantaggio reale",
+      "Una crescita lenta ma mantenibile vale più di una strategia troppo spinta",
+      "La serenità operativa è un vantaggio reale",
     ],
     growthProjection: {
       twenty: "circa 80.000 EUR",
@@ -571,7 +571,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     intro:
       "Questo modello cerca di funzionare bene in scenari economici diversi, senza puntare tutto su una sola idea.",
     whyItFits:
-      "E adatto a chi vuole crescere nel tempo ma con una struttura piu robusta e diversificata.",
+      "È adatto a chi vuole crescere nel tempo ma con una struttura più robusta e diversificata.",
     composition: [
       { label: "Azioni", percentage: 30, category: "Azioni Globali" },
       { label: "Obbligazioni", percentage: 40, category: "Obbligazioni" },
@@ -588,8 +588,8 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     },
     attention: [
       "Non complicare troppo gli strumenti scelti",
-      "Non eliminare le parti difensive perche sembrano lente",
-      "La forza qui e nell'equilibrio",
+      "Non eliminare le parti difensive perché sembrano lente",
+      "La forza qui è nell'equilibrio",
     ],
     pacGuide: [
       "Bonifico automatico subito dopo lo stipendio",
@@ -600,7 +600,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     psychology: [
       "Le oscillazioni fanno parte del percorso",
       "Non serve prevedere il mercato per investire bene",
-      "La disciplina conta piu delle previsioni",
+      "La disciplina conta più delle previsioni",
     ],
     growthProjection: {
       twenty: "circa 100.000 EUR",
@@ -615,11 +615,11 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     title: "Equilibrio Dinamico",
     shortTitle: "Ponte verso la crescita",
     profileFamily: "equilibrio",
-    badge: "Piu crescita, ma ancora con controllo",
+    badge: "Più crescita, ma ancora con controllo",
     intro:
       "Qui la componente di crescita aumenta, ma restano presenti elementi che aiutano a contenere gli eccessi.",
     whyItFits:
-      "E adatto a chi vuole far lavorare di piu il capitale, senza arrivare ancora a una strategia davvero aggressiva.",
+      "È adatto a chi vuole far lavorare di più il capitale, senza arrivare ancora a una strategia davvero aggressiva.",
     composition: [
       { label: "Azioni", percentage: 50, category: "Azioni Globali" },
       { label: "Obbligazioni", percentage: 30, category: "Obbligazioni" },
@@ -635,7 +635,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
       recovery: "2 - 4 anni",
     },
     attention: [
-      "Il rischio maggiore e cambiare idea nei momenti difficili",
+      "Il rischio maggiore è cambiare idea nei momenti difficili",
       "Non confondere lungo periodo con immobilita mentale",
       "La strategia va mantenuta",
     ],
@@ -643,10 +643,10 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
       "Parti anche da 50 EUR o 100 EUR al mese",
       "Automatizza il trasferimento dopo lo stipendio",
       "Attiva gli acquisti automatici ricorrenti",
-      "Non dimenticare il PAC nei mesi in cui sei piu impegnato",
+      "Non dimenticare il PAC nei mesi in cui sei più impegnato",
     ],
     psychology: [
-      "La costanza e piu importante del timing",
+      "La costanza è più importante del timing",
       "Le perdite temporanee fanno parte del percorso",
       "Investire con metodo riduce la fatica mentale",
     ],
@@ -665,9 +665,9 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     profileFamily: "crescita",
     badge: "Crescita con controllo",
     intro:
-      "Questo modello cerca una crescita piu significativa, ma senza rinunciare del tutto agli elementi di protezione.",
+      "Questo modello cerca una crescita più significativa, ma senza rinunciare del tutto agli elementi di protezione.",
     whyItFits:
-      "E adatto a chi vuole risultati migliori del profilo prudente, ma preferisce non spingersi ancora verso il rischio alto puro.",
+      "È adatto a chi vuole risultati migliori del profilo prudente, ma preferisce non spingersi ancora verso il rischio alto puro.",
     composition: [
       { label: "Azioni", percentage: 40, category: "Azioni Globali" },
       { label: "Obbligazioni", percentage: 40, category: "Obbligazioni" },
@@ -684,7 +684,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     attention: [
       "Non semplificare troppo togliendo l'oro",
       "Non aumentare il rischio per fretta",
-      "La vera forza e nella disciplina",
+      "La vera forza è nella disciplina",
     ],
     pacGuide: [
       "Bonifico automatico appena entra lo stipendio",
@@ -694,7 +694,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     ],
     psychology: [
       "Il risultato si vede nel tempo, non nel breve",
-      "Una strategia sostenibile vale piu di una perfetta solo sulla carta",
+      "Una strategia sostenibile vale più di una perfetta solo sulla carta",
     ],
     growthProjection: {
       twenty: "circa 100.000 EUR",
@@ -713,7 +713,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     intro:
       "Questo modello e pensato per chi vuole massimizzare la crescita nel lungo periodo e riesce a sopportare oscillazioni importanti.",
     whyItFits:
-      "E adatto a chi ha orizzonte lungo, alta tolleranza emotiva e una forte disciplina nel mantenere la strategia.",
+      "È adatto a chi ha orizzonte lungo, alta tolleranza emotiva e una forte disciplina nel mantenere la strategia.",
     composition: [
       { label: "Azioni globali", percentage: 80, category: "Azioni Globali" },
       { label: "Obbligazioni", percentage: 20, category: "Obbligazioni" },
@@ -727,8 +727,8 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
       recovery: "3 - 7 anni",
     },
     attention: [
-      "Non e per chi soffre molto i cali di mercato",
-      "Il rischio vero e abbandonare la strategia",
+      "Non è per chi soffre molto i cali di mercato",
+      "Il rischio vero è abbandonare la strategia",
       "L'orizzonte minimo deve essere lungo",
     ],
     pacGuide: [
@@ -739,8 +739,8 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     ],
     psychology: [
       "Le perdite temporanee fanno parte del pacchetto",
-      "La costanza conta piu del coraggio iniziale",
-      "Il tempo e il vero motore della strategia",
+      "La costanza conta più del coraggio iniziale",
+      "Il tempo è il vero motore della strategia",
     ],
     growthProjection: {
       twenty: "circa 110.000 EUR",
@@ -758,14 +758,14 @@ const checklistItems: ChecklistItem[] = [
     group: "inizio",
     title: "Apri una piattaforma di investimento",
     description:
-      "Apri una piattaforma semplice e adatta al tuo piano. Se sei all'inizio, Trade Republic e una buona opzione: permette acquisti frazionati e rende piu semplice partire con piccole cifre. In ogni caso, verifica sempre costi e funzionamento prima di iniziare.",
+      "Apri una piattaforma semplice e adatta al tuo piano. Se sei all'inizio, Trade Republic è una buona opzione: permette acquisti frazionati e rende più semplice partire con piccole cifre. In ogni caso, verifica sempre costi e funzionamento prima di iniziare.",
   },
   {
     id: "bonifico",
     group: "inizio",
     title: "Imposta il bonifico automatico",
     description:
-      "Imposta un bonifico automatico mensile verso il conto investimenti. Scegli una data subito dopo l'accredito dello stipendio, cosi non devi pensarci ogni mese.",
+      "Imposta un bonifico automatico mensile verso il conto investimenti. Scegli una data subito dopo l'accredito dello stipendio, così non devi pensarci ogni mese.",
   },
   {
     id: "percentuali",
@@ -786,14 +786,14 @@ const checklistItems: ChecklistItem[] = [
     group: "inizio",
     title: "Attiva l'investimento automatico",
     description:
-      "Configura un piano di accumulo automatico sulla tua piattaforma. Imposta prima il bonifico automatico e poi il PAC, cosi riduci il rischio di saldo insufficiente. Su Trade Republic: vai in Piani di accumulo, scegli gli strumenti e attiva il PAC. Nota: Trade Republic consente l'acquisto automatico a inizio mese o a meta mese; il giorno effettivo puo variare se ci sono festivita o la borsa e chiusa.",
+      "Configura un piano di accumulo automatico sulla tua piattaforma. Imposta prima il bonifico automatico e poi il PAC, così riduci il rischio di saldo insufficiente. Su Trade Republic: vai in Piani di accumulo, scegli gli strumenti e attiva il PAC. Nota: Trade Republic consente l'acquisto automatico a inizio mese o a meta mese; il giorno effettivo può variare se ci sono festivita o la borsa e chiusa.",
   },
   {
     id: "pac_start",
     group: "inizio",
     title: "Chiudi il primo mese PAC",
     description:
-      "Segna il PAC del mese come completato. Questo e il primo gesto concreto che rende operativo il sistema.",
+      "Segna il PAC del mese come completato. Questo è il primo gesto concreto che rende operativo il sistema.",
   },
   {
     id: "non_fermarti",
@@ -814,14 +814,14 @@ const checklistItems: ChecklistItem[] = [
     group: "mantenimento",
     title: "Controlla una volta al mese",
     description:
-      "Apri l'app una volta al mese e verifica che il PAC sia stato eseguito. Non serve controllare ogni giorno: la costanza conta piu della frequenza.",
+      "Apri l'app una volta al mese è verifica che il PAC sia stato eseguito. Non serve controllare ogni giorno: la costanza conta più della frequenza.",
   },
   {
     id: "rebalance",
     group: "mantenimento",
     title: "Ribilancia solo quando serve",
     description:
-      "Se il modello si allontana molto dal target, valuta un ribilanciamento. Non e urgente: e manutenzione periodica.",
+      "Se il modello si allontana molto dal target, valuta un ribilanciamento. Non è urgente: e manutenzione periodica.",
   },
   {
     id: "aggiorna_capitale",
@@ -849,7 +849,7 @@ type AwarenessAction = {
 };
 
 
-type MortgageMode = "sostenibilita" | "pies";
+type MortgageMode = "sostenibilità" | "pies";
 type MortgagePiesStatus = "found" | "missing" | "unclear";
 
 type MortgagePiesFieldState = {
@@ -883,7 +883,7 @@ const mortgagePiesSections: MortgagePiesSection[] = [
     id: "base",
     title: "1. Dati base del mutuo",
     where: "Cerca nel PIES la sezione 'Caratteristiche principali del contratto di credito'.",
-    explanation: "Qui capisci quanto chiedi, per quanto tempo e quale sara la dimensione economica complessiva del mutuo.",
+    explanation: "Qui capisci quanto chiedi, per quanto tempo e quale sarà la dimensione economica complessiva del mutuo.",
     fields: [
       { id: "amount", label: "Importo mutuo", placeholder: "Es. 180000", penalty: 8, area: "costo", issue: "Importo del mutuo non chiaro", why: "Senza importo non puoi verificare coerenza di rata, durata e totale da rimborsare.", question: "Potete confermarmi l'importo esatto del mutuo indicato nella proposta?" },
       { id: "duration", label: "Durata mutuo (anni)", placeholder: "Es. 30", penalty: 6, area: "ammortamento", issue: "Durata del mutuo non chiara", why: "La durata incide su rata, interessi e costo complessivo. Inserisci solo gli anni indicati nel PIES.", question: "Potete confermarmi la durata del mutuo in anni indicata nella proposta?" },
@@ -896,20 +896,28 @@ const mortgagePiesSections: MortgagePiesSection[] = [
     where: "Cerca la sezione 'Tasso di interesse e altri costi'.",
     explanation: "Il TAN indica il tasso nominale. Il TAEG aiuta a capire il costo complessivo e a confrontare offerte diverse.",
     fields: [
-      { id: "rateType", label: "Tipo di tasso", placeholder: "Seleziona il tipo indicato nel PIES", penalty: 8, area: "tasso", issue: "Tipo di tasso non chiaro", why: "Il rischio cambia molto tra fisso, variabile e variabile con cap.", question: "Potete confermarmi se il mutuo e a tasso fisso, variabile, misto o variabile con cap?", selectOptions: ["Tasso fisso", "Tasso variabile", "Tasso variabile con cap", "Tasso misto", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "rateType", label: "Tipo di tasso", placeholder: "Seleziona il tipo indicato nel PIES", penalty: 8, area: "tasso", issue: "Tipo di tasso non chiaro", why: "Il rischio cambia molto tra fisso, variabile e variabile con cap.", question: "Potete confermarmi se il mutuo è a tasso fisso, variabile, misto o variabile con cap?", selectOptions: ["Tasso fisso", "Tasso variabile", "Tasso variabile con cap", "Tasso misto", "Non trovato nel PIES", "Non chiaro"] },
       { id: "tan", label: "TAN", placeholder: "Es. 3,20%", penalty: 8, area: "tasso", issue: "TAN non trovato o non chiaro", why: "Serve per capire il tasso nominale applicato al capitale.", question: "Potete confermarmi il TAN applicato alla proposta?" },
-      { id: "taeg", label: "TAEG", placeholder: "Es. 3,74%", penalty: 15, area: "costo", issue: "TAEG non trovato o non chiaro", why: "Il TAEG e fondamentale per confrontare offerte e capire i costi accessori inclusi.", question: "Potete confermarmi il TAEG e quali costi sono inclusi o esclusi dal calcolo?" },
-      { id: "rateLocked", label: "Tasso bloccato fino alla stipula", placeholder: "Seleziona la risposta indicata nel PIES", penalty: 8, area: "tasso", issue: "Blocco tasso fino al rogito non chiaro", why: "Per un tasso fisso e importante capire se le condizioni restano valide fino alla firma. Per i mutui variabili questo controllo di solito non e applicabile: contano parametro, spread e simulazioni.", question: "Il tasso fisso indicato e bloccato fino alla stipula? Fino a quale data?", selectOptions: ["Si, fino alla stipula", "Si, fino a una data indicata", "No", "Non applicabile: tasso variabile", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "taeg", label: "TAEG", placeholder: "Es. 3,74%", penalty: 15, area: "costo", issue: "TAEG non trovato o non chiaro", why: "Il TAEG è fondamentale per confrontare offerte e capire i costi accessori inclusi.", question: "Potete confermarmi il TAEG e quali costi sono inclusi o esclusi dal calcolo?" },
+      { id: "rateLocked", label: "Tasso bloccato fino alla stipula", placeholder: "Seleziona la risposta indicata nel PIES", penalty: 8, area: "tasso", issue: "Blocco tasso fino al rogito non chiaro", why: "Per un tasso fisso è importante capire se le condizioni restano valide fino alla firma. Per i mutui variabili questo controllo di solito non è applicabile: contano parametro, spread e simulazioni.", question: "Il tasso fisso indicato è bloccato fino alla stipula? Fino a quale data?", selectOptions: ["Si, fino alla stipula", "Si, fino a una data indicata", "No", "Non applicabile: tasso variabile", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "referenceIndex", label: "Parametro di riferimento", placeholder: "Es. Euribor 1 mese", penalty: 6, area: "tasso", issue: "Parametro di riferimento non chiaro", why: "Nei mutui variabili e nei variabili con cap serve sapere a quale indice è collegato il tasso, per esempio Euribor 1 mese o Euribor 3 mesi.", question: "Potete confermarmi il parametro di riferimento usato per il tasso variabile e la periodicità di aggiornamento?" },
+      { id: "spread", label: "Spread", placeholder: "Es. 1,10%", penalty: 6, area: "tasso", issue: "Spread non chiaro", why: "Lo spread è la maggiorazione applicata dalla banca al parametro di riferimento. Incide direttamente sul tasso finale.", question: "Potete confermarmi lo spread applicato e se resta invariato per tutta la durata del mutuo?" },
+      { id: "mixedChangeConditions", label: "Condizioni di cambio tasso", placeholder: "Seleziona cosa indica il PIES", penalty: 10, area: "tasso", issue: "Condizioni di cambio tasso non dettagliate", why: "Nel tasso misto è fondamentale capire quando può cambiare il tasso, se il cambio è automatico o facoltativo e quali condizioni si applicano dopo il cambio.", question: "Potete confermarmi dopo quanto tempo può cambiare il tasso, se il cambio è automatico o facoltativo e quali condizioni si applicano dopo il cambio?", selectOptions: ["Cambio dopo un periodo indicato", "Cambio automatico", "Cambio facoltativo", "Condizioni di cambio non dettagliate", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "mixedChangeAfterYears", label: "Dopo quanti anni può cambiare il tasso?", placeholder: "Es. 5", penalty: 5, area: "tasso", issue: "Periodo di cambio tasso non chiaro", why: "Per un tasso misto l'utente deve sapere quando termina il periodo iniziale e quando possono cambiare le condizioni.", question: "Potete indicarmi dopo quanti anni può cambiare il tasso e da quale rata decorre l'eventuale cambio?" },
+      { id: "mixedChangeOutcome", label: "Cosa succede dopo il cambio?", placeholder: "Seleziona cosa indica il PIES", penalty: 8, area: "tasso", issue: "Esito del cambio tasso non chiaro", why: "L'utente deve capire se dopo il periodo iniziale il mutuo passa a fisso, variabile o se può scegliere tra più opzioni.", question: "Potete confermarmi se dopo il periodo iniziale il tasso passa a fisso, variabile o se l'utente può scegliere tra più opzioni?", selectOptions: ["Passa a variabile", "Passa a fisso", "Si può scegliere tra fisso e variabile", "Non indicato", "Non chiaro"] },
+      { id: "capValue", label: "Cap / tetto massimo", placeholder: "Es. 5,50%", penalty: 8, area: "tasso", issue: "Cap non chiaro", why: "Nel variabile con cap il tetto massimo limita il tasso applicabile. Senza questo dato l'utente non può capire lo scenario peggiore.", question: "Potete confermarmi il valore del cap e se si applica al TAN complessivo o al solo parametro di riferimento?" },
+      { id: "floorValue", label: "Floor / tasso minimo", placeholder: "Es. 2,25% oppure Non previsto", penalty: 6, area: "tasso", issue: "Floor non chiaro", why: "Il floor indica il tasso minimo applicabile: può limitare il beneficio se i tassi scendono molto.", question: "Potete confermarmi se è previsto un floor, qual è il suo valore e come viene applicato?" },
     ],
   },
   {
     id: "installment",
     title: "3. Rata e scenari",
     where: "Cerca 'Importo di ciascuna rata' e le eventuali simulazioni per mutui variabili.",
-    explanation: "La rata iniziale non basta: se il mutuo e variabile bisogna capire quanto puo aumentare.",
+    explanation: "La rata iniziale non basta: se il mutuo è variabile bisogna capire quanto può aumentare.",
     fields: [
-      { id: "installment", label: "Rata mensile", placeholder: "Es. 812", penalty: 8, area: "tasso", issue: "Rata mensile non trovata", why: "La rata serve per verificare la sostenibilita mensile.", question: "Potete confermarmi l'importo della rata mensile iniziale?" },
-      { id: "variableSimulation", label: "Simulazioni aumento rata", placeholder: "Seleziona se sono presenti simulazioni", penalty: 12, area: "tasso", issue: "Simulazioni del variabile assenti o non chiare", why: "Senza simulazioni, l'utente vede solo la rata iniziale e non il rischio di aumento.", question: "Potete inviarmi una simulazione della rata in caso di aumento del tasso di riferimento di +1%, +2% e +3%?", selectOptions: ["Presenti per +1%, +2% e +3%", "Presente solo scenario al cap", "Presenti ma incomplete", "Non presenti", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "installment", label: "Rata mensile", placeholder: "Es. 812", penalty: 8, area: "tasso", issue: "Rata mensile non trovata", why: "La rata serve per verificare la sostenibilità mensile.", question: "Potete confermarmi l'importo della rata mensile iniziale?" },
+      { id: "variableSimulation", label: "Simulazioni aumento rata / dopo cambio tasso", placeholder: "Seleziona se sono presenti simulazioni", penalty: 12, area: "tasso", issue: "Simulazioni assenti o non chiare", why: "Senza simulazioni, l'utente vede solo la rata iniziale e non il rischio di aumento o cambio condizioni.", question: "Potete inviarmi una simulazione della rata negli scenari rilevanti per il tipo di tasso indicato?", selectOptions: ["Presenti per +1%, +2% e +3%", "Presente solo scenario al cap", "Simulazioni dopo cambio tasso presenti", "Presenti ma incomplete", "Non presenti", "Non trovato nel PIES", "Non chiaro", "Non applicabile"] },
+      { id: "maxInstallmentAtCap", label: "Rata massima stimata al cap", placeholder: "Es. 1232", penalty: 8, area: "tasso", issue: "Rata massima al cap non chiara", why: "Nel variabile con cap il dato più utile è capire quale rata potrebbe pagare l'utente nello scenario massimo previsto.", question: "Potete confermarmi la rata massima stimata al raggiungimento del cap e le ipotesi usate per calcolarla?" },
     ],
   },
   {
@@ -918,21 +926,25 @@ const mortgagePiesSections: MortgagePiesSection[] = [
     where: "Cerca 'Piano di ammortamento' nel PIES o in un allegato dedicato.",
     explanation: "Il piano mostra quota capitale, quota interessi e debito residuo nel tempo.",
     fields: [
-      { id: "amortization", label: "Piano di ammortamento", placeholder: "Seleziona se il piano e disponibile", penalty: 8, area: "ammortamento", issue: "Piano di ammortamento mancante", why: "Aiuta a capire quanto capitale si riduce nei primi anni e quanto debito resta.", question: "Potete inviarmi il piano di ammortamento completo con quota capitale, quota interessi e debito residuo?", selectOptions: ["Presente nel PIES", "Presente come allegato", "Ricevuto separatamente", "Non presente", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "amortization", label: "Piano di ammortamento", placeholder: "Seleziona se il piano è disponibile", penalty: 8, area: "ammortamento", issue: "Piano di ammortamento mancante", why: "Aiuta a capire quanto capitale si riduce nei primi anni e quanto debito resta.", question: "Potete inviarmi il piano di ammortamento completo con quota capitale, quota interessi e debito residuo?", selectOptions: ["Presente nel PIES", "Presente come allegato", "Ricevuto separatamente", "Non presente", "Non trovato nel PIES", "Non chiaro"] },
     ],
   },
   {
     id: "policies-products",
     title: "5. Polizze e prodotti collegati",
     where: "Cerca la sezione 'Obblighi supplementari' e gli allegati assicurativi o commerciali.",
-    explanation: "Questa e una delle aree piu delicate: bisogna distinguere obbligo reale, proposta commerciale e sconto condizionato.",
+    explanation: "Questa è una delle aree più delicate: bisogna distinguere obbligo reale, proposta commerciale e sconto condizionato.",
     fields: [
-      { id: "policiesObligation", label: "Polizze obbligatorie o facoltative", placeholder: "Seleziona la situazione indicata", penalty: 15, area: "polizze", issue: "Obbligatorieta delle polizze non chiara", why: "Una polizza collegata puo incidere sul costo o sulle condizioni del tasso.", question: "Le polizze indicate sono obbligatorie o facoltative? Se non le sottoscrivo, il tasso o le condizioni cambiano?", selectOptions: ["Nessuna polizza indicata", "Solo polizze obbligatorie", "Solo polizze facoltative", "Polizze sia obbligatorie sia facoltative", "Polizze presenti ma obbligatorieta non chiara", "Non trovato nel PIES", "Non chiaro"] },
-      { id: "policyChoiceFreedom", label: "Liberta di scelta della polizza", placeholder: "Seleziona se puoi scegliere una compagnia esterna", penalty: 8, area: "polizze", issue: "Liberta di scelta della polizza non chiara", why: "Se la polizza e vincolata alla banca puo incidere su costo e flessibilita. Se invece puoi sceglierla liberamente, il rischio documentale e piu basso.", question: "Potete confermarmi se posso sottoscrivere la polizza anche presso una compagnia esterna senza modifiche al tasso o alle condizioni economiche?", selectOptions: ["Si, scegliibile anche presso compagnia esterna", "No, proposta o vincolata dalla banca", "Non ci sono polizze", "Non indicato nel PIES", "Non chiaro"] },
-      { id: "policyCost", label: "Costo polizze e inclusione nel TAEG", placeholder: "Seleziona come viene indicato il costo", penalty: 10, area: "polizze", issue: "Costo polizze o inclusione nel TAEG non chiari", why: "Il costo puo essere rilevante, soprattutto se finanziato o collegato allo sconto. Se la polizza e obbligatoria ma scegliibile liberamente, il costo non indicato e soprattutto un dato da stimare per confrontare l'offerta, non per forza una criticita grave.", question: "Qual e il costo di ciascuna polizza? Il costo e incluso nel TAEG? Il premio viene finanziato?", selectOptions: ["Costo indicato e incluso nel TAEG", "Costo indicato ma non incluso nel TAEG", "Costo indicato ma inclusione nel TAEG non chiara", "Costo non indicato", "Non ci sono polizze", "Non trovato nel PIES", "Non chiaro"] },
-      { id: "policyCostAmount", label: "Importo polizze (€)", placeholder: "Es. 6900", penalty: 6, area: "polizze", issue: "Importo delle polizze non indicato", why: "Se una polizza ha un costo rilevante, l'importo serve per capire quanto pesa sul costo complessivo e per confrontare offerte diverse.", question: "Potete indicarmi l'importo di ciascuna polizza, se il premio viene pagato subito o finanziato e se e incluso nel TAEG?" },
+      { id: "policiesObligation", label: "Polizze obbligatorie o facoltative", placeholder: "Seleziona la situazione indicata", penalty: 15, area: "polizze", issue: "Obbligatorietà delle polizze non chiara", why: "Una polizza collegata può incidere sul costo o sulle condizioni del tasso.", question: "Le polizze indicate sono obbligatorie o facoltative? Se non le sottoscrivo, il tasso o le condizioni cambiano?", selectOptions: ["Nessuna polizza indicata", "Solo polizze obbligatorie", "Solo polizze facoltative", "Polizze sia obbligatorie sia facoltative", "Polizze presenti ma obbligatorieta non chiara", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "policyChoiceFreedom", label: "Libertà di scelta della polizza", placeholder: "Seleziona se puoi scegliere una compagnia esterna", penalty: 8, area: "polizze", issue: "Libertà di scelta della polizza non chiara", why: "Se la polizza è vincolata alla banca può incidere su costo e flessibilità. Se invece puoi sceglierla liberamente, il rischio documentale è più basso.", question: "Potete confermarmi se posso sottoscrivere la polizza anche presso una compagnia esterna senza modifiche al tasso o alle condizioni economiche?", selectOptions: ["Sì, scegliibile anche presso compagnia esterna", "No, proposta o vincolata dalla banca", "Non ci sono polizze", "Non indicato nel PIES", "Non chiaro"] },
+      { id: "policyCost", label: "Costo polizze e inclusione nel TAEG", placeholder: "Seleziona come viene indicato il costo", penalty: 10, area: "polizze", issue: "Costo polizze o inclusione nel TAEG non chiari", why: "Il costo può essere rilevante, soprattutto se finanziato o collegato allo sconto. Se la polizza è obbligatoria ma scegliibile liberamente, il costo non indicato è soprattutto un dato da stimare per confrontare l'offerta, non per forza una criticità grave.", question: "Qual è il costo di ciascuna polizza? Il costo è incluso nel TAEG? Il premio viene finanziato?", selectOptions: ["Costo indicato e incluso nel TAEG", "Costo indicato, premio finanziato e incluso nel TAEG", "Costo indicato, premio finanziato ma inclusione nel TAEG non chiara", "Costo indicato ma non incluso nel TAEG", "Costo indicato ma inclusione nel TAEG non chiara", "Costo non indicato", "Non ci sono polizze", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "policyCostAmount", label: "Importo polizze (€)", placeholder: "Es. 6900", penalty: 6, area: "polizze", issue: "Importo delle polizze non indicato", why: "Se una polizza ha un costo rilevante, l'importo serve per capire quanto pesa sul costo complessivo e per confrontare offerte diverse.", question: "Potete indicarmi l'importo di ciascuna polizza, se il premio viene pagato subito o finanziato e se è incluso nel TAEG?" },
       { id: "linkedProducts", label: "Prodotti collegati", placeholder: "Seleziona se ci sono prodotti collegati", penalty: 8, area: "polizze", issue: "Prodotti collegati non quantificati", why: "Prodotti aggiuntivi possono creare costi o vincoli nel tempo.", question: "Quali prodotti collegati sono richiesti o proposti? Quali costi hanno e sono necessari per ottenere le condizioni indicate?", selectOptions: ["Nessun prodotto collegato indicato", "Prodotti collegati facoltativi", "Prodotti collegati necessari per ottenere il tasso", "Prodotti collegati presenti ma costi non chiari", "Non trovato nel PIES", "Non chiaro"] },
-      { id: "discountConditions", label: "Sconto tasso condizionato", placeholder: "Seleziona se lo sconto dipende da condizioni", penalty: 15, area: "polizze", issue: "Condizioni dello sconto tasso non chiare", why: "Uno sconto non e davvero valutabile se non sai cosa succede quando chiudi o recedi dai prodotti collegati.", question: "Da quali condizioni dipende lo sconto sul tasso? Cosa accade se non sottoscrivo, chiudo o recedo dai prodotti collegati?", selectOptions: ["Nessuno sconto indicato", "Sconto indicato senza condizioni", "Sconto collegato a polizze", "Sconto collegato a conto/accredito/prodotti", "Sconto indicato ma condizioni non chiare", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "productsRequiredForRate", label: "Prodotti o condizioni necessari per mantenere il tasso", placeholder: "Seleziona cosa indica il PIES", penalty: 10, area: "polizze", issue: "Prodotti o requisiti per mantenere il tasso non chiari", why: "Se il tasso dipende da conto, accredito, carta, polizze o requisiti commerciali, l'utente deve sapere cosa mantenere e quali costi comporta.", question: "Potete confermarmi quali prodotti o requisiti commerciali sono necessari per ottenere e mantenere il tasso indicato?", selectOptions: ["Nessun prodotto richiesto", "Conto corrente richiesto", "Accredito stipendio richiesto", "Carta o pacchetto conto richiesto", "Polizze collegate al tasso", "Più prodotti/requisiti commerciali", "Non indicato", "Non chiaro"] },
+      { id: "linkedProductsDetails", label: "Dettaglio prodotti/requisiti", placeholder: "Es. conto corrente, accredito stipendio, polizza casa, carta, requisiti commerciali", penalty: 5, area: "polizze", issue: "Dettaglio prodotti o requisiti non indicato", why: "Il dettaglio serve a capire quali prodotti o condizioni sono davvero collegati al tasso e quali costi possono aggiungersi.", question: "Potete indicarmi l'elenco completo dei prodotti o requisiti collegati al tasso e il costo di ciascuno?" },
+      { id: "discountConditions", label: "Tipo di sconto o condizione promozionale", placeholder: "Seleziona se lo sconto dipende da condizioni", penalty: 15, area: "polizze", issue: "Condizioni dello sconto tasso non chiare", why: "Uno sconto non è davvero valutabile se non sai cosa succede quando chiudi o recedi dai prodotti collegati o se non rispetti i requisiti indicati.", question: "Da quali condizioni dipende lo sconto sul tasso? Cosa accade se non rispetto, chiudo o recedo dalle condizioni collegate?", selectOptions: ["Nessuno sconto indicato", "Sconto indicato senza condizioni", "Sconto collegato a prodotti bancari", "Sconto collegato a polizze", "Sconto Green / classe energetica immobile", "Sconto collegato a requisiti commerciali", "Sconto collegato ad altre condizioni", "Sconto indicato ma condizioni non chiare", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "discountConsequence", label: "Cosa succede se il requisito non viene mantenuto?", placeholder: "Seleziona cosa indica il PIES", penalty: 8, area: "polizze", issue: "Conseguenze della perdita dello sconto non chiare", why: "Se lo sconto dipende da condizioni, è essenziale sapere se il tasso aumenta, lo sconto viene perso o cambiano altre condizioni economiche.", question: "Cosa accade al tasso o alle condizioni economiche se il requisito dello sconto non viene rispettato o mantenuto?", selectOptions: ["Il tasso aumenta", "Lo sconto viene perso", "Condizioni economiche cambiano", "Nessuna conseguenza indicata", "Non indicato", "Non chiaro"] },
+      { id: "greenDiscountRequirement", label: "Requisito sconto Green / classe energetica", placeholder: "Es. Classe A o B + documentazione energetica", penalty: 8, area: "polizze", issue: "Requisito dello sconto Green non chiaro", why: "Se lo sconto dipende dalla classe energetica, l'utente deve sapere quale documento serve, entro quando consegnarlo e cosa accade se il requisito non viene confermato.", question: "Quale classe energetica e quale documentazione sono necessarie per ottenere e mantenere lo sconto Green? Cosa accade al tasso se il requisito non viene confermato o mantenuto?" },
     ],
   },
   {
@@ -941,7 +953,7 @@ const mortgagePiesSections: MortgagePiesSection[] = [
     where: "Cerca 'Estinzione anticipata', 'portabilita', 'surroga' e condizioni sulle polizze non godute.",
     explanation: "Un buon mutuo deve essere comprensibile non solo all'ingresso, ma anche in uscita.",
     fields: [
-      { id: "earlyRepayment", label: "Estinzione anticipata e surroga", placeholder: "Seleziona cosa indica la documentazione", penalty: 8, area: "uscita", issue: "Estinzione o surroga non chiare", why: "Se vuoi uscire, surrogare o chiudere il mutuo, devi sapere cosa succede a costi e polizze.", question: "Sono previsti costi o condizioni in caso di estinzione anticipata o surroga? Cosa accade alle polizze collegate e alla quota di premio non goduta?", selectOptions: ["Condizioni chiare", "Estinzione chiara ma surroga non chiara", "Surroga chiara ma estinzione non chiara", "Polizze collegate non chiare in caso di uscita", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "earlyRepayment", label: "Estinzione anticipata e surroga", placeholder: "Seleziona cosa indica la documentazione", penalty: 8, area: "uscita", issue: "Estinzione o surroga non chiare", why: "Se vuoi uscire, surrogare o chiudere il mutuo, devi sapere cosa succede a costi e polizze.", question: "Sono previsti costi o condizioni in caso di estinzione anticipata o surroga? Cosa accade alle polizze collegate e alla quota di premio non goduta?", selectOptions: ["Condizioni chiare", "Condizioni chiare e rimborso premio non goduto indicato", "Estinzione/surroga chiare e rimborso quota polizza non goduta indicato", "Estinzione chiara ma surroga non chiara", "Surroga chiara ma estinzione non chiara", "Rimando generico a normativa/foglio condizioni", "Rimborso polizze non indicato", "Polizze collegate non chiare in caso di uscita", "Non trovato nel PIES", "Non chiaro"] },
     ],
   },
 ];
@@ -991,204 +1003,204 @@ type ScamScenario = {
 };
 
 const scamScenarioPool: ScamScenario[] = [
-  { id: "bank_sms_blocked", category: "Banca e pagamenti", situation: "Ricevi un SMS: 'Il tuo conto e stato bloccato. Clicca qui entro 24 ore per riattivarlo'.", isRisky: true, redFlags: ["Urgenza", "Link sospetto", "Paura"], explanation: "E un classico schema di phishing: usa paura e fretta per spingerti a cliccare senza verificare.", safeAction: "Non cliccare. Apri l'app ufficiale della banca o chiama il numero indicato sul sito ufficiale." },
-  { id: "bank_real_alert_app", category: "Banca e pagamenti", situation: "L'app ufficiale della tua banca, gia installata sul telefono, ti chiede di confermare un pagamento che riconosci.", isRisky: false, redFlags: ["Canale ufficiale"], explanation: "Il canale e quello ufficiale e il pagamento e riconosciuto. Resta comunque attento se non sei tu ad aver avviato l'operazione.", safeAction: "Controlla importo e beneficiario, poi conferma solo se tutto torna." },
+  { id: "bank_sms_blocked", category: "Banca e pagamenti", situation: "Ricevi un SMS: 'Il tuo conto è stato bloccato. Clicca qui entro 24 ore per riattivarlo'.", isRisky: true, redFlags: ["Urgenza", "Link sospetto", "Paura"], explanation: "È un classico schema di phishing: usa paura e fretta per spingerti a cliccare senza verificare.", safeAction: "Non cliccare. Apri l'app ufficiale della banca o chiama il numero indicato sul sito ufficiale." },
+  { id: "bank_real_alert_app", category: "Banca e pagamenti", situation: "L'app ufficiale della tua banca, già installata sul telefono, ti chiede di confermare un pagamento che riconosci.", isRisky: false, redFlags: ["Canale ufficiale"], explanation: "Il canale è quello ufficiale e il pagamento è riconosciuto. Resta comunque attento se non sei tu ad aver avviato l'operazione.", safeAction: "Controlla importo e beneficiario, poi conferma solo se tutto torna." },
   { id: "otp_phone_bank", category: "Telefonate", situation: "Una persona che dice di essere della banca ti chiama e chiede il codice OTP appena ricevuto per 'bloccare una frode'.", isRisky: true, redFlags: ["Richiesta codici", "Autorita falsa", "Pressione"], explanation: "Banche e operatori seri non chiedono mai OTP, PIN o password al telefono. Il codice serve a autorizzare operazioni.", safeAction: "Chiudi la chiamata e contatta la banca dal numero ufficiale." },
   { id: "marketplace_shipping_link", category: "Marketplace", situation: "Stai vendendo un oggetto. L'acquirente ti manda un link per 'ricevere il pagamento' e ti chiede i dati della carta.", isRisky: true, redFlags: ["Link pagamento", "Canale esterno", "Richiesta carta"], explanation: "Nei marketplace seri non devi inserire i dati carta per ricevere denaro. Spesso questi link rubano dati o autorizzano pagamenti.", safeAction: "Usa solo il sistema di pagamento interno alla piattaforma." },
-  { id: "marketplace_cash_pickup", category: "Marketplace", situation: "L'acquirente vuole vedere l'oggetto di persona e pagare in contanti al momento del ritiro.", isRisky: false, redFlags: ["Verifica dal vivo"], explanation: "Non e automaticamente una truffa. Serve comunque prudenza su luogo, banconote e sicurezza personale.", safeAction: "Incontrati in un luogo pubblico e controlla il pagamento prima di consegnare." },
-  { id: "crypto_guaranteed", category: "Investimenti", situation: "Un gruppo Telegram promette rendimento garantito del 10% al mese con crypto e ti chiede un bonifico immediato.", isRisky: true, redFlags: ["Guadagno garantito", "Urgenza", "Canale informale"], explanation: "Negli investimenti il rendimento garantito alto e un segnale molto forte di rischio. Spesso sono schemi fraudolenti.", safeAction: "Non inviare denaro. Verifica autorizzazioni e soggetti su canali ufficiali." },
+  { id: "marketplace_cash_pickup", category: "Marketplace", situation: "L'acquirente vuole vedere l'oggetto di persona e pagare in contanti al momento del ritiro.", isRisky: false, redFlags: ["Verifica dal vivo"], explanation: "Non è automaticamente una truffa. Serve comunque prudenza su luogo, banconote e sicurezza personale.", safeAction: "Incontrati in un luogo pubblico e controlla il pagamento prima di consegnare." },
+  { id: "crypto_guaranteed", category: "Investimenti", situation: "Un gruppo Telegram promette rendimento garantito del 10% al mese con crypto e ti chiede un bonifico immediato.", isRisky: true, redFlags: ["Guadagno garantito", "Urgenza", "Canale informale"], explanation: "Negli investimenti il rendimento garantito alto è un segnale molto forte di rischio. Spesso sono schemi fraudolenti.", safeAction: "Non inviare denaro. Verifica autorizzazioni e soggetti su canali ufficiali." },
   { id: "friend_hot_tip", category: "Investimenti", situation: "Un conoscente ti dice che ha un investimento 'sicuro' e che devi entrare oggi per non perdere l'occasione.", isRisky: true, redFlags: ["Pressione", "Occasione irripetibile", "Fiducia personale"], explanation: "Le truffe sfruttano spesso fiducia e fretta. Un investimento serio non richiede decisioni immediate senza documenti chiari.", safeAction: "Fermati, chiedi documentazione e verifica chi propone il prodotto." },
-  { id: "broker_authorized_docs", category: "Investimenti", situation: "Un intermediario autorizzato ti invia documenti ufficiali, costi chiari e ti invita a prenderti tempo prima di decidere.", isRisky: false, redFlags: ["Trasparenza", "Nessuna fretta"], explanation: "Trasparenza, tempi di valutazione e documenti controllabili sono segnali piu sani. Non significa che sia adatto a te, ma non e un comportamento tipico da truffa.", safeAction: "Leggi costi e rischi, poi verifica l'intermediario su registri ufficiali." },
-  { id: "package_customs", category: "SMS / email", situation: "Ricevi una email del corriere: 'Pacco fermo in dogana, paga 1,99 euro cliccando qui'. Non aspettavi pacchi.", isRisky: true, redFlags: ["Link sospetto", "Importo piccolo", "Mittente dubbio"], explanation: "Importi piccoli abbassano le difese. Il link puo rubare dati carta o installare malware.", safeAction: "Controlla solo dal sito ufficiale del corriere usando il codice tracking, se lo hai." },
-  { id: "package_tracking_expected", category: "SMS / email", situation: "Aspetti un pacco e ricevi una notifica dall'app ufficiale del corriere gia installata con il tracking corretto.", isRisky: false, redFlags: ["Canale ufficiale"], explanation: "Il canale ufficiale e il tracking atteso riducono il rischio. Resta attento a richieste di pagamento inattese.", safeAction: "Controlla i dettagli nell'app o sul sito ufficiale." },
-  { id: "family_emergency_whatsapp", category: "Familiari", situation: "Ricevi un messaggio: 'Mamma, ho cambiato numero, ho un problema, mandami subito 900 euro'.", isRisky: true, redFlags: ["Emergenza", "Nuovo numero", "Richiesta denaro"], explanation: "E una truffa molto diffusa: sfrutta ansia e legami familiari per farti pagare in fretta.", safeAction: "Chiama il vecchio numero o un familiare, non inviare denaro via chat." },
-  { id: "relative_calls_from_known_number", category: "Familiari", situation: "Tuo figlio ti chiama dal suo numero abituale e ti chiede di anticipare una spesa, spiegandoti con calma il motivo.", isRisky: false, redFlags: ["Numero conosciuto", "Tempo per verificare"], explanation: "Non e automaticamente rischioso, ma i pagamenti vanno sempre verificati, soprattutto se insoliti.", safeAction: "Richiama il numero conosciuto e controlla il beneficiario prima di pagare." },
-  { id: "door_utility_contract", category: "Di persona", situation: "Un venditore porta a porta dice che devi firmare subito un nuovo contratto luce per evitare una penale.", isRisky: true, redFlags: ["Pressione", "Firma immediata", "Minaccia penale"], explanation: "Le vendite aggressive usano urgenza e paura. Un contratto serio puo essere letto con calma.", safeAction: "Non firmare sul momento. Chiedi documenti e confronta l'offerta da casa." },
-  { id: "fake_technician_home", category: "Di persona", situation: "Una persona si presenta come tecnico del gas senza appuntamento e chiede di entrare in casa per un controllo urgente.", isRisky: true, redFlags: ["Accesso a casa", "Nessun appuntamento", "Urgenza"], explanation: "I falsi tecnici possono puntare a furti, firme o dati personali. L'urgenza non verificata e un segnale forte.", safeAction: "Non far entrare. Chiama l'azienda dal numero ufficiale." },
-  { id: "planned_technician", category: "Di persona", situation: "Hai fissato tu un appuntamento con il tecnico, arriva nell'orario previsto e mostra tesserino e riferimento pratica.", isRisky: false, redFlags: ["Appuntamento atteso", "Identificazione"], explanation: "Un appuntamento atteso e verificabile e meno rischioso. Si puo comunque controllare l'identita.", safeAction: "Verifica tesserino e, se hai dubbi, chiama l'azienda." },
-  { id: "charity_no_docs", category: "Di persona", situation: "Fuori dal supermercato una persona chiede donazioni in contanti per una causa urgente ma non mostra documenti chiari.", isRisky: true, redFlags: ["Contanti", "Nessuna documentazione", "Pressione emotiva"], explanation: "La beneficenza vera e trasparente deve permetterti di verificare ente, finalita e ricevute.", safeAction: "Dona solo tramite canali ufficiali dell'ente." },
-  { id: "charity_official_stand", category: "Di persona", situation: "Un'associazione riconosciuta ha uno stand ufficiale, materiale informativo e ti permette di donare dal sito ufficiale.", isRisky: false, redFlags: ["Verificabile", "Canale ufficiale"], explanation: "La presenza di informazioni verificabili e la possibilita di donare tramite canale ufficiale sono segnali positivi.", safeAction: "Controlla il sito dell'associazione e dona solo da li." },
-  { id: "rental_deposit_before_visit", category: "Affitti e casa", situation: "Un annuncio di affitto molto conveniente chiede caparra prima di vedere casa per 'bloccare l'occasione'.", isRisky: true, redFlags: ["Prezzo troppo basso", "Caparra anticipata", "Nessuna visita"], explanation: "Le truffe sugli affitti puntano su prezzo attraente e fretta. Pagare prima di vedere e verificare e pericoloso.", safeAction: "Visita l'immobile, verifica identita e contratto prima di pagare." },
-  { id: "rental_agency_visit_contract", category: "Affitti e casa", situation: "Visiti la casa con agenzia, ricevi contratto e dati verificabili prima di versare importi.", isRisky: false, redFlags: ["Visita", "Contratto", "Tracciabilita"], explanation: "La tracciabilita riduce il rischio. Controlla comunque intestatari e condizioni.", safeAction: "Paga solo con metodi tracciabili dopo aver letto il contratto." },
+  { id: "broker_authorized_docs", category: "Investimenti", situation: "Un intermediario autorizzato ti invia documenti ufficiali, costi chiari e ti invita a prenderti tempo prima di decidere.", isRisky: false, redFlags: ["Trasparenza", "Nessuna fretta"], explanation: "Trasparenza, tempi di valutazione e documenti controllabili sono segnali più sani. Non significa che sia adatto a te, ma non è un comportamento tipico da truffa.", safeAction: "Leggi costi e rischi, poi verifica l'intermediario su registri ufficiali." },
+  { id: "package_customs", category: "SMS / email", situation: "Ricevi una email del corriere: 'Pacco fermo in dogana, paga 1,99 euro cliccando qui'. Non aspettavi pacchi.", isRisky: true, redFlags: ["Link sospetto", "Importo piccolo", "Mittente dubbio"], explanation: "Importi piccoli abbassano le difese. Il link può rubare dati carta o installare malware.", safeAction: "Controlla solo dal sito ufficiale del corriere usando il codice tracking, se lo hai." },
+  { id: "package_tracking_expected", category: "SMS / email", situation: "Aspetti un pacco e ricevi una notifica dall'app ufficiale del corriere già installata con il tracking corretto.", isRisky: false, redFlags: ["Canale ufficiale"], explanation: "Il canale ufficiale e il tracking atteso riducono il rischio. Resta attento a richieste di pagamento inattese.", safeAction: "Controlla i dettagli nell'app o sul sito ufficiale." },
+  { id: "family_emergency_whatsapp", category: "Familiari", situation: "Ricevi un messaggio: 'Mamma, ho cambiato numero, ho un problema, mandami subito 900 euro'.", isRisky: true, redFlags: ["Emergenza", "Nuovo numero", "Richiesta denaro"], explanation: "È una truffa molto diffusa: sfrutta ansia e legami familiari per farti pagare in fretta.", safeAction: "Chiama il vecchio numero o un familiare, non inviare denaro via chat." },
+  { id: "relative_calls_from_known_number", category: "Familiari", situation: "Tuo figlio ti chiama dal suo numero abituale e ti chiede di anticipare una spesa, spiegandoti con calma il motivo.", isRisky: false, redFlags: ["Numero conosciuto", "Tempo per verificare"], explanation: "Non è automaticamente rischioso, ma i pagamenti vanno sempre verificati, soprattutto se insoliti.", safeAction: "Richiama il numero conosciuto e controlla il beneficiario prima di pagare." },
+  { id: "door_utility_contract", category: "Di persona", situation: "Un venditore porta a porta dice che devi firmare subito un nuovo contratto luce per evitare una penale.", isRisky: true, redFlags: ["Pressione", "Firma immediata", "Minaccia penale"], explanation: "Le vendite aggressive usano urgenza e paura. Un contratto serio può essere letto con calma.", safeAction: "Non firmare sul momento. Chiedi documenti e confronta l'offerta da casa." },
+  { id: "fake_technician_home", category: "Di persona", situation: "Una persona si presenta come tecnico del gas senza appuntamento e chiede di entrare in casa per un controllo urgente.", isRisky: true, redFlags: ["Accesso a casa", "Nessun appuntamento", "Urgenza"], explanation: "I falsi tecnici possono puntare a furti, firme o dati personali. L'urgenza non verificata è un segnale forte.", safeAction: "Non far entrare. Chiama l'azienda dal numero ufficiale." },
+  { id: "planned_technician", category: "Di persona", situation: "Hai fissato tu un appuntamento con il tecnico, arriva nell'orario previsto e mostra tesserino e riferimento pratica.", isRisky: false, redFlags: ["Appuntamento atteso", "Identificazione"], explanation: "Un appuntamento atteso è verificabile e meno rischioso. Si può comunque controllare l'identita.", safeAction: "Verifica tesserino e, se hai dubbi, chiama l'azienda." },
+  { id: "charity_no_docs", category: "Di persona", situation: "Fuori dal supermercato una persona chiede donazioni in contanti per una causa urgente ma non mostra documenti chiari.", isRisky: true, redFlags: ["Contanti", "Nessuna documentazione", "Pressione emotiva"], explanation: "La beneficenza vera e trasparente deve permetterti di verificare ente, finalità e ricevute.", safeAction: "Dona solo tramite canali ufficiali dell'ente." },
+  { id: "charity_official_stand", category: "Di persona", situation: "Un'associazione riconosciuta ha uno stand ufficiale, materiale informativo e ti permette di donare dal sito ufficiale.", isRisky: false, redFlags: ["Verificabile", "Canale ufficiale"], explanation: "La presenza di informazioni verificabili e la possibilità di donare tramite canale ufficiale sono segnali positivi.", safeAction: "Controlla il sito dell'associazione e dona solo da li." },
+  { id: "rental_deposit_before_visit", category: "Affitti e casa", situation: "Un annuncio di affitto molto conveniente chiede caparra prima di vedere casa per 'bloccare l'occasione'.", isRisky: true, redFlags: ["Prezzo troppo basso", "Caparra anticipata", "Nessuna visita"], explanation: "Le truffe sugli affitti puntano su prezzo attraente e fretta. Pagare prima di vedere e verificare e pericoloso.", safeAction: "Visita l'immobile, verifica identità e contratto prima di pagare." },
+  { id: "rental_agency_visit_contract", category: "Affitti e casa", situation: "Visiti la casa con agenzia, ricevi contratto e dati verificabili prima di versare importi.", isRisky: false, redFlags: ["Visita", "Contratto", "Tracciabilità"], explanation: "La tracciabilità riduce il rischio. Controlla comunque intestatari e condizioni.", safeAction: "Paga solo con metodi tracciabili dopo aver letto il contratto." },
   { id: "job_pay_for_training", category: "Lavoro", situation: "Un annuncio di lavoro ti chiede 180 euro per iniziare un corso obbligatorio prima dell'assunzione.", isRisky: true, redFlags: ["Pagamento anticipato", "Promessa lavoro", "Pressione"], explanation: "Molte truffe lavorative chiedono soldi prima di offrire un lavoro reale.", safeAction: "Verifica azienda, contratto e condizioni. Non pagare per essere assunto." },
-  { id: "job_normal_selection", category: "Lavoro", situation: "Un'azienda ti invita a colloquio, ti manda una email da dominio aziendale e non chiede soldi o documenti sensibili prima della selezione.", isRisky: false, redFlags: ["Nessun pagamento", "Dominio verificabile"], explanation: "Il processo e piu normale. Resta prudente con dati personali e contratti.", safeAction: "Verifica sito aziendale e posizione, poi procedi." },
+  { id: "job_normal_selection", category: "Lavoro", situation: "Un'azienda ti invita a colloquio, ti manda una email da dominio aziendale e non chiede soldi o documenti sensibili prima della selezione.", isRisky: false, redFlags: ["Nessun pagamento", "Dominio verificabile"], explanation: "Il processo e più normale. Resta prudente con dati personali e contratti.", safeAction: "Verifica sito aziendale e posizione, poi procedi." },
   { id: "used_car_advance", category: "Auto usata", situation: "Un venditore propone un'auto a prezzo molto basso e chiede anticipo per spedirla, senza farla vedere.", isRisky: true, redFlags: ["Prezzo troppo basso", "Anticipo", "Nessuna visione"], explanation: "Auto inesistenti o non disponibili sono una truffa frequente. L'anticipo serve a farti perdere denaro.", safeAction: "Vedi l'auto, verifica documenti e paga con metodi tracciabili." },
-  { id: "used_car_seen_docs", category: "Auto usata", situation: "Vedi l'auto di persona, controlli libretto, proprietario e fai una visura prima di pagare.", isRisky: false, redFlags: ["Verifica documenti", "Visione dal vivo"], explanation: "Questo e un comportamento prudente. Non elimina ogni rischio, ma riduce molto le truffe comuni.", safeAction: "Completa il passaggio con documenti e pagamenti tracciabili." },
-  { id: "fake_refund_trading", category: "Investimenti", situation: "Dopo aver perso soldi in trading, qualcuno ti contatta dicendo di poterli recuperare pagando una commissione iniziale.", isRisky: true, redFlags: ["Recupero soldi", "Commissione anticipata", "Vittima gia colpita"], explanation: "E una truffa di recupero: colpisce persone gia danneggiate promettendo recuperi improbabili.", safeAction: "Non pagare. Rivolgiti a canali legali o autorita competenti." },
-  { id: "invoice_iban_changed", category: "Banca e pagamenti", situation: "Ricevi una email da un fornitore: 'Abbiamo cambiato IBAN, paga la fattura su questo nuovo conto'.", isRisky: true, redFlags: ["Cambio IBAN", "Email", "Pagamento"], explanation: "La frode del cambio IBAN e comune. Una email puo essere falsificata o l'account compromesso.", safeAction: "Verifica il cambio IBAN con una telefonata a un numero gia conosciuto." },
-  { id: "known_supplier_call", category: "Banca e pagamenti", situation: "Un fornitore ti comunica un cambio IBAN durante una chiamata che hai fatto tu al numero ufficiale e ti invia documenti coerenti.", isRisky: false, redFlags: ["Verifica attiva", "Numero ufficiale"], explanation: "La verifica da un canale noto rende la situazione piu sicura, anche se va documentata.", safeAction: "Conserva conferma scritta e verifica intestatario del conto." },
+  { id: "used_car_seen_docs", category: "Auto usata", situation: "Vedi l'auto di persona, controlli libretto, proprietàrio e fai una visura prima di pagare.", isRisky: false, redFlags: ["Verifica documenti", "Visione dal vivo"], explanation: "Questo è un comportamento prudente. Non elimina ogni rischio, ma riduce molto le truffe comuni.", safeAction: "Completa il passaggio con documenti e pagamenti tracciabili." },
+  { id: "fake_refund_trading", category: "Investimenti", situation: "Dopo aver perso soldi in trading, qualcuno ti contatta dicendo di poterli recuperare pagando una commissione iniziale.", isRisky: true, redFlags: ["Recupero soldi", "Commissione anticipata", "Vittima già colpita"], explanation: "È una truffa di recupero: colpisce persone già danneggiate promettendo recuperi improbabili.", safeAction: "Non pagare. Rivolgiti a canali legali o autorita competenti." },
+  { id: "invoice_iban_changed", category: "Banca e pagamenti", situation: "Ricevi una email da un fornitore: 'Abbiamo cambiato IBAN, paga la fattura su questo nuovo conto'.", isRisky: true, redFlags: ["Cambio IBAN", "Email", "Pagamento"], explanation: "La frode del cambio IBAN e comune. Una email può essere falsificata o l'account compromesso.", safeAction: "Verifica il cambio IBAN con una telefonata a un numero già conosciuto." },
+  { id: "known_supplier_call", category: "Banca e pagamenti", situation: "Un fornitore ti comunica un cambio IBAN durante una chiamata che hai fatto tu al numero ufficiale e ti invia documenti coerenti.", isRisky: false, redFlags: ["Verifica attiva", "Numero ufficiale"], explanation: "La verifica da un canale noto rende la situazione più sicura, anche se va documentata.", safeAction: "Conserva conferma scritta e verifica intestatario del conto." },
   { id: "romance_investment", category: "Relazioni", situation: "Una persona conosciuta online crea confidenza e poi ti propone una piattaforma di investimento 'usata anche da lei'.", isRisky: true, redFlags: ["Fiducia emotiva", "Piattaforma sconosciuta", "Investimento"], explanation: "Le truffe romantiche spesso portano gradualmente a richieste di denaro o investimenti falsi.", safeAction: "Non inviare soldi. Verifica piattaforma e interrompi se aumenta la pressione." },
   { id: "qr_parking", category: "Pagamenti quotidiani", situation: "In un parcheggio trovi un QR code incollato sopra quello ufficiale per pagare la sosta.", isRisky: true, redFlags: ["QR non verificato", "Pagamento", "Possibile sostituzione"], explanation: "QR falsi possono portare a siti clone e rubare dati di pagamento.", safeAction: "Usa l'app ufficiale del parcheggio o il sito indicato sui cartelli ufficiali." },
-  { id: "qr_restaurant_menu", category: "Pagamenti quotidiani", situation: "Al ristorante il QR code e sul menu ufficiale e porta solo alla lista dei piatti, senza chiedere dati o pagamenti.", isRisky: false, redFlags: ["Nessun pagamento", "Contesto coerente"], explanation: "Un QR per consultare un menu e meno rischioso. Il rischio cresce quando chiede dati o pagamenti.", safeAction: "Aprilo con prudenza e non inserire dati se non serve." },
+  { id: "qr_restaurant_menu", category: "Pagamenti quotidiani", situation: "Al ristorante il QR code è sul menu ufficiale e porta solo alla lista dei piatti, senza chiedere dati o pagamenti.", isRisky: false, redFlags: ["Nessun pagamento", "Contesto coerente"], explanation: "Un QR per consultare un menu e meno rischioso. Il rischio cresce quando chiede dati o pagamenti.", safeAction: "Aprilo con prudenza e non inserire dati se non serve." },
   { id: "prize_fee", category: "Premi e concorsi", situation: "Ricevi un messaggio: 'Hai vinto uno smartphone, paga 2 euro di spedizione'.", isRisky: true, redFlags: ["Premio inatteso", "Pagamento piccolo", "Link"], explanation: "I falsi premi usano importi piccoli per rubare dati della carta.", safeAction: "Ignora il link. Verifica eventuali concorsi solo dal sito ufficiale." },
-  { id: "official_lottery_ticket", category: "Premi e concorsi", situation: "Hai comprato un biglietto ufficiale e controlli la vincita sul sito ufficiale, senza ricevere link esterni.", isRisky: false, redFlags: ["Canale ufficiale"], explanation: "Il controllo da canale ufficiale e coerente. Non pagare commissioni per ricevere premi non verificati.", safeAction: "Segui solo le istruzioni ufficiali." },
-  { id: "insurance_accident_call", category: "Telefonate", situation: "Un presunto avvocato chiama: 'Tuo figlio ha causato un incidente, servono contanti subito per evitar guai'.", isRisky: true, redFlags: ["Emergenza", "Contanti", "Paura"], explanation: "E una truffa che sfrutta panico e autorita falsa. Nessuna procedura seria funziona cosi.", safeAction: "Chiama direttamente tuo figlio o le forze dell'ordine da numeri ufficiali." },
+  { id: "official_lottery_ticket", category: "Premi e concorsi", situation: "Hai comprato un biglietto ufficiale e controlli la vincita sul sito ufficiale, senza ricevere link esterni.", isRisky: false, redFlags: ["Canale ufficiale"], explanation: "Il controllo da canale ufficiale è coerente. Non pagare commissioni per ricevere premi non verificati.", safeAction: "Segui solo le istruzioni ufficiali." },
+  { id: "insurance_accident_call", category: "Telefonate", situation: "Un presunto avvocato chiama: 'Tuo figlio ha causato un incidente, servono contanti subito per evitar guai'.", isRisky: true, redFlags: ["Emergenza", "Contanti", "Paura"], explanation: "È una truffa che sfrutta panico e autorita falsa. Nessuna procedura seria funziona così.", safeAction: "Chiama direttamente tuo figlio o le forze dell'ordine da numeri ufficiali." },
   { id: "police_never_asks_money", category: "Di persona", situation: "Una persona in divisa chiede soldi in contanti per chiudere una pratica urgente.", isRisky: true, redFlags: ["Contanti", "Autorita falsa", "Urgenza"], explanation: "Autorita e uffici pubblici non chiedono contanti per risolvere pratiche sul momento.", safeAction: "Non pagare. Verifica con l'ufficio o chiama il numero ufficiale." },
-  { id: "public_office_payment_notice", category: "Pagamenti", situation: "Ricevi un avviso pagoPA con codice verificabile e lo paghi tramite app della banca o canale ufficiale.", isRisky: false, redFlags: ["Canale tracciabile", "Codice verificabile"], explanation: "Un pagamento su canale ufficiale e verificabile e piu sicuro. Controlla sempre beneficiario e importo.", safeAction: "Paga solo da app o sito ufficiale, non da link sospetti." },
+  { id: "public_office_payment_notice", category: "Pagamenti", situation: "Ricevi un avviso pagoPA con codice verificabile e lo paghi tramite app della banca o canale ufficiale.", isRisky: false, redFlags: ["Canale tracciabile", "Codice verificabile"], explanation: "Un pagamento su canale ufficiale è verificabile e più sicuro. Controlla sempre beneficiario e importo.", safeAction: "Paga solo da app o sito ufficiale, non da link sospetti." },
   { id: "investment_seminar_free_lunch", category: "Investimenti", situation: "Ti invitano a una cena gratuita per presentare un investimento con rendimenti alti e posti limitati.", isRisky: true, redFlags: ["Vendita aggressiva", "Posti limitati", "Rendimenti alti"], explanation: "Eventi commerciali possono usare pressione sociale e scarsita per vendere prodotti non adatti o rischiosi.", safeAction: "Non firmare nulla sul posto. Porta i documenti a casa e verifica costi e rischi." },
-  { id: "utility_bill_review", category: "Casa e utenze", situation: "Un consulente ti propone di confrontare le bollette, ti lascia l'offerta scritta e non chiede firma immediata.", isRisky: false, redFlags: ["Documento scritto", "Nessuna urgenza"], explanation: "Confrontare puo essere utile se hai tempo per leggere. Attento comunque a deleghe e contratti non richiesti.", safeAction: "Leggi condizioni, durata, penali e prezzo prima di firmare." },
+  { id: "utility_bill_review", category: "Casa e utenze", situation: "Un consulente ti propone di confrontare le bollette, ti lascia l'offerta scritta e non chiede firma immediata.", isRisky: false, redFlags: ["Documento scritto", "Nessuna urgenza"], explanation: "Confrontare può essere utile se hai tempo per leggere. Attento comunque a deleghe e contratti non richiesti.", safeAction: "Leggi condizioni, durata, penali e prezzo prima di firmare." },
   { id: "fake_parcel_home", category: "Di persona", situation: "Un corriere sconosciuto dice che devi pagare in contanti una tassa per un pacco che non aspettavi.", isRisky: true, redFlags: ["Contanti", "Pacco inatteso", "Pressione"], explanation: "Richieste di pagamento impreviste alla porta sono rischiose, soprattutto se non puoi verificare il tracking.", safeAction: "Non pagare. Verifica sul sito ufficiale del corriere." },
   { id: "atm_help", category: "Di persona", situation: "Una persona vicino al bancomat si offre di aiutarti e ti dice di reinserire il PIN per sbloccare la carta.", isRisky: true, redFlags: ["PIN", "Bancomat", "Aiuto non richiesto"], explanation: "Mai mostrare PIN o accettare aiuto da sconosciuti allo sportello. Potrebbe essere un tentativo di furto.", safeAction: "Annulla, copri la tastiera e chiedi aiuto solo dentro la filiale." },
-  { id: "atm_bank_staff_inside", category: "Di persona", situation: "Hai un problema al bancomat e chiedi aiuto allo sportello interno della filiale.", isRisky: false, redFlags: ["Filiale", "Personale verificabile"], explanation: "Chiedere aiuto al personale della filiale e piu sicuro. Nessuno deve comunque vedere il PIN.", safeAction: "Non comunicare il PIN e segui procedure ufficiali." },
-  { id: "subscription_trial", category: "Abbonamenti", situation: "Un sito offre prova gratuita ma chiede carta e scrive in piccolo che dopo 7 giorni partono 49 euro al mese.", isRisky: true, redFlags: ["Costo nascosto", "Termini piccoli", "Carta"], explanation: "Non sempre e una truffa illegale, ma puo diventare una trappola di spesa se le condizioni sono poco chiare.", safeAction: "Leggi rinnovo, disdetta e imposta un promemoria prima di inserire la carta." },
+  { id: "atm_bank_staff_inside", category: "Di persona", situation: "Hai un problema al bancomat e chiedi aiuto allo sportello interno della filiale.", isRisky: false, redFlags: ["Filiale", "Personale verificabile"], explanation: "Chiedere aiuto al personale della filiale e più sicuro. Nessuno deve comunque vedere il PIN.", safeAction: "Non comunicare il PIN e segui procedure ufficiali." },
+  { id: "subscription_trial", category: "Abbonamenti", situation: "Un sito offre prova gratuita ma chiede carta e scrive in piccolo che dopo 7 giorni partono 49 euro al mese.", isRisky: true, redFlags: ["Costo nascosto", "Termini piccoli", "Carta"], explanation: "Non sempre è una truffa illegale, ma può diventare una trappola di spesa se le condizioni sono poco chiare.", safeAction: "Leggi rinnovo, disdetta e imposta un promemoria prima di inserire la carta." },
   { id: "normal_subscription_clear", category: "Abbonamenti", situation: "Un servizio mostra chiaramente prezzo, rinnovo, data di addebito e pulsante di cancellazione.", isRisky: false, redFlags: ["Prezzo chiaro", "Disdetta visibile"], explanation: "La trasparenza riduce il rischio. Devi comunque valutare se ti serve davvero.", safeAction: "Salva la data di rinnovo e controlla l'utilizzo." },
   { id: "loan_upfront_fee", category: "Prestiti", situation: "Una societa online promette prestito immediato ma chiede 250 euro di spese prima di erogarlo.", isRisky: true, redFlags: ["Commissione anticipata", "Prestito facile", "Urgenza"], explanation: "I prestiti con costi anticipati e promesse facili sono spesso rischiosi o fraudolenti.", safeAction: "Verifica autorizzazioni e condizioni. Non pagare anticipi a soggetti non verificati." },
-  { id: "bank_loan_branch", category: "Prestiti", situation: "La tua banca ti propone un prestito con documento informativo, TAEG e piano rate chiari prima della firma.", isRisky: false, redFlags: ["TAEG chiaro", "Documenti"], explanation: "La presenza di documenti e costi chiari e un buon segnale, anche se devi valutare sostenibilita e convenienza.", safeAction: "Confronta TAEG e rata con altre offerte prima di firmare." },
+  { id: "bank_loan_branch", category: "Prestiti", situation: "La tua banca ti propone un prestito con documento informativo, TAEG e piano rate chiari prima della firma.", isRisky: false, redFlags: ["TAEG chiaro", "Documenti"], explanation: "La presenza di documenti e costi chiari è un buon segnale, anche se devi valutare sostenibilità e convenienza.", safeAction: "Confronta TAEG e rata con altre offerte prima di firmare." },
   { id: "social_fake_shop", category: "Acquisti", situation: "Vedi su social un negozio con sconti enormi, nessun indirizzo chiaro e pagamento solo bonifico.", isRisky: true, redFlags: ["Sconto enorme", "Dati societari assenti", "Bonifico"], explanation: "Negozi clone o falsi usano sconti estremi e metodi di pagamento poco reversibili.", safeAction: "Cerca recensioni indipendenti, partita IVA e paga solo con metodi protetti." },
-  { id: "known_store_card", category: "Acquisti", situation: "Acquisti da un negozio conosciuto, URL corretto, pagamento con carta protetta e conferma ordine.", isRisky: false, redFlags: ["URL corretto", "Pagamento protetto"], explanation: "E una situazione piu sicura. Controlla sempre URL e condizioni di reso.", safeAction: "Usa metodi tracciabili e salva la conferma ordine." },
+  { id: "known_store_card", category: "Acquisti", situation: "Acquisti da un negozio conosciuto, URL corretto, pagamento con carta protetta e conferma ordine.", isRisky: false, redFlags: ["URL corretto", "Pagamento protetto"], explanation: "È una situazione più sicura. Controlla sempre URL e condizioni di reso.", safeAction: "Usa metodi tracciabili e salva la conferma ordine." },
   { id: "document_photo_request", category: "Documenti", situation: "Uno sconosciuto in chat ti chiede foto di carta d'identita e codice fiscale per 'verificare il profilo'.", isRisky: true, redFlags: ["Documenti", "Chat", "Identita"], explanation: "I documenti possono essere usati per furti d'identita, SIM swap o contratti falsi.", safeAction: "Invia documenti solo a soggetti verificati e su canali ufficiali." },
-  { id: "official_kyc", category: "Documenti", situation: "Una piattaforma finanziaria regolamentata chiede identificazione tramite procedura KYC nel sito ufficiale prima di aprire il conto.", isRisky: false, redFlags: ["Procedura ufficiale", "Soggetto verificabile"], explanation: "La verifica identita e normale in contesti regolamentati, se il soggetto e verificabile e il canale e ufficiale.", safeAction: "Controlla URL, autorizzazioni e privacy prima di caricare documenti." },
-  { id: "sim_swap", category: "Telefonia", situation: "Un operatore telefonico ti chiama e chiede codice ricevuto via SMS per 'aggiornare la SIM'.", isRisky: true, redFlags: ["Codice SMS", "SIM", "Telefonata inattesa"], explanation: "Quel codice puo autorizzare operazioni sulla tua SIM o sui tuoi account.", safeAction: "Non comunicare codici. Contatta l'operatore da canale ufficiale." },
-  { id: "bank_card_pickup", category: "Banca e pagamenti", situation: "Un finto addetto dice che la tua carta e compromessa e manda un corriere a ritirarla a casa.", isRisky: true, redFlags: ["Carta fisica", "Corriere", "Paura"], explanation: "Banche e circuiti non mandano corrieri a ritirare carte per sicurezza.", safeAction: "Blocca la carta dall'app o dal numero ufficiale e non consegnarla." },
-  { id: "restaurant_bill_split", category: "Pagamenti quotidiani", situation: "Un amico ti manda una richiesta di pagamento riconoscibile per dividere una cena appena fatta insieme.", isRisky: false, redFlags: ["Contesto riconosciuto", "Importo coerente"], explanation: "Il contesto e coerente. Verifica comunque importo e destinatario.", safeAction: "Paga solo se riconosci richiesta e importo." },
+  { id: "official_kyc", category: "Documenti", situation: "Una piattaforma finanziaria regolamentata chiede identificazione tramite procedura KYC nel sito ufficiale prima di aprire il conto.", isRisky: false, redFlags: ["Procedura ufficiale", "Soggetto verificabile"], explanation: "La verifica identità è normale in contesti regolamentati, se il soggetto è verificabile e il canale è ufficiale.", safeAction: "Controlla URL, autorizzazioni e privacy prima di caricare documenti." },
+  { id: "sim_swap", category: "Telefonia", situation: "Un operatore telefonico ti chiama e chiede codice ricevuto via SMS per 'aggiornare la SIM'.", isRisky: true, redFlags: ["Codice SMS", "SIM", "Telefonata inattesa"], explanation: "Quel codice può autorizzare operazioni sulla tua SIM o sui tuoi account.", safeAction: "Non comunicare codici. Contatta l'operatore da canale ufficiale." },
+  { id: "bank_card_pickup", category: "Banca e pagamenti", situation: "Un finto addetto dice che la tua carta e compromessa e manda un corriere a ritirarla a casa.", isRisky: true, redFlags: ["Carta fisica", "Corriere", "Paura"], explanation: "Banche è circuiti non mandano corrieri a ritirare carte per sicurezza.", safeAction: "Blocca la carta dall'app o dal numero ufficiale e non consegnarla." },
+  { id: "restaurant_bill_split", category: "Pagamenti quotidiani", situation: "Un amico ti manda una richiesta di pagamento riconoscibile per dividere una cena appena fatta insieme.", isRisky: false, redFlags: ["Contesto riconosciuto", "Importo coerente"], explanation: "Il contesto è coerente. Verifica comunque importo e destinatario.", safeAction: "Paga solo se riconosci richiesta e importo." },
   { id: "fake_survey", category: "Dati personali", situation: "Un sondaggio online promette buono spesa da 500 euro e chiede dati, carta e telefono.", isRisky: true, redFlags: ["Premio alto", "Dati sensibili", "Carta"], explanation: "Spesso questi sondaggi raccolgono dati o attivano abbonamenti indesiderati.", safeAction: "Non inserire dati sensibili per premi non verificati." },
-  { id: "cash_change_trick", category: "Di persona", situation: "Un passante ti chiede di cambiare una banconota e cerca di confonderti con conti e resto.", isRisky: true, redFlags: ["Confusione", "Contanti", "Fretta"], explanation: "Le truffe del resto sfruttano confusione e rapidita per farti consegnare piu soldi.", safeAction: "Non cambiare denaro a sconosciuti se non sei tranquillo." },
+  { id: "cash_change_trick", category: "Di persona", situation: "Un passante ti chiede di cambiare una banconota e cerca di confonderti con conti e resto.", isRisky: true, redFlags: ["Confusione", "Contanti", "Fretta"], explanation: "Le truffe del resto sfruttano confusione e rapidita per farti consegnare più soldi.", safeAction: "Non cambiare denaro a sconosciuti se non sei tranquillo." },
   { id: "parking_attendant_official", category: "Di persona", situation: "Un parcheggiatore autorizzato ha badge, tariffario esposto e ricevuta fiscale.", isRisky: false, redFlags: ["Ricevuta", "Tariffario"], explanation: "La presenza di tariffario e ricevuta riduce il rischio, pur richiedendo sempre attenzione.", safeAction: "Paga solo quanto indicato e conserva ricevuta." },
   { id: "medical_quick_cure", category: "Salute e benessere", situation: "Una pubblicita promette integratore miracoloso che fa guadagnare energia e dimagrire senza prove, solo oggi sconto 80%.", isRisky: true, redFlags: ["Miracolo", "Sconto aggressivo", "Promesse eccessive"], explanation: "Promesse estreme e urgenza commerciale sono segnali di rischio economico e personale.", safeAction: "Non acquistare d'impulso. Verifica fonti affidabili e professionisti competenti." },
-  { id: "official_notice_logged_in", category: "Account online", situation: "Accedi tu al sito ufficiale di un servizio e trovi una notifica interna che ti chiede di aggiornare un dato non sensibile.", isRisky: false, redFlags: ["Accesso iniziato da te", "Canale ufficiale"], explanation: "Quando sei tu ad accedere dal sito ufficiale, il rischio e piu basso. Attenzione se vengono chiesti codici o pagamenti strani.", safeAction: "Aggiorna solo cio che capisci e verifica eventuali richieste insolite." },
-  { id: "investment_cash_only", category: "Investimenti", situation: "Una persona ti propone un investimento in contanti per evitare tasse e dice di non parlarne con nessuno.", isRisky: true, redFlags: ["Contanti", "Segretezza", "Evasione"], explanation: "Segretezza, contanti e promesse fiscali sono segnali molto forti di rischio e possibile illegalita.", safeAction: "Non partecipare. Investi solo con intermediari autorizzati e tracciabilita." },
+  { id: "official_notice_logged_in", category: "Account online", situation: "Accedi tu al sito ufficiale di un servizio e trovi una notifica interna che ti chiede di aggiornare un dato non sensibile.", isRisky: false, redFlags: ["Accesso iniziato da te", "Canale ufficiale"], explanation: "Quando sei tu ad accedere dal sito ufficiale, il rischio è più basso. Attenzione se vengono chiesti codici o pagamenti strani.", safeAction: "Aggiorna solo ciò che capisci e verifica eventuali richieste insolite." },
+  { id: "investment_cash_only", category: "Investimenti", situation: "Una persona ti propone un investimento in contanti per evitare tasse e dice di non parlarne con nessuno.", isRisky: true, redFlags: ["Contanti", "Segretezza", "Evasione"], explanation: "Segretezza, contanti e promesse fiscali sono segnali molto forti di rischio e di possibile illegalità.", safeAction: "Non partecipare. Investi solo con intermediari autorizzati e tracciabilità." },
   { id: "fake_ticket", category: "Eventi", situation: "Una persona vende biglietti sold out a meta prezzo e chiede pagamento immediato con ricarica prepagata.", isRisky: true, redFlags: ["Prezzo troppo basso", "Ricarica", "Urgenza"], explanation: "Biglietti falsi o duplicati sono comuni. Le ricariche sono difficili da recuperare.", safeAction: "Usa piattaforme ufficiali o sistemi con protezione acquisto." },
   { id: "ticket_official_resale", category: "Eventi", situation: "Compri un biglietto da rivendita ufficiale con nominativo, commissioni chiare e pagamento protetto.", isRisky: false, redFlags: ["Canale ufficiale", "Pagamento protetto"], explanation: "La rivendita ufficiale riduce il rischio di biglietti falsi.", safeAction: "Controlla nominativo, condizioni di accesso e ricevuta." },
   { id: "tax_refund_link", category: "Pubblica amministrazione", situation: "Ricevi una email: 'Rimborso fiscale disponibile, inserisci dati carta qui entro oggi'.", isRisky: true, redFlags: ["Rimborso inatteso", "Dati carta", "Urgenza"], explanation: "Enti pubblici non chiedono dati carta via link per rimborsi improvvisi.", safeAction: "Accedi solo da portali ufficiali digitando l'indirizzo o usando SPID/CIE." },
-  { id: "app_store_download", category: "App e software", situation: "Scarichi un'app finanziaria dallo store ufficiale, controllando sviluppatore, recensioni e sito collegato.", isRisky: false, redFlags: ["Store ufficiale", "Sviluppatore verificabile"], explanation: "E piu sicuro rispetto a link casuali. Non basta da solo: controlla permessi e reputazione.", safeAction: "Installa solo da store ufficiali e limita i permessi." },
+  { id: "app_store_download", category: "App e software", situation: "Scarichi un'app finanziaria dallo store ufficiale, controllando sviluppatore, recensioni e sito collegato.", isRisky: false, redFlags: ["Store ufficiale", "Sviluppatore verificabile"], explanation: "E più sicuro rispetto a link casuali. Non basta da solo: controlla permessi e reputazione.", safeAction: "Installa solo da store ufficiali e limita i permessi." },
 
-  { id: "deepfake_ceo_voice", category: "Lavoro", situation: "Ricevi una chiamata con voce molto simile al tuo capo: ti chiede di fare subito un bonifico urgente a un nuovo fornitore.", isRisky: true, difficulty: "difficile", redFlags: ["Voce imitata", "Bonifico urgente", "Nuovo beneficiario"], explanation: "Le imitazioni vocali e i deepfake possono sembrare credibili. La richiesta di pagamento urgente verso un nuovo beneficiario va sempre verificata con un secondo canale.", safeAction: "Richiama il capo al numero gia conosciuto o usa una procedura interna prima di pagare." },
-  { id: "invoice_changed_iban", category: "Lavoro", situation: "Un fornitore abituale invia una fattura quasi identica alle precedenti, ma con IBAN cambiato e una nota: 'aggiornamento bancario'.", isRisky: true, difficulty: "difficile", redFlags: ["IBAN cambiato", "Fornitore abituale", "Email possibile clone"], explanation: "Le truffe su fatture reali sono difficili perche usano rapporti esistenti. Il cambio IBAN deve sempre essere verificato fuori dalla email.", safeAction: "Chiama il referente del fornitore usando un numero gia noto, non quello scritto nella nuova email." },
-  { id: "qr_parking_fake", category: "Pagamenti quotidiani", situation: "In un parcheggio trovi un QR code incollato sopra il cartello del pagamento. Il sito sembra simile a quello ufficiale.", isRisky: true, difficulty: "difficile", redFlags: ["QR sovrapposto", "Sito simile", "Pagamento carta"], explanation: "I QR falsi portano a pagine clone dove puoi pagare un truffatore o inserire dati carta. Il segnale e sottile: il QR puo sembrare normale.", safeAction: "Usa l'app ufficiale del parcheggio o digita il sito ufficiale invece di fidarti del QR incollato." },
-  { id: "rental_owner_documents", category: "Affitti e casa", situation: "Un presunto proprietario ti manda documento, visura e contratto, ma non puo farti vedere casa e chiede caparra per bloccarla.", isRisky: true, difficulty: "difficile", redFlags: ["Documenti non bastano", "Nessuna visita", "Caparra anticipata"], explanation: "Anche documenti apparentemente reali possono essere rubati o falsificati. Senza visita e verifica dell'immobile il rischio resta alto.", safeAction: "Non pagare prima di vedere casa e verificare identita, proprieta e contratto con canali affidabili." },
-  { id: "used_car_plate_docs_partial", category: "Auto usata", situation: "Il venditore mostra targa e libretto, ma dice che l'auto e fuori regione e chiede un acconto per 'prenotare la visione'.", isRisky: true, difficulty: "difficile", redFlags: ["Documenti parziali", "Auto lontana", "Acconto"], explanation: "Documenti e targa possono rendere la proposta credibile, ma l'acconto prima della visione resta un segnale di rischio.", safeAction: "Vedi l'auto di persona, controlla proprieta e pagamenti tracciabili prima di versare denaro." },
+  { id: "deepfake_ceo_voice", category: "Lavoro", situation: "Ricevi una chiamata con voce molto simile al tuo capo: ti chiede di fare subito un bonifico urgente a un nuovo fornitore.", isRisky: true, difficulty: "difficile", redFlags: ["Voce imitata", "Bonifico urgente", "Nuovo beneficiario"], explanation: "Le imitazioni vocali e i deepfake possono sembrare credibili. La richiesta di pagamento urgente verso un nuovo beneficiario va sempre verificata con un secondo canale.", safeAction: "Richiama il capo al numero già conosciuto o usa una procedura interna prima di pagare." },
+  { id: "invoice_changed_iban", category: "Lavoro", situation: "Un fornitore abituale invia una fattura quasi identica alle precedenti, ma con IBAN cambiato e una nota: 'aggiornamento bancario'.", isRisky: true, difficulty: "difficile", redFlags: ["IBAN cambiato", "Fornitore abituale", "Email possibile clone"], explanation: "Le truffe su fatture reali sono difficili perché usano rapporti esistenti. Il cambio IBAN deve sempre essere verificato fuori dalla email.", safeAction: "Chiama il referente del fornitore usando un numero già noto, non quello scritto nella nuova email." },
+  { id: "qr_parking_fake", category: "Pagamenti quotidiani", situation: "In un parcheggio trovi un QR code incollato sopra il cartello del pagamento. Il sito sembra simile a quello ufficiale.", isRisky: true, difficulty: "difficile", redFlags: ["QR sovrapposto", "Sito simile", "Pagamento carta"], explanation: "I QR falsi portano a pagine clone dove puoi pagare un truffatore o inserire dati carta. Il segnale e sottile: il QR può sembrare normale.", safeAction: "Usa l'app ufficiale del parcheggio o digita il sito ufficiale invece di fidarti del QR incollato." },
+  { id: "rental_owner_documents", category: "Affitti e casa", situation: "Un presunto proprietàrio ti manda documento, visura e contratto, ma non può farti vedere casa e chiede caparra per bloccarla.", isRisky: true, difficulty: "difficile", redFlags: ["Documenti non bastano", "Nessuna visita", "Caparra anticipata"], explanation: "Anche documenti apparentemente reali possono essere rubati o falsificati. Senza visita e verifica dell'immobile il rischio resta alto.", safeAction: "Non pagare prima di vedere casa e verificare identita, proprietà e contratto con canali affidabili." },
+  { id: "used_car_plate_docs_partial", category: "Auto usata", situation: "Il venditore mostra targa e libretto, ma dice che l'auto è fuori regione e chiede un acconto per 'prenotare la visione'.", isRisky: true, difficulty: "difficile", redFlags: ["Documenti parziali", "Auto lontana", "Acconto"], explanation: "Documenti e targa possono rendere la proposta credibile, ma l'acconto prima della visione resta un segnale di rischio.", safeAction: "Vedi l'auto di persona, controlla proprietà e pagamenti tracciabili prima di versare denaro." },
   { id: "investment_platform_professional_site", category: "Investimenti", situation: "Una piattaforma di investimento ha sito curato, area clienti e recensioni positive, ma non trovi autorizzazioni ufficiali chiare.", isRisky: true, difficulty: "difficile", redFlags: ["Sito professionale", "Autorizzazioni assenti", "Recensioni manipolabili"], explanation: "Un sito bello non prova che l'intermediario sia autorizzato. Recensioni e grafiche possono essere costruite per sembrare affidabili.", safeAction: "Verifica l'autorizzazione su registri ufficiali prima di aprire conto o inviare denaro." },
-  { id: "recovery_funds_law_firm", category: "Investimenti", situation: "Uno studio legale estero dice di poter recuperare soldi persi in trading. Chiede una piccola tassa iniziale per avviare la pratica.", isRisky: true, difficulty: "difficile", redFlags: ["Recupero fondi", "Tassa iniziale", "Vittima gia colpita"], explanation: "Le truffe di recupero fondi sono particolarmente insidiose: promettono aiuto a chi ha gia subito una perdita.", safeAction: "Non pagare anticipi. Verifica albo, sede, reputazione e rivolgiti a canali legali riconosciuti." },
+  { id: "recovery_funds_law_firm", category: "Investimenti", situation: "Uno studio legale estero dice di poter recuperare soldi persi in trading. Chiede una piccola tassa iniziale per avviare la pratica.", isRisky: true, difficulty: "difficile", redFlags: ["Recupero fondi", "Tassa iniziale", "Vittima già colpita"], explanation: "Le truffe di recupero fondi sono particolarmente insidiose: promettono aiuto a chi ha già subito una perdita.", safeAction: "Non pagare anticipi. Verifica albo, sede, reputazione e rivolgiti a canali legali riconosciuti." },
   { id: "bank_operator_knows_data", category: "Telefonate", situation: "Un presunto operatore bancario conosce il tuo nome e le ultime cifre della carta, poi ti chiede di confermare un codice per bloccare un addebito.", isRisky: true, difficulty: "difficile", redFlags: ["Dati parziali veri", "Richiesta codice", "Falsa urgenza"], explanation: "Conoscere alcuni dati non rende la chiamata sicura. I truffatori possono avere informazioni parziali e usarle per sembrare credibili.", safeAction: "Non comunicare codici. Chiudi e chiama la banca dal numero ufficiale." },
-  { id: "utility_agent_real_badge_pressure", category: "Contratti", situation: "Un incaricato luce/gas mostra badge e documenti, ma insiste per farti firmare subito dicendo che domani perderai lo sconto.", isRisky: true, difficulty: "difficile", redFlags: ["Pressione", "Firma immediata", "Offerta a tempo"], explanation: "Anche un venditore reale puo usare pressione commerciale. Il rischio e firmare condizioni non capite o non convenienti.", safeAction: "Prendi il materiale, confronta l'offerta e non firmare finche non hai letto con calma." },
-  { id: "marketplace_buyer_sends_courier", category: "Marketplace", situation: "Un acquirente dice che manda un corriere a ritirare l'oggetto e ti invia un modulo per ricevere il pagamento anticipato.", isRisky: true, difficulty: "difficile", redFlags: ["Corriere organizzato da altri", "Modulo pagamento", "Dati carta"], explanation: "La truffa e credibile perche sembra logistica normale, ma il modulo spesso serve a rubare dati o autorizzare pagamenti.", safeAction: "Usa pagamenti e spedizioni gestiti dalla piattaforma o pagamento verificato prima della consegna." },
-  { id: "job_remote_equipment_check", category: "Lavoro", situation: "Una societa ti assume da remoto e ti manda un assegno o bonifico per comprare attrezzatura da un fornitore indicato da loro.", isRisky: true, difficulty: "difficile", redFlags: ["Assegno/bonifico sospetto", "Fornitore imposto", "Lavoro remoto"], explanation: "Alcune truffe lavorative usano pagamenti che poi vengono stornati, mentre tu hai gia speso soldi reali.", safeAction: "Verifica azienda, contratto e modalita. Non anticipare acquisti su fornitori imposti senza garanzie." },
+  { id: "utility_agent_real_badge_pressure", category: "Contratti", situation: "Un incaricato luce/gas mostra badge e documenti, ma insiste per farti firmare subito dicendo che domani perderai lo sconto.", isRisky: true, difficulty: "difficile", redFlags: ["Pressione", "Firma immediata", "Offerta a tempo"], explanation: "Anche un venditore reale può usare pressione commerciale. Il rischio è firmare condizioni non capite o non convenienti.", safeAction: "Prendi il materiale, confronta l'offerta e non firmare finche non hai letto con calma." },
+  { id: "marketplace_buyer_sends_courier", category: "Marketplace", situation: "Un acquirente dice che manda un corriere a ritirare l'oggetto e ti invia un modulo per ricevere il pagamento anticipato.", isRisky: true, difficulty: "difficile", redFlags: ["Corriere organizzato da altri", "Modulo pagamento", "Dati carta"], explanation: "La truffa e credibile perché sembra logistica normale, ma il modulo spesso serve a rubare dati o autorizzare pagamenti.", safeAction: "Usa pagamenti e spedizioni gestiti dalla piattaforma o pagamento verificato prima della consegna." },
+  { id: "job_remote_equipment_check", category: "Lavoro", situation: "Una societa ti assume da remoto e ti manda un assegno o bonifico per comprare attrezzatura da un fornitore indicato da loro.", isRisky: true, difficulty: "difficile", redFlags: ["Assegno/bonifico sospetto", "Fornitore imposto", "Lavoro remoto"], explanation: "Alcune truffe lavorative usano pagamenti che poi vengono stornati, mentre tu hai già speso soldi reali.", safeAction: "Verifica azienda, contratto e modalità. Non anticipare acquisti su fornitori imposti senza garanzie." },
   { id: "romance_small_test_transfer", category: "Relazioni", situation: "Una persona conosciuta online non chiede subito grandi somme, ma prima piccoli trasferimenti per 'testare la fiducia'.", isRisky: true, difficulty: "difficile", redFlags: ["Fiducia emotiva", "Piccole somme", "Escalation"], explanation: "Le truffe affettive spesso iniziano con richieste piccole per creare abitudine e abbassare le difese.", safeAction: "Non inviare denaro a persone conosciute solo online. Parla con qualcuno di fiducia prima di agire." },
-  { id: "crypto_withdrawal_tax", category: "Crypto / trading", situation: "Una piattaforma ti mostra profitti, ma per prelevare chiede di pagare prima una tassa o commissione esterna.", isRisky: true, difficulty: "difficile", redFlags: ["Prelievo bloccato", "Commissione anticipata", "Profitti non verificati"], explanation: "Nelle piattaforme fraudolente i profitti sono solo numeri sullo schermo. La richiesta di pagare per prelevare e un segnale forte.", safeAction: "Non versare altri soldi. Verifica la piattaforma e conserva prove delle comunicazioni." },
-  { id: "condominium_fake_notice", category: "Casa", situation: "Trovi nella cassetta una comunicazione condominiale con QR per pagare una spesa urgente, ma l'amministratore non l'aveva annunciata.", isRisky: true, difficulty: "difficile", redFlags: ["QR pagamento", "Avviso inatteso", "Urgenza"], explanation: "Avvisi fisici possono sembrare credibili, ma possono essere falsi. Il QR rende facile deviare il pagamento.", safeAction: "Verifica con l'amministratore usando contatti gia noti prima di pagare." },
-  { id: "bank_branch_phone_after_visit", category: "Banca e pagamenti", situation: "Dopo una visita in filiale ricevi una chiamata che cita l'appuntamento e chiede un codice per completare la pratica.", isRisky: true, difficulty: "difficile", redFlags: ["Contesto reale", "Richiesta codice", "Falsa continuita"], explanation: "Il riferimento a un evento reale puo ingannare. Codici, OTP e PIN non vanno comunicati neanche se la chiamata sembra collegata a una pratica vera.", safeAction: "Chiudi e richiama la filiale o il servizio clienti ufficiale." },
+  { id: "crypto_withdrawal_tax", category: "Crypto / trading", situation: "Una piattaforma ti mostra profitti, ma per prelevare chiede di pagare prima una tassa o commissione esterna.", isRisky: true, difficulty: "difficile", redFlags: ["Prelievo bloccato", "Commissione anticipata", "Profitti non verificati"], explanation: "Nelle piattaforme fraudolente i profitti sono solo numeri sullo schermo. La richiesta di pagare per prelevare è un segnale forte.", safeAction: "Non versare altri soldi. Verifica la piattaforma e conserva prove delle comunicazioni." },
+  { id: "condominium_fake_notice", category: "Casa", situation: "Trovi nella cassetta una comunicazione condominiale con QR per pagare una spesa urgente, ma l'amministratore non l'aveva annunciata.", isRisky: true, difficulty: "difficile", redFlags: ["QR pagamento", "Avviso inatteso", "Urgenza"], explanation: "Avvisi fisici possono sembrare credibili, ma possono essere falsi. Il QR rende facile deviare il pagamento.", safeAction: "Verifica con l'amministratore usando contatti già noti prima di pagare." },
+  { id: "bank_branch_phone_after_visit", category: "Banca e pagamenti", situation: "Dopo una visita in filiale ricevi una chiamata che cita l'appuntamento e chiede un codice per completare la pratica.", isRisky: true, difficulty: "difficile", redFlags: ["Contesto reale", "Richiesta codice", "Falsa continuita"], explanation: "Il riferimento a un evento reale può ingannare. Codici, OTP e PIN non vanno comunicati neanche se la chiamata sembra collegata a una pratica vera.", safeAction: "Chiudi e richiama la filiale o il servizio clienti ufficiale." },
   { id: "hotel_wifi_payment", category: "Viaggi", situation: "In hotel trovi una rete Wi-Fi con nome simile a quello ufficiale. Per accedere chiede carta per una cauzione simbolica.", isRisky: true, difficulty: "difficile", redFlags: ["Wi-Fi clone", "Carta richiesta", "Nome simile"], explanation: "Reti Wi-Fi clone possono rubare dati o portarti a pagine false. La richiesta carta per accesso Wi-Fi e sospetta.", safeAction: "Chiedi alla reception il nome esatto della rete e non inserire dati carta su portali non verificati." },
   { id: "second_hand_luxury_authenticity", category: "Acquisti", situation: "Un venditore propone un orologio o borsa di lusso con certificato fotografato, prezzo buono ma non assurdo, pagamento con bonifico.", isRisky: true, difficulty: "difficile", redFlags: ["Certificato fotografato", "Bonifico", "Bene costoso"], explanation: "Nei beni di valore i certificati possono essere falsi o copiati. Il prezzo non sempre e troppo basso, proprio per sembrare credibile.", safeAction: "Usa piattaforme con autenticazione, pagamento protetto e verifica professionale." },
   { id: "tax_consultant_refund_fee", category: "Pubblica amministrazione", situation: "Un presunto consulente dice di averti trovato un rimborso fiscale e chiede una percentuale anticipata per sbloccarlo.", isRisky: true, difficulty: "difficile", redFlags: ["Rimborso inatteso", "Fee anticipata", "Soggetto non verificato"], explanation: "I rimborsi veri si verificano da canali ufficiali. Pagare prima un intermediario non verificato e rischioso.", safeAction: "Controlla dal portale ufficiale o con un professionista di fiducia." },
-  { id: "family_known_voice_short_call", category: "Familiari", situation: "Una voce simile a un familiare ti chiama per pochi secondi, dice di essere nei guai e ti passa subito un 'avvocato'.", isRisky: true, difficulty: "difficile", redFlags: ["Voce simile", "Panico", "Terza persona"], explanation: "La voce puo essere imitata o la chiamata costruita per farti agire sotto shock. Il passaggio a un presunto avvocato aumenta la pressione.", safeAction: "Interrompi, richiama il familiare su numero noto e verifica con altri parenti." },
+  { id: "family_known_voice_short_call", category: "Familiari", situation: "Una voce simile a un familiare ti chiama per pochi secondi, dice di essere nei guai e ti passa subito un 'avvocato'.", isRisky: true, difficulty: "difficile", redFlags: ["Voce simile", "Panico", "Terza persona"], explanation: "La voce può essere imitata o la chiamata costruita per farti agire sotto shock. Il passaggio a un presunto avvocato aumenta la pressione.", safeAction: "Interrompi, richiama il familiare su numero noto e verifica con altri parenti." },
   { id: "doctor_private_payment", category: "Salute e benessere", situation: "Una persona si presenta come collaboratore di una clinica e chiede pagamento anticipato su conto personale per anticipare una visita.", isRisky: true, difficulty: "difficile", redFlags: ["Conto personale", "Anticipo", "Canale non ufficiale"], explanation: "Pagamenti sanitari su conti personali o canali non ufficiali sono un segnale di rischio e vanno verificati.", safeAction: "Chiama la clinica da contatti ufficiali e paga solo tramite canali autorizzati." },
-  { id: "iban_confirmed_by_two_channels", category: "Pagamenti quotidiani", situation: "Devi pagare un professionista. L'IBAN arriva via email e lo confermi anche telefonando al numero ufficiale gia noto.", isRisky: false, difficulty: "difficile", redFlags: ["Doppia verifica", "Numero noto"], explanation: "La doppia verifica su un canale gia conosciuto riduce molto il rischio di pagamento deviato.", safeAction: "Procedi solo dopo aver controllato beneficiario e causale." },
-  { id: "official_tax_notice_spid", category: "Pubblica amministrazione", situation: "Ricevi un avviso generico via email, ma invece di cliccare accedi con SPID al portale ufficiale e trovi la stessa comunicazione.", isRisky: false, difficulty: "difficile", redFlags: ["Verifica autonoma", "Portale ufficiale"], explanation: "Il comportamento corretto e non fidarsi del link, ma controllare sul canale ufficiale. Se la comunicazione compare li, e molto piu affidabile.", safeAction: "Continua solo dal portale ufficiale, senza usare link ricevuti via email." },
+  { id: "iban_confirmed_by_two_channels", category: "Pagamenti quotidiani", situation: "Devi pagare un professionista. L'IBAN arriva via email e lo confermi anche telefonando al numero ufficiale già noto.", isRisky: false, difficulty: "difficile", redFlags: ["Doppia verifica", "Numero noto"], explanation: "La doppia verifica su un canale già conosciuto riduce molto il rischio di pagamento deviato.", safeAction: "Procedi solo dopo aver controllato beneficiario e causale." },
+  { id: "official_tax_notice_spid", category: "Pubblica amministrazione", situation: "Ricevi un avviso generico via email, ma invece di cliccare accedi con SPID al portale ufficiale e trovi la stessa comunicazione.", isRisky: false, difficulty: "difficile", redFlags: ["Verifica autonoma", "Portale ufficiale"], explanation: "Il comportamento corretto è non fidarsi del link, ma controllare sul canale ufficiale. Se la comunicazione compare lì, è molto più affidabile.", safeAction: "Continua solo dal portale ufficiale, senza usare link ricevuti via email." },
   { id: "real_agent_no_pressure", category: "Contratti", situation: "Un consulente assicurativo ti invia preventivo completo, fascicolo informativo, costi e ti invita a leggere prima di firmare.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti completi", "Nessuna pressione"], explanation: "Trasparenza e assenza di fretta sono segnali positivi. Resta comunque importante capire costi, esclusioni e durata.", safeAction: "Leggi documenti, confronta alternative e chiedi chiarimenti prima di firmare." },
-  { id: "marketplace_cash_public_place", category: "Marketplace", situation: "Vendi un oggetto di basso valore e l'acquirente propone incontro in luogo pubblico, pagamento in contanti e controllo dell'oggetto sul posto.", isRisky: false, difficulty: "difficile", redFlags: ["Luogo pubblico", "Pagamento immediato"], explanation: "Non tutto e una truffa: per oggetti semplici, incontro sicuro e pagamento contestuale possono essere ragionevoli.", safeAction: "Scegli un luogo sicuro, non andare da solo se non ti senti tranquillo e controlla il denaro." },
-  { id: "secure_bank_message_no_codes", category: "Banca e pagamenti", situation: "La banca invia una notifica nell'app ufficiale che invita a leggere un documento, senza chiedere codici o clic esterni.", isRisky: false, difficulty: "difficile", redFlags: ["App ufficiale", "Nessun codice"], explanation: "Una comunicazione interna all'app ufficiale, senza richieste di codici o pagamenti, e generalmente piu sicura.", safeAction: "Leggi dall'app ufficiale e verifica se qualcosa ti sembra insolito." },
-  { id: "event_ticket_friend_known", category: "Eventi", situation: "Un amico che conosci di persona ti vende un biglietto a prezzo normale e ti permette di controllare nominativo e ricevuta prima del pagamento.", isRisky: false, difficulty: "difficile", redFlags: ["Persona nota", "Verifica biglietto"], explanation: "Il rischio e minore quando identita, prezzo e biglietto sono verificabili. Non e rischio zero, ma non e una classica truffa.", safeAction: "Controlla biglietto, nominativo e regole dell'evento prima di pagare." },
-  { id: "small_local_charity_receipt", category: "Di persona", situation: "Una piccola associazione locale chiede donazioni, mostra statuto, contatti verificabili e rilascia ricevuta tracciabile.", isRisky: false, difficulty: "difficile", redFlags: ["Ricevuta", "Contatti verificabili"], explanation: "Una realta piccola non e automaticamente sospetta. La chiave e poter verificare identita, finalita e pagamento.", safeAction: "Dona solo se riesci a verificare l'associazione e preferisci pagamenti tracciabili." },
+  { id: "marketplace_cash_public_place", category: "Marketplace", situation: "Vendi un oggetto di basso valore e l'acquirente propone incontro in luogo pubblico, pagamento in contanti e controllo dell'oggetto sul posto.", isRisky: false, difficulty: "difficile", redFlags: ["Luogo pubblico", "Pagamento immediato"], explanation: "Non tutto è una truffa: per oggetti semplici, incontro sicuro e pagamento contestuale possono essere ragionevoli.", safeAction: "Scegli un luogo sicuro, non andare da solo se non ti senti tranquillo e controlla il denaro." },
+  { id: "secure_bank_message_no_codes", category: "Banca e pagamenti", situation: "La banca invia una notifica nell'app ufficiale che invita a leggere un documento, senza chiedere codici o clic esterni.", isRisky: false, difficulty: "difficile", redFlags: ["App ufficiale", "Nessun codice"], explanation: "Una comunicazione interna all'app ufficiale, senza richieste di codici o pagamenti, e generalmente più sicura.", safeAction: "Leggi dall'app ufficiale e verifica se qualcosa ti sembra insolito." },
+  { id: "event_ticket_friend_known", category: "Eventi", situation: "Un amico che conosci di persona ti vende un biglietto a prezzo normale e ti permette di controllare nominativo e ricevuta prima del pagamento.", isRisky: false, difficulty: "difficile", redFlags: ["Persona nota", "Verifica biglietto"], explanation: "Il rischio è minore quando identita, prezzo e biglietto sono verificabili. Non è rischio zero, ma non è una classica truffa.", safeAction: "Controlla biglietto, nominativo e regole dell'evento prima di pagare." },
+  { id: "small_local_charity_receipt", category: "Di persona", situation: "Una piccola associazione locale chiede donazioni, mostra statuto, contatti verificabili e rilascia ricevuta tracciabile.", isRisky: false, difficulty: "difficile", redFlags: ["Ricevuta", "Contatti verificabili"], explanation: "Una realta piccola non è automaticamente sospetta. La chiave e poter verificare identita, finalità e pagamento.", safeAction: "Dona solo se riesci a verificare l'associazione e preferisci pagamenti tracciabili." },
   { id: "bank_url_one_letter", category: "SMS / email", situation: "Ricevi una email della banca con grafica perfetta, ma il link porta a un dominio con una lettera diversa dal sito ufficiale.", isRisky: true, difficulty: "media", redFlags: ["Dominio simile", "Grafica perfetta", "Link"], explanation: "I siti clone possono essere quasi identici. Una lettera diversa nell'indirizzo e sufficiente per indicare rischio.", safeAction: "Non cliccare. Digita tu l'indirizzo ufficiale o usa l'app." },
   { id: "fake_spid_help", category: "Pubblica amministrazione", situation: "Uno sconosciuto offre aiuto per attivare SPID e chiede foto documenti, tessera sanitaria e codice ricevuto via SMS.", isRisky: true, difficulty: "media", redFlags: ["Documenti", "Codice SMS", "Identita digitale"], explanation: "SPID e identita digitale sono molto sensibili. Codici e documenti possono permettere furti d'identita.", safeAction: "Usa solo provider ufficiali e non condividere codici con terzi." },
-  { id: "fake_landlord_video_only", category: "Affitti e casa", situation: "Per un affitto, il proprietario ti manda solo video dell'appartamento e dice che vive all'estero, chiedendo cauzione via bonifico.", isRisky: true, difficulty: "media", redFlags: ["Solo video", "Estero", "Cauzione anticipata"], explanation: "Video e foto possono essere copiati. Il pagamento prima di una verifica reale e rischioso.", safeAction: "Visita l'immobile o usa canali verificati prima di pagare." },
+  { id: "fake_landlord_video_only", category: "Affitti e casa", situation: "Per un affitto, il proprietàrio ti manda solo video dell'appartamento e dice che vive all'estero, chiedendo cauzione via bonifico.", isRisky: true, difficulty: "media", redFlags: ["Solo video", "Estero", "Cauzione anticipata"], explanation: "Video e foto possono essere copiati. Il pagamento prima di una verifica reale e rischioso.", safeAction: "Visita l'immobile o usa canali verificati prima di pagare." },
   { id: "atm_card_stuck_helper", category: "Di persona", situation: "La carta resta bloccata al bancomat e uno sconosciuto molto gentile ti suggerisce di reinserire il PIN mentre lui resta vicino.", isRisky: true, difficulty: "media", redFlags: ["Sconosciuto", "PIN", "Bancomat"], explanation: "Alcune truffe al bancomat usano distrazione e osservazione del PIN.", safeAction: "Copri il PIN, non accettare aiuto da sconosciuti e contatta la banca." },
   { id: "fake_delivery_address_fee", category: "SMS / email", situation: "Ricevi SMS: 'Indirizzo pacco incompleto, paga 0,89 euro per correggere la consegna'.", isRisky: true, difficulty: "media", redFlags: ["Importo piccolo", "Link", "Pacco"], explanation: "La piccola cifra serve a farti inserire la carta con poca attenzione.", safeAction: "Verifica tracking sul sito ufficiale del corriere." },
   { id: "social_ad_investment_ai", category: "Investimenti", situation: "Una pubblicita social propone un software AI che genera rendimenti automatici e garantiti se versi almeno 250 euro.", isRisky: true, difficulty: "media", redFlags: ["AI miracolosa", "Rendimenti garantiti", "Deposito minimo"], explanation: "Parole come AI e automatico possono mascherare promesse finanziarie non realistiche.", safeAction: "Non versare denaro. Verifica autorizzazioni e rischi reali." },
   { id: "fake_charity_disaster", category: "Beneficenza", situation: "Dopo una calamita, ricevi un link per donare subito a una raccolta fondi sconosciuta con foto drammatiche.", isRisky: true, difficulty: "media", redFlags: ["Emozione forte", "Link sconosciuto", "Urgenza"], explanation: "Le emergenze vere vengono sfruttate da raccolte fondi false o poco trasparenti.", safeAction: "Dona a enti riconosciuti tramite siti ufficiali." },
-  { id: "fake_refund_marketplace", category: "Marketplace", situation: "Il venditore dice che c'e stato un problema e ti manda un link per 'sbloccare il rimborso' inserendo la carta.", isRisky: true, difficulty: "media", redFlags: ["Rimborso via link", "Carta richiesta", "Canale esterno"], explanation: "I rimborsi non richiedono di reinserire la carta su link esterni alla piattaforma.", safeAction: "Gestisci rimborso solo dentro la piattaforma ufficiale." },
+  { id: "fake_refund_marketplace", category: "Marketplace", situation: "Il venditore dice che c'è stato un problema e ti manda un link per 'sbloccare il rimborso' inserendo la carta.", isRisky: true, difficulty: "media", redFlags: ["Rimborso via link", "Carta richiesta", "Canale esterno"], explanation: "I rimborsi non richiedono di reinserire la carta su link esterni alla piattaforma.", safeAction: "Gestisci rimborso solo dentro la piattaforma ufficiale." },
   { id: "fake_insurance_renewal", category: "Assicurazioni", situation: "Ricevi una proposta RC auto molto economica da un sito poco noto che chiede pagamento immediato via bonifico.", isRisky: true, difficulty: "media", redFlags: ["Prezzo troppo basso", "Bonifico", "Sito poco noto"], explanation: "Polizze false o non valide possono sembrare convenienti ma lasciarti scoperto.", safeAction: "Verifica intermediario e compagnia su registri ufficiali prima di pagare." },
   { id: "school_trip_payment", category: "Pagamenti quotidiani", situation: "Una chat non ufficiale chiede pagamento per gita scolastica su IBAN privato non indicato dalla scuola.", isRisky: true, difficulty: "media", redFlags: ["IBAN privato", "Chat", "Pagamento non ufficiale"], explanation: "Pagamenti scolastici o associativi vanno verificati con canali ufficiali, non solo in chat.", safeAction: "Chiedi conferma alla scuola o all'organizzazione tramite canali ufficiali." },
   { id: "safe_known_charity_site", category: "Beneficenza", situation: "Vuoi donare a un ente noto e vai tu sul sito ufficiale digitando l'indirizzo nel browser.", isRisky: false, difficulty: "facile", redFlags: ["Iniziativa tua", "Sito ufficiale"], explanation: "Quando sei tu a scegliere il canale ufficiale, riduci il rischio di raccolte false.", safeAction: "Controlla URL e ricevuta della donazione." },
-  { id: "safe_subscription_cancel", category: "Abbonamenti", situation: "Un servizio ti avvisa chiaramente che la prova gratuita scade domani e offre pulsante di cancellazione nell'area account.", isRisky: false, difficulty: "media", redFlags: ["Trasparenza", "Area account"], explanation: "Un promemoria chiaro con possibilita di cancellare e un comportamento piu corretto.", safeAction: "Decidi se tenerlo e salva conferma di eventuale disdetta." },
-  { id: "safe_document_to_notary", category: "Documenti", situation: "Il notaio incaricato per una compravendita ti chiede documenti tramite canale concordato e studio verificabile.", isRisky: false, difficulty: "media", redFlags: ["Studio verificabile", "Canale concordato"], explanation: "Inviare documenti puo essere normale quando il soggetto e verificabile e il canale e concordato.", safeAction: "Verifica indirizzo email, studio e finalita prima di inviare." },
+  { id: "safe_subscription_cancel", category: "Abbonamenti", situation: "Un servizio ti avvisa chiaramente che la prova gratuita scade domani e offre pulsante di cancellazione nell'area account.", isRisky: false, difficulty: "media", redFlags: ["Trasparenza", "Area account"], explanation: "Un promemoria chiaro con possibilità di cancellare è un comportamento più corretto.", safeAction: "Decidi se tenerlo e salva conferma di eventuale disdetta." },
+  { id: "safe_document_to_notary", category: "Documenti", situation: "Il notaio incaricato per una compravendita ti chiede documenti tramite canale concordato e studio verificabile.", isRisky: false, difficulty: "media", redFlags: ["Studio verificabile", "Canale concordato"], explanation: "Inviare documenti può essere normale quando il soggetto è verificabile e il canale è concordato.", safeAction: "Verifica indirizzo email, studio e finalità prima di inviare." },
 
-  { id: "romance_video_call_avoided", category: "Relazioni", situation: "Una persona conosciuta online ti scrive ogni giorno, dice di provare qualcosa per te ma evita sempre videochiamate e incontri. Dopo settimane chiede soldi per un'emergenza.", isRisky: true, difficulty: "difficile", redFlags: ["Legame emotivo", "Nessun incontro", "Emergenza"], explanation: "Le truffe sentimentali costruiscono fiducia prima di chiedere denaro. Evitare verifiche reali e chiedere soldi e un segnale forte.", safeAction: "Non inviare denaro. Proponi una videochiamata e parlane con una persona di fiducia prima di agire." },
-  { id: "romance_travel_ticket", category: "Relazioni", situation: "Una ragazza o un ragazzo conosciuto online dice di voler venire a trovarti, ma chiede di pagare biglietto, visto o assicurazione per poter partire.", isRisky: true, difficulty: "media", redFlags: ["Promessa incontro", "Soldi per viaggio", "Urgenza emotiva"], explanation: "La promessa di incontrarsi puo essere usata per rendere la richiesta piu credibile. Spesso dopo il primo pagamento arrivano nuovi problemi e nuove richieste.", safeAction: "Non pagare viaggi o documenti a persone mai incontrate. Verifica identita e coerenza della storia." },
+  { id: "romance_video_call_avoided", category: "Relazioni", situation: "Una persona conosciuta online ti scrive ogni giorno, dice di provare qualcosa per te ma evita sempre videochiamate e incontri. Dopo settimane chiede soldi per un'emergenza.", isRisky: true, difficulty: "difficile", redFlags: ["Legame emotivo", "Nessun incontro", "Emergenza"], explanation: "Le truffe sentimentali costruiscono fiducia prima di chiedere denaro. Evitare verifiche reali e chiedere soldi è un segnale forte.", safeAction: "Non inviare denaro. Proponi una videochiamata e parlane con una persona di fiducia prima di agire." },
+  { id: "romance_travel_ticket", category: "Relazioni", situation: "Una ragazza o un ragazzo conosciuto online dice di voler venire a trovarti, ma chiede di pagare biglietto, visto o assicurazione per poter partire.", isRisky: true, difficulty: "media", redFlags: ["Promessa incontro", "Soldi per viaggio", "Urgenza emotiva"], explanation: "La promessa di incontrarsi può essere usata per rendere la richiesta più credibile. Spesso dopo il primo pagamento arrivano nuovi problemi e nuove richieste.", safeAction: "Non pagare viaggi o documenti a persone mai incontrate. Verifica identita e coerenza della storia." },
   { id: "romance_medical_emergency", category: "Relazioni", situation: "Una persona con cui stai creando un rapporto online racconta di una malattia improvvisa in famiglia e chiede un prestito urgente, promettendo di restituire tutto.", isRisky: true, difficulty: "difficile", redFlags: ["Malattia", "Prestito urgente", "Rapporto recente"], explanation: "Le emergenze sanitarie vere toccano corde profonde. Proprio per questo vengono usate per far agire senza verificare.", safeAction: "Fermati. Non inviare denaro senza verifiche indipendenti e senza aver coinvolto qualcuno di fiducia." },
-  { id: "romance_crypto_advice", category: "Relazioni", situation: "Dopo alcune settimane di chat, una persona molto affettuosa ti mostra i suoi guadagni e ti invita a investire su una piattaforma consigliata da lei.", isRisky: true, difficulty: "difficile", redFlags: ["Relazione + investimento", "Piattaforma consigliata", "Profitti mostrati"], explanation: "Nelle truffe sentimentali evolute, l'investimento arriva dopo aver creato fiducia. La piattaforma puo mostrare profitti finti.", safeAction: "Non investire su piattaforme indicate da persone conosciute online. Verifica autorizzazioni da fonti ufficiali." },
+  { id: "romance_crypto_advice", category: "Relazioni", situation: "Dopo alcune settimane di chat, una persona molto affettuosa ti mostra i suoi guadagni e ti invita a investire su una piattaforma consigliata da lei.", isRisky: true, difficulty: "difficile", redFlags: ["Relazione + investimento", "Piattaforma consigliata", "Profitti mostrati"], explanation: "Nelle truffe sentimentali evolute, l'investimento arriva dopo aver creato fiducia. La piattaforma può mostrare profitti finti.", safeAction: "Non investire su piattaforme indicate da persone conosciute online. Verifica autorizzazioni da fonti ufficiali." },
   { id: "romance_gift_customs_fee", category: "Relazioni", situation: "Una persona conosciuta online dice di averti spedito un regalo costoso. Poco dopo arriva una richiesta di pagamento per dogana o sblocco pacco.", isRisky: true, difficulty: "media", redFlags: ["Regalo inatteso", "Dogana", "Pagamento anticipato"], explanation: "Il regalo crea gratitudine e pressione. Il pagamento per sbloccarlo e spesso il vero obiettivo della truffa.", safeAction: "Non pagare. Verifica tracking e corriere da canali ufficiali, senza usare link ricevuti." },
-  { id: "romance_blackmail_photos", category: "Relazioni", situation: "Dopo una chat privata, una persona minaccia di diffondere foto o messaggi se non paghi subito.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto", "Minaccia", "Pagamento immediato"], explanation: "Il ricatto punta su vergogna e paura. Pagare non garantisce che la richiesta finisca, anzi puo aumentare le pressioni.", safeAction: "Non pagare. Conserva prove, blocca il contatto e valuta di rivolgerti alle autorita." },
-  { id: "romance_bank_account_problem", category: "Relazioni", situation: "Una persona con cui chatti da poco dice di avere il conto bloccato e chiede di ricevere un bonifico sul tuo conto per poi girarlo a terzi.", isRisky: true, difficulty: "difficile", redFlags: ["Conto bloccato", "Usare il tuo conto", "Giro denaro"], explanation: "Usare il tuo conto per soldi di altri puo esporti a rischi seri. Potrebbe trattarsi di fondi rubati o riciclaggio.", safeAction: "Non ricevere o trasferire denaro per persone che non conosci davvero." },
-  { id: "romance_slow_friendship_no_money", category: "Relazioni", situation: "Una persona conosciuta online ti propone una videochiamata, non chiede soldi, non parla di investimenti e accetta tempi lenti per conoscersi.", isRisky: false, difficulty: "media", redFlags: ["Verifica identita", "Nessuna richiesta denaro"], explanation: "Non ogni conoscenza online e una truffa. L'assenza di richieste economiche e la disponibilita a verificarsi sono segnali piu positivi.", safeAction: "Resta prudente, proteggi dati personali e incontra eventualmente in luoghi pubblici." },
-  { id: "friend_investment_guaranteed_return", category: "Amici e parenti", situation: "Un amico ti propone un investimento 'garantito' che gli ha fatto guadagnare molto. Dice che se entri tramite lui hai un bonus e devi decidere entro oggi.", isRisky: true, difficulty: "difficile", redFlags: ["Amico", "Rendimento garantito", "Fretta"], explanation: "La fiducia personale non sostituisce le verifiche. Anche un amico puo essere in buona fede ma coinvolto in una truffa o in uno schema rischioso.", safeAction: "Chiedi documenti, autorizzazioni e rischi. Non investire solo per fiducia o pressione." },
-  { id: "relative_crypto_family_group", category: "Amici e parenti", situation: "Un parente condivide nel gruppo famiglia un link per comprare una crypto 'prima che esploda', dicendo che alcuni amici hanno gia raddoppiato.", isRisky: true, difficulty: "media", redFlags: ["Passaparola", "Guadagni rapidi", "Link"], explanation: "Il passaparola familiare puo abbassare le difese. Guadagni rapidi e link non verificati restano segnali di rischio.", safeAction: "Non investire tramite link in chat. Verifica progetto, rischi e autorizzazioni prima di qualsiasi versamento." },
-  { id: "friend_loan_emotional_pressure", category: "Amici e parenti", situation: "Un amico ti chiede un prestito importante e dice: 'Se mi vuoi bene, non farmi domande'. Vuole contanti e promette di restituire a breve.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Contanti", "Nessuna chiarezza"], explanation: "Le richieste emotive possono rendere difficile fare domande. Un prestito senza chiarezza puo danneggiare sia soldi sia rapporto.", safeAction: "Chiedi motivo, tempi e modalita scritte. Presta solo somme che puoi permetterti di perdere." },
-  { id: "relative_urgent_transfer_new_number", category: "Amici e parenti", situation: "Ricevi un messaggio da un numero nuovo: 'Sono tuo figlio, ho perso il telefono. Devo pagare subito una bolletta, fai un bonifico?'.", isRisky: true, difficulty: "media", redFlags: ["Numero nuovo", "Urgenza", "Bonifico"], explanation: "La truffa del familiare in difficolta usa affetto e urgenza. Il numero nuovo e la richiesta di soldi sono segnali importanti.", safeAction: "Chiama il familiare sul vecchio numero o verifica con altri parenti prima di pagare." },
-  { id: "friend_business_partnership_cash", category: "Amici e parenti", situation: "Un conoscente ti propone di entrare in una piccola attivita con denaro contante, senza contratto, dicendo che 'tra amici non servono carte'.", isRisky: true, difficulty: "difficile", redFlags: ["Niente contratto", "Contanti", "Fiducia personale"], explanation: "Quando ci sono soldi e attivita economiche, la fiducia non basta. Senza documenti e regole chiare il rischio e alto.", safeAction: "Pretendi accordi scritti, conti chiari e consulenza indipendente prima di versare denaro." },
-  { id: "relative_medical_loan_verified", category: "Amici e parenti", situation: "Un familiare ti chiede aiuto economico per una spesa medica, ti mostra documenti verificabili e accetta un bonifico tracciabile con accordo scritto sui tempi.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti verificabili", "Bonifico tracciabile", "Accordo chiaro"], explanation: "Una richiesta emotiva non e automaticamente una truffa. Verifiche, trasparenza e tracciabilita riducono il rischio.", safeAction: "Aiuta solo se puoi permettertelo e metti per iscritto importo e tempi, senza sensi di colpa." },
-  { id: "friend_asks_card_for_emergency", category: "Amici e parenti", situation: "Un amico dice di avere la carta bloccata e ti chiede di prestargli la tua carta o i dati per fare un pagamento urgente.", isRisky: true, difficulty: "media", redFlags: ["Dati carta", "Urgenza", "Prestito mezzo pagamento"], explanation: "Anche se conosci la persona, condividere carta, PIN o codici e pericoloso e puo creare problemi difficili da risolvere.", safeAction: "Non condividere dati di pagamento. Se vuoi aiutare, usa un bonifico tracciabile a suo nome." },
-  { id: "romance_investment_group_invite", category: "Relazioni", situation: "Una persona conosciuta su un'app di incontri ti invita in un gruppo esclusivo dove un 'mentor' insegna a fare trading con segnali sicuri.", isRisky: true, difficulty: "difficile", redFlags: ["Dating + trading", "Gruppo esclusivo", "Segnali sicuri"], explanation: "Il passaggio da relazione a gruppo di investimento e un modello frequente nelle truffe. Il gruppo crea pressione sociale e fiducia artificiale.", safeAction: "Esci dal gruppo e non versare denaro. Verifica sempre intermediari e autorizzazioni." },
-  { id: "romance_money_for_document", category: "Relazioni", situation: "Una persona dice di non poter incontrarti perche deve rinnovare un documento. Chiede soldi per completare la pratica e promette che poi verra da te.", isRisky: true, difficulty: "media", redFlags: ["Documento", "Promessa incontro", "Pagamento"], explanation: "La richiesta usa il desiderio di incontrarsi per rendere il pagamento accettabile. Spesso dopo emergono altri ostacoli.", safeAction: "Non pagare documenti a persone mai incontrate. Verifica identita e situazione con calma." },
-  { id: "friend_guarantee_loan", category: "Amici e parenti", situation: "Un amico ti chiede di fare da garante per un finanziamento. Dice che e solo una formalita e che non rischi nulla.", isRisky: true, difficulty: "difficile", redFlags: ["Garante", "Rischio minimizzato", "Pressione affettiva"], explanation: "Fare da garante non e una formalita: se l'altra persona non paga, il debito puo ricadere su di te.", safeAction: "Leggi il contratto, valuta il rischio reale e chiedi consulenza prima di firmare." },
-  { id: "relative_investment_to_help_family", category: "Amici e parenti", situation: "Un parente ti propone di investire in un progetto 'per aiutare la famiglia' e dice che rifiutare sarebbe mancanza di fiducia.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Famiglia", "Investimento poco chiaro"], explanation: "Quando investimento e legame familiare si mischiano, e facile perdere lucidita. La pressione emotiva e un segnale da prendere sul serio.", safeAction: "Separare affetto e soldi: chiedi business plan, rischi e accordi scritti prima di decidere." },
+  { id: "romance_blackmail_photos", category: "Relazioni", situation: "Dopo una chat privata, una persona minaccia di diffondere foto o messaggi se non paghi subito.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto", "Minaccia", "Pagamento immediato"], explanation: "Il ricatto punta su vergogna e paura. Pagare non garantisce che la richiesta finisca, anzi può aumentare le pressioni.", safeAction: "Non pagare. Conserva prove, blocca il contatto e valuta di rivolgerti alle autorita." },
+  { id: "romance_bank_account_problem", category: "Relazioni", situation: "Una persona con cui chatti da poco dice di avere il conto bloccato e chiede di ricevere un bonifico sul tuo conto per poi girarlo a terzi.", isRisky: true, difficulty: "difficile", redFlags: ["Conto bloccato", "Usare il tuo conto", "Giro denaro"], explanation: "Usare il tuo conto per soldi di altri può esporti a rischi seri. Potrebbe trattarsi di fondi rubati o riciclaggio.", safeAction: "Non ricevere o trasferire denaro per persone che non conosci davvero." },
+  { id: "romance_slow_friendship_no_money", category: "Relazioni", situation: "Una persona conosciuta online ti propone una videochiamata, non chiede soldi, non parla di investimenti e accetta tempi lenti per conoscersi.", isRisky: false, difficulty: "media", redFlags: ["Verifica identita", "Nessuna richiesta denaro"], explanation: "Non ogni conoscenza online è una truffa. L'assenza di richieste economiche è la disponibilita a verificarsi sono segnali più positivi.", safeAction: "Resta prudente, proteggi dati personali e incontra eventualmente in luoghi pubblici." },
+  { id: "friend_investment_guaranteed_return", category: "Amici e parenti", situation: "Un amico ti propone un investimento 'garantito' che gli ha fatto guadagnare molto. Dice che se entri tramite lui hai un bonus e devi decidere entro oggi.", isRisky: true, difficulty: "difficile", redFlags: ["Amico", "Rendimento garantito", "Fretta"], explanation: "La fiducia personale non sostituisce le verifiche. Anche un amico può essere in buona fede ma coinvolto in una truffa o in uno schema rischioso.", safeAction: "Chiedi documenti, autorizzazioni e rischi. Non investire solo per fiducia o pressione." },
+  { id: "relative_crypto_family_group", category: "Amici e parenti", situation: "Un parente condivide nel gruppo famiglia un link per comprare una crypto 'prima che esploda', dicendo che alcuni amici hanno già raddoppiato.", isRisky: true, difficulty: "media", redFlags: ["Passaparola", "Guadagni rapidi", "Link"], explanation: "Il passaparola familiare può abbassare le difese. Guadagni rapidi e link non verificati restano segnali di rischio.", safeAction: "Non investire tramite link in chat. Verifica progetto, rischi e autorizzazioni prima di qualsiasi versamento." },
+  { id: "friend_loan_emotional_pressure", category: "Amici e parenti", situation: "Un amico ti chiede un prestito importante e dice: 'Se mi vuoi bene, non farmi domande'. Vuole contanti e promette di restituire a breve.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Contanti", "Nessuna chiarezza"], explanation: "Le richieste emotive possono rendere difficile fare domande. Un prestito senza chiarezza può danneggiare sia soldi sia rapporto.", safeAction: "Chiedi motivo, tempi e modalità scritte. Presta solo somme che puoi permetterti di perdere." },
+  { id: "relative_urgent_transfer_new_number", category: "Amici e parenti", situation: "Ricevi un messaggio da un numero nuovo: 'Sono tuo figlio, ho perso il telefono. Devo pagare subito una bolletta, fai un bonifico?'.", isRisky: true, difficulty: "media", redFlags: ["Numero nuovo", "Urgenza", "Bonifico"], explanation: "La truffa del familiare in difficoltà usa affetto e urgenza. Il numero nuovo e la richiesta di soldi sono segnali importanti.", safeAction: "Chiama il familiare sul vecchio numero o verifica con altri parenti prima di pagare." },
+  { id: "friend_business_partnership_cash", category: "Amici e parenti", situation: "Un conoscente ti propone di entrare in una piccola attivita con denaro contante, senza contratto, dicendo che 'tra amici non servono carte'.", isRisky: true, difficulty: "difficile", redFlags: ["Niente contratto", "Contanti", "Fiducia personale"], explanation: "Quando ci sono soldi e attivita economiche, la fiducia non basta. Senza documenti e regole chiare il rischio è alto.", safeAction: "Pretendi accordi scritti, conti chiari e consulenza indipendente prima di versare denaro." },
+  { id: "relative_medical_loan_verified", category: "Amici e parenti", situation: "Un familiare ti chiede aiuto economico per una spesa medica, ti mostra documenti verificabili e accetta un bonifico tracciabile con accordo scritto sui tempi.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti verificabili", "Bonifico tracciabile", "Accordo chiaro"], explanation: "Una richiesta emotiva non è automaticamente una truffa. Verifiche, trasparenza e tracciabilità riducono il rischio.", safeAction: "Aiuta solo se puoi permettertelo e metti per iscritto importo e tempi, senza sensi di colpa." },
+  { id: "friend_asks_card_for_emergency", category: "Amici e parenti", situation: "Un amico dice di avere la carta bloccata e ti chiede di prestargli la tua carta o i dati per fare un pagamento urgente.", isRisky: true, difficulty: "media", redFlags: ["Dati carta", "Urgenza", "Prestito mezzo pagamento"], explanation: "Anche se conosci la persona, condividere carta, PIN o codici e pericoloso e può creare problemi difficili da risolvere.", safeAction: "Non condividere dati di pagamento. Se vuoi aiutare, usa un bonifico tracciabile a suo nome." },
+  { id: "romance_investment_group_invite", category: "Relazioni", situation: "Una persona conosciuta su un'app di incontri ti invita in un gruppo esclusivo dove un 'mentor' insegna a fare trading con segnali sicuri.", isRisky: true, difficulty: "difficile", redFlags: ["Dating + trading", "Gruppo esclusivo", "Segnali sicuri"], explanation: "Il passaggio da relazione a gruppo di investimento è un modello frequente nelle truffe. Il gruppo crea pressione sociale e fiducia artificiale.", safeAction: "Esci dal gruppo e non versare denaro. Verifica sempre intermediari e autorizzazioni." },
+  { id: "romance_money_for_document", category: "Relazioni", situation: "Una persona dice di non poter incontrarti perché deve rinnovare un documento. Chiede soldi per completare la pratica e promette che poi verra da te.", isRisky: true, difficulty: "media", redFlags: ["Documento", "Promessa incontro", "Pagamento"], explanation: "La richiesta usa il desiderio di incontrarsi per rendere il pagamento accettabile. Spesso dopo emergono altri ostacoli.", safeAction: "Non pagare documenti a persone mai incontrate. Verifica identita e situazione con calma." },
+  { id: "friend_guarantee_loan", category: "Amici e parenti", situation: "Un amico ti chiede di fare da garante per un finanziamento. Dice che è solo una formalita e che non rischi nulla.", isRisky: true, difficulty: "difficile", redFlags: ["Garante", "Rischio minimizzato", "Pressione affettiva"], explanation: "Fare da garante non è una formalita: se l'altra persona non paga, il debito può ricadere su di te.", safeAction: "Leggi il contratto, valuta il rischio reale e chiedi consulenza prima di firmare." },
+  { id: "relative_investment_to_help_family", category: "Amici e parenti", situation: "Un parente ti propone di investire in un progetto 'per aiutare la famiglia' e dice che rifiutare sarebbe mancanza di fiducia.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Famiglia", "Investimento poco chiaro"], explanation: "Quando investimento e legame familiare si mischiano, è facile perdere lucidita. La pressione emotiva è un segnale da prendere sul serio.", safeAction: "Separare affetto e soldi: chiedi business plan, rischi e accordi scritti prima di decidere." },
   { id: "friend_repay_old_debt_link", category: "Amici e parenti", situation: "Un vecchio amico ti scrive sui social dicendo di volerti restituire dei soldi, ma ti manda un link dove inserire carta e documento per riceverli.", isRisky: true, difficulty: "media", redFlags: ["Link pagamento", "Documento", "Profilo social"], explanation: "Potrebbe essere un profilo compromesso. Per ricevere soldi non serve inserire dati carta su link sospetti.", safeAction: "Verifica l'identita con una chiamata e usa metodi di pagamento noti e sicuri." },
-  { id: "romance_shared_future_pressure", category: "Relazioni", situation: "Una persona parla presto di convivenza, matrimonio o futuro insieme e poi chiede un aiuto economico per 'sistemare l'ultimo problema' prima di raggiungerti.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro accelerato", "Aiuto economico", "Problema finale"], explanation: "Le promesse di futuro possono creare attaccamento rapido. La richiesta economica dopo una forte spinta emotiva e un segnale di rischio.", safeAction: "Non inviare denaro. Dai tempo alla relazione e verifica fatti, identita e coerenza." },
-  { id: "romance_real_meeting_public_no_money", category: "Relazioni", situation: "Una persona conosciuta online propone un primo incontro in luogo pubblico, non chiede denaro e accetta che tu avvisi un amico dell'appuntamento.", isRisky: false, difficulty: "media", redFlags: ["Luogo pubblico", "Nessuna richiesta soldi", "Prudenza"], explanation: "Questo comportamento e piu prudente e trasparente. Non elimina ogni rischio personale, ma non mostra i classici segnali economici della truffa affettiva.", safeAction: "Incontra in luogo pubblico, informa qualcuno e non condividere dati finanziari." },
-  { id: "friend_investment_documents_verified", category: "Amici e parenti", situation: "Un amico ti parla di un investimento, ma ti dice chiaramente che ci sono rischi, ti invita a leggere documenti ufficiali e non ti spinge a decidere subito.", isRisky: false, difficulty: "difficile", redFlags: ["Rischi dichiarati", "Documenti ufficiali", "Nessuna fretta"], explanation: "La presenza di rischi spiegati, documenti verificabili e assenza di pressione sono segnali piu sani. Resta comunque da valutare se sia adatto a te.", safeAction: "Leggi documenti, verifica autorizzazioni e valuta con calma prima di investire." },
-  { id: "relative_loan_no_written_terms", category: "Amici e parenti", situation: "Un cugino ti chiede 3.000 euro in prestito e dice che non serve scrivere nulla perche 'siamo parenti'.", isRisky: true, difficulty: "media", redFlags: ["Prestito familiare", "Nessun accordo", "Importo rilevante"], explanation: "Prestiti tra parenti senza accordi chiari possono creare conflitti e perdite. La fiducia non sostituisce chiarezza su tempi e restituzione.", safeAction: "Se decidi di aiutare, metti importo, tempi e modalita per iscritto." },
-  { id: "friend_multilevel_recruit", category: "Amici e parenti", situation: "Un amico ti invita a un incontro per un'opportunita di guadagno. Il focus e far entrare altre persone piu che vendere un prodotto reale.", isRisky: true, difficulty: "difficile", redFlags: ["Reclutamento", "Guadagni promessi", "Pressione gruppo"], explanation: "Quando il guadagno dipende soprattutto dal reclutare altri, il rischio di schema insostenibile aumenta molto.", safeAction: "Chiedi come si genera davvero il guadagno, costi iniziali e documenti. Non firmare sull'onda dell'entusiasmo." },
-  { id: "romance_soldier_oil_worker", category: "Relazioni", situation: "Una persona dice di essere militare, medico o lavoratore all'estero, non puo videochiamare per sicurezza e chiede soldi per sbloccare documenti o bagagli.", isRisky: true, difficulty: "media", redFlags: ["All'estero", "No videochiamata", "Soldi per sblocco"], explanation: "Profili con lavori difficili da verificare e impossibilita di incontrarsi sono comuni nelle truffe sentimentali.", safeAction: "Non inviare denaro e non fidarti di documenti inviati in chat senza verifiche indipendenti." },
-  { id: "friend_sudden_profit_screenshot", category: "Amici e parenti", situation: "Un amico ti manda screenshot di profitti elevati su una piattaforma e dice che anche tu puoi iniziare con poco, ma devi usare il suo link.", isRisky: true, difficulty: "media", redFlags: ["Screenshot profitti", "Link personale", "Guadagno facile"], explanation: "Screenshot e testimonianze possono essere falsi o non rappresentare il rischio reale. Il link personale puo incentivare chi ti invita.", safeAction: "Non basarti su screenshot. Verifica piattaforma, rischi, autorizzazioni e costi." },
+  { id: "romance_shared_future_pressure", category: "Relazioni", situation: "Una persona parla presto di convivenza, matrimonio o futuro insieme e poi chiede un aiuto economico per 'sistemare l'ultimo problema' prima di raggiungerti.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro accelerato", "Aiuto economico", "Problema finale"], explanation: "Le promesse di futuro possono creare attaccamento rapido. La richiesta economica dopo una forte spinta emotiva è un segnale di rischio.", safeAction: "Non inviare denaro. Dai tempo alla relazione e verifica fatti, identita e coerenza." },
+  { id: "romance_real_meeting_public_no_money", category: "Relazioni", situation: "Una persona conosciuta online propone un primo incontro in luogo pubblico, non chiede denaro e accetta che tu avvisi un amico dell'appuntamento.", isRisky: false, difficulty: "media", redFlags: ["Luogo pubblico", "Nessuna richiesta soldi", "Prudenza"], explanation: "Questo comportamento è più prudente e trasparente. Non elimina ogni rischio personale, ma non mostra i classici segnali economici della truffa affettiva.", safeAction: "Incontra in luogo pubblico, informa qualcuno e non condividere dati finanziari." },
+  { id: "friend_investment_documents_verified", category: "Amici e parenti", situation: "Un amico ti parla di un investimento, ma ti dice chiaramente che ci sono rischi, ti invita a leggere documenti ufficiali e non ti spinge a decidere subito.", isRisky: false, difficulty: "difficile", redFlags: ["Rischi dichiarati", "Documenti ufficiali", "Nessuna fretta"], explanation: "La presenza di rischi spiegati, documenti verificabili e assenza di pressione sono segnali più sani. Resta comunque da valutare se sia adatto a te.", safeAction: "Leggi documenti, verifica autorizzazioni e valuta con calma prima di investire." },
+  { id: "relative_loan_no_written_terms", category: "Amici e parenti", situation: "Un cugino ti chiede 3.000 euro in prestito e dice che non serve scrivere nulla perché 'siamo parenti'.", isRisky: true, difficulty: "media", redFlags: ["Prestito familiare", "Nessun accordo", "Importo rilevante"], explanation: "Prestiti tra parenti senza accordi chiari possono creare conflitti e perdite. La fiducia non sostituisce chiarezza su tempi e restituzione.", safeAction: "Se decidi di aiutare, metti importo, tempi e modalità per iscritto." },
+  { id: "friend_multilevel_recruit", category: "Amici e parenti", situation: "Un amico ti invita a un incontro per un'opportunita di guadagno. Il focus e far entrare altre persone più che vendere un prodotto reale.", isRisky: true, difficulty: "difficile", redFlags: ["Reclutamento", "Guadagni promessi", "Pressione gruppo"], explanation: "Quando il guadagno dipende soprattutto dal reclutare altri, il rischio di schema insostenibile aumenta molto.", safeAction: "Chiedi come si genera davvero il guadagno, costi iniziali e documenti. Non firmare sull'onda dell'entusiasmo." },
+  { id: "romance_soldier_oil_worker", category: "Relazioni", situation: "Una persona dice di essere militare, medico o lavoratore all'estero, non può videochiamare per sicurezza e chiede soldi per sbloccare documenti o bagagli.", isRisky: true, difficulty: "media", redFlags: ["All'estero", "No videochiamata", "Soldi per sblocco"], explanation: "Profili con lavori difficili da verificare e impossibilità di incontrarsi sono comuni nelle truffe sentimentali.", safeAction: "Non inviare denaro e non fidarti di documenti inviati in chat senza verifiche indipendenti." },
+  { id: "friend_sudden_profit_screenshot", category: "Amici e parenti", situation: "Un amico ti manda screenshot di profitti elevati su una piattaforma e dice che anche tu puoi iniziare con poco, ma devi usare il suo link.", isRisky: true, difficulty: "media", redFlags: ["Screenshot profitti", "Link personale", "Guadagno facile"], explanation: "Screenshot e testimonianze possono essere falsi o non rappresentare il rischio reale. Il link personale può incentivare chi ti invita.", safeAction: "Non basarti su screenshot. Verifica piattaforma, rischi, autorizzazioni e costi." },
   { id: "relative_emergency_cash_courier", category: "Amici e parenti", situation: "Un presunto parente ti chiama in lacrime e dice che manderà un corriere a ritirare contanti o gioielli per risolvere un'emergenza.", isRisky: true, difficulty: "difficile", redFlags: ["Corriere", "Contanti/gioielli", "Panico"], explanation: "Le richieste di consegnare contanti o gioielli a intermediari sono un segnale molto forte di truffa emotiva.", safeAction: "Non consegnare nulla. Richiama il parente e contatta le forze dell'ordine se necessario." },
   { id: "romance_wants_your_documents", category: "Relazioni", situation: "Una persona conosciuta da poco dice di voler prenotare un viaggio insieme e ti chiede foto di documento, codice fiscale e indirizzo.", isRisky: true, difficulty: "media", redFlags: ["Documenti", "Rapporto recente", "Viaggio"], explanation: "Documenti e dati personali possono essere usati per furto d'identita, contratti o profili falsi.", safeAction: "Non inviare documenti a persone non verificate. Prenota tu tramite canali ufficiali se necessario." },
-  { id: "friend_short_term_loan_written", category: "Amici e parenti", situation: "Un amico fidato chiede un piccolo prestito, spiega il motivo, propone bonifico tracciabile e una data precisa di restituzione scritta.", isRisky: false, difficulty: "media", redFlags: ["Trasparenza", "Accordo scritto", "Importo sostenibile"], explanation: "Non ogni prestito tra amici e una truffa. Chiarezza, tracciabilita e importo sostenibile rendono la situazione piu gestibile.", safeAction: "Presta solo cio che puoi permetterti e conserva accordo e pagamento tracciabile." },
-  { id: "romance_video_call_investment", category: "Relazioni", situation: "Una persona conosciuta online accetta videochiamate brevi, ma dopo pochi giorni ti propone una piattaforma di investimento usata da un suo familiare esperto.", isRisky: true, difficulty: "difficile", redFlags: ["Relazione recente", "Investimento", "Fiducia costruita"], explanation: "La videochiamata puo rendere la persona piu credibile, ma il passaggio rapido verso investimenti resta un segnale di rischio.", safeAction: "Non investire tramite link ricevuti in chat. Verifica piattaforma e autorizzazioni da fonti indipendenti." },
-  { id: "romance_small_first_help", category: "Relazioni", situation: "Una persona con cui chatti da settimane chiede solo 25 euro per una ricarica, dicendo che e imbarazzata e te li restituira domani.", isRisky: true, difficulty: "media", redFlags: ["Richiesta piccola", "Imbarazzo", "Relazione online"], explanation: "Le richieste piccole servono spesso a testare disponibilita e fiducia. Possono diventare richieste sempre piu grandi.", safeAction: "Non inviare denaro a persone mai incontrate. Mantieni confini chiari anche se l importo sembra basso." },
-  { id: "romance_public_no_money", category: "Relazioni", situation: "Una persona conosciuta online propone di vedervi in un bar pubblico, non chiede soldi e accetta di aspettare i tuoi tempi.", isRisky: false, difficulty: "media", redFlags: ["Luogo pubblico", "Nessuna richiesta denaro", "Tempo per decidere"], explanation: "Non e una truffa economica evidente. Resta comunque prudente sulla sicurezza personale e sui dati che condividi.", safeAction: "Incontra in luogo pubblico, informa qualcuno e non condividere dati finanziari o documenti." },
-  { id: "romance_crypto_together", category: "Relazioni", situation: "Una persona con cui stai creando confidenza dice che potreste costruire un futuro insieme iniziando a investire entrambi in crypto su una piattaforma privata.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro insieme", "Crypto", "Piattaforma privata"], explanation: "La promessa di un progetto comune puo abbassare le difese. Le piattaforme private non verificate sono un rischio alto.", safeAction: "Non versare denaro. Verifica societa, autorizzazioni e possibilita di prelievo da fonti indipendenti." },
-  { id: "romance_medical_emergency_extra2", category: "Relazioni", situation: "Una persona conosciuta in chat dice che un familiare e in ospedale e chiede un aiuto urgente, promettendo di restituire tutto.", isRisky: true, difficulty: "difficile", redFlags: ["Emergenza medica", "Urgenza", "Pressione emotiva"], explanation: "Le emergenze mediche sono usate per creare senso di colpa e velocita. La storia puo sembrare umana ma non e verificabile.", safeAction: "Non inviare denaro. Chiedi verifiche indipendenti e prenditi tempo prima di qualsiasi decisione." },
-  { id: "romance_ticket_to_visit", category: "Relazioni", situation: "Una persona dice di voler venire a trovarti ma chiede soldi per il biglietto aereo perche la carta non funziona.", isRisky: true, difficulty: "media", redFlags: ["Biglietto viaggio", "Carta non funziona", "Promessa incontro"], explanation: "Il desiderio di incontrarsi rende la richiesta piu credibile. Spesso dopo il primo pagamento compaiono nuovi ostacoli.", safeAction: "Non pagare viaggi a persone che non conosci davvero. Verifica identita e prenotazioni da canali ufficiali." },
-  { id: "romance_shared_bank_account", category: "Relazioni", situation: "Dopo poche settimane una persona dice che per fidarsi davvero dovreste aprire un conto o condividere dati bancari.", isRisky: true, difficulty: "difficile", redFlags: ["Dati bancari", "Relazione accelerata", "Fiducia richiesta"], explanation: "La richiesta di condividere dati o conti e sproporzionata rispetto a una relazione recente e puo portare a furti o debiti.", safeAction: "Non condividere dati bancari, codici o documenti. Una relazione sana non richiede accesso ai tuoi soldi." },
+  { id: "friend_short_term_loan_written", category: "Amici e parenti", situation: "Un amico fidato chiede un piccolo prestito, spiega il motivo, propone bonifico tracciabile e una data precisa di restituzione scritta.", isRisky: false, difficulty: "media", redFlags: ["Trasparenza", "Accordo scritto", "Importo sostenibile"], explanation: "Non ogni prestito tra amici è una truffa. Chiarezza, tracciabilità e importo sostenibile rendono la situazione più gestibile.", safeAction: "Presta solo ciò che puoi permetterti e conserva accordo e pagamento tracciabile." },
+  { id: "romance_video_call_investment", category: "Relazioni", situation: "Una persona conosciuta online accetta videochiamate brevi, ma dopo pochi giorni ti propone una piattaforma di investimento usata da un suo familiare esperto.", isRisky: true, difficulty: "difficile", redFlags: ["Relazione recente", "Investimento", "Fiducia costruita"], explanation: "La videochiamata può rendere la persona più credibile, ma il passaggio rapido verso investimenti resta un segnale di rischio.", safeAction: "Non investire tramite link ricevuti in chat. Verifica piattaforma e autorizzazioni da fonti indipendenti." },
+  { id: "romance_small_first_help", category: "Relazioni", situation: "Una persona con cui chatti da settimane chiede solo 25 euro per una ricarica, dicendo che è imbarazzata e te li restituira domani.", isRisky: true, difficulty: "media", redFlags: ["Richiesta piccola", "Imbarazzo", "Relazione online"], explanation: "Le richieste piccole servono spesso a testare disponibilita e fiducia. Possono diventare richieste sempre più grandi.", safeAction: "Non inviare denaro a persone mai incontrate. Mantieni confini chiari anche se l importo sembra basso." },
+  { id: "romance_public_no_money", category: "Relazioni", situation: "Una persona conosciuta online propone di vedervi in un bar pubblico, non chiede soldi e accetta di aspettare i tuoi tempi.", isRisky: false, difficulty: "media", redFlags: ["Luogo pubblico", "Nessuna richiesta denaro", "Tempo per decidere"], explanation: "Non è una truffa economica evidente. Resta comunque prudente sulla sicurezza personale e sui dati che condividi.", safeAction: "Incontra in luogo pubblico, informa qualcuno e non condividere dati finanziari o documenti." },
+  { id: "romance_crypto_together", category: "Relazioni", situation: "Una persona con cui stai creando confidenza dice che potreste costruire un futuro insieme iniziando a investire entrambi in crypto su una piattaforma privata.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro insieme", "Crypto", "Piattaforma privata"], explanation: "La promessa di un progetto comune può abbassare le difese. Le piattaforme private non verificate sono un rischio alto.", safeAction: "Non versare denaro. Verifica societa, autorizzazioni e possibilità di prelievo da fonti indipendenti." },
+  { id: "romance_medical_emergency_extra2", category: "Relazioni", situation: "Una persona conosciuta in chat dice che un familiare e in ospedale e chiede un aiuto urgente, promettendo di restituire tutto.", isRisky: true, difficulty: "difficile", redFlags: ["Emergenza medica", "Urgenza", "Pressione emotiva"], explanation: "Le emergenze mediche sono usate per creare senso di colpa e velocita. La storia può sembrare umana ma non è verificabile.", safeAction: "Non inviare denaro. Chiedi verifiche indipendenti e prenditi tempo prima di qualsiasi decisione." },
+  { id: "romance_ticket_to_visit", category: "Relazioni", situation: "Una persona dice di voler venire a trovarti ma chiede soldi per il biglietto aereo perché la carta non funziona.", isRisky: true, difficulty: "media", redFlags: ["Biglietto viaggio", "Carta non funziona", "Promessa incontro"], explanation: "Il desiderio di incontrarsi rende la richiesta più credibile. Spesso dopo il primo pagamento compaiono nuovi ostacoli.", safeAction: "Non pagare viaggi a persone che non conosci davvero. Verifica identita e prenotazioni da canali ufficiali." },
+  { id: "romance_shared_bank_account", category: "Relazioni", situation: "Dopo poche settimane una persona dice che per fidarsi davvero dovreste aprire un conto o condividere dati bancari.", isRisky: true, difficulty: "difficile", redFlags: ["Dati bancari", "Relazione accelerata", "Fiducia richiesta"], explanation: "La richiesta di condividere dati o conti e sproporzionata rispetto a una relazione recente e può portare a furti o debiti.", safeAction: "Non condividere dati bancari, codici o documenti. Una relazione sana non richiede accesso ai tuoi soldi." },
   { id: "romance_photo_blackmail", category: "Relazioni", situation: "Dopo uno scambio intimo, una persona minaccia di inviare foto o chat ai tuoi contatti se non paghi.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto", "Vergogna", "Pagamento urgente"], explanation: "Il ricatto sfrutta paura e vergogna. Pagare non garantisce che la minaccia finisca.", safeAction: "Non pagare. Conserva prove, blocca il contatto e valuta denuncia o supporto specializzato." },
   { id: "romance_slow_boundaries", category: "Relazioni", situation: "La persona che stai conoscendo rispetta i tuoi confini, non chiede soldi e non propone investimenti o favori economici.", isRisky: false, difficulty: "facile", redFlags: ["Confini rispettati", "Nessuna pressione", "Nessuna richiesta soldi"], explanation: "Questo comportamento non mostra segnali economici di truffa. La prudenza resta utile, ma non ogni conoscenza online e pericolosa.", safeAction: "Continua con calma, proteggi dati personali e non anticipare fiducia economica." },
-  { id: "romance_bank_account_transfer", category: "Relazioni", situation: "Una persona conosciuta online ti chiede di ricevere un bonifico sul tuo conto perche nel suo paese ci sono restrizioni.", isRisky: true, difficulty: "difficile", redFlags: ["Conto personale", "Estero", "Transito fondi"], explanation: "Usare il tuo conto per terzi puo esporti a rischi legali e finanziari.", safeAction: "Rifiuta. Non fare transitare fondi per persone conosciute online." },
+  { id: "romance_bank_account_transfer", category: "Relazioni", situation: "Una persona conosciuta online ti chiede di ricevere un bonifico sul tuo conto perché nel suo paese ci sono restrizioni.", isRisky: true, difficulty: "difficile", redFlags: ["Conto personale", "Estero", "Transito fondi"], explanation: "Usare il tuo conto per terzi può esporti a rischi legali e finanziari.", safeAction: "Rifiuta. Non fare transitare fondi per persone conosciute online." },
   { id: "romance_document_money", category: "Relazioni", situation: "Una persona dice di non poter viaggiare per incontrarti finche non rinnova un documento e ti chiede soldi per la pratica.", isRisky: true, difficulty: "media", redFlags: ["Documento", "Promessa incontro", "Pagamento"], explanation: "La richiesta usa il desiderio di incontrarsi per rendere il pagamento accettabile. Spesso emergono altri ostacoli.", safeAction: "Non pagare documenti a persone mai incontrate. Verifica identita e situazione con calma." },
-  { id: "romance_charity_project", category: "Relazioni", situation: "Una persona conosciuta online ti chiede di donare al suo progetto benefico personale, ma il sito non indica ente, bilanci o referenti.", isRisky: true, difficulty: "media", redFlags: ["Beneficenza personale", "Sito opaco", "Relazione online"], explanation: "Beneficenza e relazione possono creare pressione. Senza ente e trasparenza, il rischio e alto.", safeAction: "Dona solo a enti verificabili e canali ufficiali." },
-  { id: "romance_family_blocked_card", category: "Relazioni", situation: "Una persona con cui parli ogni giorno dice che la carta e stata bloccata e chiede un prestito per pagare affitto e medicine.", isRisky: true, difficulty: "difficile", redFlags: ["Carta bloccata", "Bisogni essenziali", "Prestito"], explanation: "Bisogni essenziali e contatto quotidiano possono creare forte coinvolgimento emotivo. La verifica resta necessaria.", safeAction: "Non inviare denaro senza verifiche indipendenti. Se vuoi aiutare, cerca canali ufficiali e tracciabili." },
-  { id: "romance_investment_mentor", category: "Relazioni", situation: "Una persona conosciuta su un app di incontri ti presenta un mentor che insegna trading con segnali sicuri.", isRisky: true, difficulty: "difficile", redFlags: ["Dating + trading", "Mentor", "Segnali sicuri"], explanation: "Il passaggio da relazione a investimento e un modello frequente nelle truffe. Il mentor crea autorita artificiale.", safeAction: "Non versare denaro. Esci dal gruppo e verifica intermediari su registri ufficiali." },
-  { id: "romance_future_pressure", category: "Relazioni", situation: "Una persona parla presto di convivenza e futuro insieme, poi chiede soldi per risolvere l ultimo problema prima di raggiungerti.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro accelerato", "Aiuto economico", "Problema finale"], explanation: "Le promesse di futuro possono creare attaccamento rapido. La richiesta economica dopo spinta emotiva e un segnale di rischio.", safeAction: "Non inviare denaro. Dai tempo alla relazione e verifica fatti, identita e coerenza." },
+  { id: "romance_charity_project", category: "Relazioni", situation: "Una persona conosciuta online ti chiede di donare al suo progetto benefico personale, ma il sito non indica ente, bilanci o referenti.", isRisky: true, difficulty: "media", redFlags: ["Beneficenza personale", "Sito opaco", "Relazione online"], explanation: "Beneficenza e relazione possono creare pressione. Senza ente e trasparenza, il rischio è alto.", safeAction: "Dona solo a enti verificabili e canali ufficiali." },
+  { id: "romance_family_blocked_card", category: "Relazioni", situation: "Una persona con cui parli ogni giorno dice che la carta è stata bloccata e chiede un prestito per pagare affitto e medicine.", isRisky: true, difficulty: "difficile", redFlags: ["Carta bloccata", "Bisogni essenziali", "Prestito"], explanation: "Bisogni essenziali e contatto quotidiano possono creare forte coinvolgimento emotivo. La verifica resta necessaria.", safeAction: "Non inviare denaro senza verifiche indipendenti. Se vuoi aiutare, cerca canali ufficiali e tracciabili." },
+  { id: "romance_investment_mentor", category: "Relazioni", situation: "Una persona conosciuta su un app di incontri ti presenta un mentor che insegna trading con segnali sicuri.", isRisky: true, difficulty: "difficile", redFlags: ["Dating + trading", "Mentor", "Segnali sicuri"], explanation: "Il passaggio da relazione a investimento è un modello frequente nelle truffe. Il mentor crea autorita artificiale.", safeAction: "Non versare denaro. Esci dal gruppo e verifica intermediari su registri ufficiali." },
+  { id: "romance_future_pressure", category: "Relazioni", situation: "Una persona parla presto di convivenza e futuro insieme, poi chiede soldi per risolvere l ultimo problema prima di raggiungerti.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro accelerato", "Aiuto economico", "Problema finale"], explanation: "Le promesse di futuro possono creare attaccamento rapido. La richiesta economica dopo spinta emotiva è un segnale di rischio.", safeAction: "Non inviare denaro. Dai tempo alla relazione e verifica fatti, identita e coerenza." },
   { id: "friend_loan_cash_no_trace", category: "Amici e parenti", situation: "Un amico ti chiede 1.500 euro in contanti per evitare problemi con la banca e dice di non fare bonifici.", isRisky: true, difficulty: "difficile", redFlags: ["Contanti", "Nessuna traccia", "Urgenza"], explanation: "La richiesta di contanti e assenza di traccia rende difficile dimostrare il prestito e recuperare il denaro.", safeAction: "Se decidi di aiutare, usa pagamento tracciabile e accordo scritto con tempi di restituzione." },
-  { id: "friend_loan_clear_terms", category: "Amici e parenti", situation: "Un amico chiede un prestito limitato, propone bonifico, accordo scritto e restituzione a rate sostenibili.", isRisky: false, difficulty: "media", redFlags: ["Accordo scritto", "Tracciabilita", "Importo limitato"], explanation: "Non e automaticamente una truffa. Chiarezza e tracciabilita proteggono entrambi.", safeAction: "Presta solo cio che puoi permetterti di perdere e conserva accordo e prove di pagamento." },
+  { id: "friend_loan_clear_terms", category: "Amici e parenti", situation: "Un amico chiede un prestito limitato, propone bonifico, accordo scritto e restituzione a rate sostenibili.", isRisky: false, difficulty: "media", redFlags: ["Accordo scritto", "Tracciabilità", "Importo limitato"], explanation: "Non è automaticamente una truffa. Chiarezza e tracciabilità proteggono entrambi.", safeAction: "Presta solo ciò che puoi permetterti di perdere e conserva accordo e prove di pagamento." },
   { id: "relative_business_no_docs", category: "Amici e parenti", situation: "Un parente ti chiede di investire nella sua attivita senza bilanci, dicendo che tra familiari non servono documenti.", isRisky: true, difficulty: "difficile", redFlags: ["Famiglia", "Nessun documento", "Investimento"], explanation: "Il legame familiare non elimina il rischio. Senza documenti non sai cosa stai finanziando e con quali diritti.", safeAction: "Chiedi numeri, contratto, rischi e tempi. Se non sono chiari, non investire." },
-  { id: "friend_account_blocked_transfer", category: "Amici e parenti", situation: "Un amico dice che il suo conto e bloccato e ti chiede di ricevere soldi sul tuo conto per poi girarglieli.", isRisky: true, difficulty: "difficile", redFlags: ["Conto terzi", "Transito denaro", "Spiegazione vaga"], explanation: "Fare transitare denaro per altri puo esporti a problemi seri se i fondi hanno origine dubbia.", safeAction: "Non usare il tuo conto per movimenti di altri. Suggerisci canali ufficiali e tracciabili." },
-  { id: "relative_voice_iban_new", category: "Amici e parenti", situation: "Ricevi un vocale che sembra di un familiare: dice di essere nei guai e chiede un bonifico immediato su un IBAN nuovo.", isRisky: true, difficulty: "difficile", redFlags: ["Vocale credibile", "IBAN nuovo", "Emergenza"], explanation: "Anche la voce puo essere imitata o manipolata. Urgenza e IBAN nuovo restano segnali molto forti.", safeAction: "Richiama il familiare su numero conosciuto o verifica con altri parenti prima di inviare denaro." },
-  { id: "friend_real_product_unsuitable", category: "Amici e parenti", situation: "Un amico ti segnala un prodotto finanziario reale e autorizzato, ma molto rischioso, dicendo che a lui sta andando bene.", isRisky: true, difficulty: "difficile", redFlags: ["Prodotto reale", "Rischio alto", "Esperienza altrui"], explanation: "Anche un prodotto vero puo essere inadatto. Il fatto che funzioni per un amico non significa che sia adatto a te.", safeAction: "Leggi rischi e costi. Valuta obiettivi, orizzonte e tolleranza alle perdite prima di decidere." },
+  { id: "friend_account_blocked_transfer", category: "Amici e parenti", situation: "Un amico dice che il suo conto è bloccato e ti chiede di ricevere soldi sul tuo conto per poi girarglieli.", isRisky: true, difficulty: "difficile", redFlags: ["Conto terzi", "Transito denaro", "Spiegazione vaga"], explanation: "Fare transitare denaro per altri può esporti a problemi seri se i fondi hanno origine dubbia.", safeAction: "Non usare il tuo conto per movimenti di altri. Suggerisci canali ufficiali e tracciabili." },
+  { id: "relative_voice_iban_new", category: "Amici e parenti", situation: "Ricevi un vocale che sembra di un familiare: dice di essere nei guai e chiede un bonifico immediato su un IBAN nuovo.", isRisky: true, difficulty: "difficile", redFlags: ["Vocale credibile", "IBAN nuovo", "Emergenza"], explanation: "Anche la voce può essere imitata o manipolata. Urgenza e IBAN nuovo restano segnali molto forti.", safeAction: "Richiama il familiare su numero conosciuto o verifica con altri parenti prima di inviare denaro." },
+  { id: "friend_real_product_unsuitable", category: "Amici e parenti", situation: "Un amico ti segnala un prodotto finanziario reale e autorizzato, ma molto rischioso, dicendo che a lui sta andando bene.", isRisky: true, difficulty: "difficile", redFlags: ["Prodotto reale", "Rischio alto", "Esperienza altrui"], explanation: "Anche un prodotto vero può essere inadatto. Il fatto che funzioni per un amico non significa che sia adatto a te.", safeAction: "Leggi rischi e costi. Valuta obiettivi, orizzonte e tolleranza alle perdite prima di decidere." },
   { id: "family_gift_traceable", category: "Amici e parenti", situation: "Un familiare vuole regalarti una somma con bonifico tracciabile e causale chiara, senza chiedere nulla in cambio.", isRisky: false, difficulty: "facile", redFlags: ["Bonifico tracciabile", "Nessuna pressione", "Causale chiara"], explanation: "Non mostra segnali tipici di truffa. Resta utile chiarire motivazione e aspetti fiscali se l importo e rilevante.", safeAction: "Conserva traccia del bonifico e valuta eventuali implicazioni se la somma e alta." },
-  { id: "friend_card_data_request", category: "Amici e parenti", situation: "Un amico ti chiede di prestargli carta, PIN o codici per fare un pagamento urgente.", isRisky: true, difficulty: "media", redFlags: ["Dati carta", "Urgenza", "Prestito mezzo pagamento"], explanation: "Anche se conosci la persona, condividere carta, PIN o codici e pericoloso e puo creare problemi difficili da risolvere.", safeAction: "Non condividere dati di pagamento. Se vuoi aiutare, usa un bonifico tracciabile." },
-  { id: "friend_guarantee_loan_extra2", category: "Amici e parenti", situation: "Un amico ti chiede di fare da garante per un finanziamento. Dice che e solo una formalita e che non rischi nulla.", isRisky: true, difficulty: "difficile", redFlags: ["Garante", "Rischio minimizzato", "Pressione affettiva"], explanation: "Fare da garante non e una formalita: se l altra persona non paga, il debito puo ricadere su di te.", safeAction: "Leggi il contratto, valuta il rischio reale e chiedi consulenza prima di firmare." },
-  { id: "relative_family_guilt_investment", category: "Amici e parenti", situation: "Un parente ti propone di investire in un progetto per aiutare la famiglia e dice che rifiutare sarebbe mancanza di fiducia.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Famiglia", "Investimento poco chiaro"], explanation: "Quando investimento e legame familiare si mischiano, e facile perdere lucidita. La pressione emotiva e un segnale.", safeAction: "Separa affetto e soldi: chiedi business plan, rischi e accordi scritti prima di decidere." },
+  { id: "friend_card_data_request", category: "Amici e parenti", situation: "Un amico ti chiede di prestargli carta, PIN o codici per fare un pagamento urgente.", isRisky: true, difficulty: "media", redFlags: ["Dati carta", "Urgenza", "Prestito mezzo pagamento"], explanation: "Anche se conosci la persona, condividere carta, PIN o codici e pericoloso e può creare problemi difficili da risolvere.", safeAction: "Non condividere dati di pagamento. Se vuoi aiutare, usa un bonifico tracciabile." },
+  { id: "friend_guarantee_loan_extra2", category: "Amici e parenti", situation: "Un amico ti chiede di fare da garante per un finanziamento. Dice che è solo una formalita e che non rischi nulla.", isRisky: true, difficulty: "difficile", redFlags: ["Garante", "Rischio minimizzato", "Pressione affettiva"], explanation: "Fare da garante non è una formalita: se l altra persona non paga, il debito può ricadere su di te.", safeAction: "Leggi il contratto, valuta il rischio reale e chiedi consulenza prima di firmare." },
+  { id: "relative_family_guilt_investment", category: "Amici e parenti", situation: "Un parente ti propone di investire in un progetto per aiutare la famiglia e dice che rifiutare sarebbe mancanza di fiducia.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Famiglia", "Investimento poco chiaro"], explanation: "Quando investimento e legame familiare si mischiano, è facile perdere lucidita. La pressione emotiva è un segnale.", safeAction: "Separa affetto e soldi: chiedi business plan, rischi e accordi scritti prima di decidere." },
   { id: "friend_repay_link", category: "Amici e parenti", situation: "Un vecchio amico ti scrive sui social dicendo di volerti restituire soldi, ma ti manda un link dove inserire carta e documento.", isRisky: true, difficulty: "media", redFlags: ["Link pagamento", "Documento", "Profilo social"], explanation: "Potrebbe essere un profilo compromesso. Per ricevere soldi non serve inserire dati carta su link sospetti.", safeAction: "Verifica l identita con una chiamata e usa metodi di pagamento noti e sicuri." },
-  { id: "relative_loan_no_written_terms_extra2", category: "Amici e parenti", situation: "Un cugino ti chiede 3.000 euro in prestito e dice che non serve scrivere nulla perche siete parenti.", isRisky: true, difficulty: "media", redFlags: ["Prestito familiare", "Nessun accordo", "Importo rilevante"], explanation: "Prestiti tra parenti senza accordi chiari possono creare conflitti e perdite. La fiducia non sostituisce chiarezza.", safeAction: "Se decidi di aiutare, metti importo, tempi e modalita per iscritto." },
+  { id: "relative_loan_no_written_terms_extra2", category: "Amici e parenti", situation: "Un cugino ti chiede 3.000 euro in prestito e dice che non serve scrivere nulla perché siete parenti.", isRisky: true, difficulty: "media", redFlags: ["Prestito familiare", "Nessun accordo", "Importo rilevante"], explanation: "Prestiti tra parenti senza accordi chiari possono creare conflitti e perdite. La fiducia non sostituisce chiarezza.", safeAction: "Se decidi di aiutare, metti importo, tempi e modalità per iscritto." },
   { id: "friend_multilevel_recruit_extra2", category: "Amici e parenti", situation: "Un amico ti invita a un incontro per un opportunita di guadagno dove il focus e far entrare altre persone.", isRisky: true, difficulty: "difficile", redFlags: ["Reclutamento", "Guadagni promessi", "Pressione gruppo"], explanation: "Quando il guadagno dipende soprattutto dal reclutare altri, il rischio di schema insostenibile aumenta molto.", safeAction: "Chiedi come si genera davvero il guadagno, costi iniziali e documenti. Non firmare sull entusiasmo." },
-  { id: "friend_medical_direct_payment", category: "Amici e parenti", situation: "Un amico chiede aiuto per una spesa medica, mostra documenti verificabili e accetta pagamento diretto alla struttura.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti verificabili", "Pagamento diretto", "Nessuna fretta"], explanation: "Non e necessariamente una truffa: la possibilita di pagare direttamente e verificare riduce il rischio.", safeAction: "Se vuoi aiutare, paga canali ufficiali e conserva ricevuta." },
-  { id: "emotional_blackmail_parent", category: "Amici e parenti", situation: "Un familiare ti dice che se non gli presti soldi rovinerai il rapporto e non ti parlera piu.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto emotivo", "Famiglia", "Prestito"], explanation: "La pressione affettiva puo portare a decisioni finanziarie non sostenibili. Aiutare non deve metterti in difficolta.", safeAction: "Prenditi tempo, definisci limiti e metti eventuali accordi per iscritto." },
+  { id: "friend_medical_direct_payment", category: "Amici e parenti", situation: "Un amico chiede aiuto per una spesa medica, mostra documenti verificabili e accetta pagamento diretto alla struttura.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti verificabili", "Pagamento diretto", "Nessuna fretta"], explanation: "Non è necessariamente una truffa: la possibilità di pagare direttamente e verificare riduce il rischio.", safeAction: "Se vuoi aiutare, paga canali ufficiali e conserva ricevuta." },
+  { id: "emotional_blackmail_parent", category: "Amici e parenti", situation: "Un familiare ti dice che se non gli presti soldi rovinerai il rapporto e non ti parlera più.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto emotivo", "Famiglia", "Prestito"], explanation: "La pressione affettiva può portare a decisioni finanziarie non sostenibili. Aiutare non deve metterti in difficolta.", safeAction: "Prenditi tempo, definisci limiti e metti eventuali accordi per iscritto." },
   { id: "investment_friend_low_amount", category: "Amici e parenti", situation: "Un amico ti dice di iniziare con soli 50 euro su una piattaforma sconosciuta per vedere come va.", isRisky: true, difficulty: "difficile", redFlags: ["Importo piccolo", "Piattaforma sconosciuta", "Test fiducia"], explanation: "L importo basso serve a farti iniziare. Dopo il primo versamento possono aumentare richieste e pressione.", safeAction: "Non testare piattaforme non verificate. Cerca autorizzazioni e recensioni indipendenti." },
-  { id: "door_charity_child_guilt", category: "Di persona", situation: "Una persona mostra foto di bambini malati e ti chiede contanti subito, dicendo che rifiutare significa non avere cuore.", isRisky: true, difficulty: "media", redFlags: ["Senso di colpa", "Contanti", "Nessuna verifica"], explanation: "La pressione emotiva puo essere usata per impedire verifiche. Una raccolta seria accetta controlli e canali ufficiali.", safeAction: "Non donare in contanti sotto pressione. Cerca l ente e dona dal sito ufficiale." },
-  { id: "door_utility_discount_now", category: "Di persona", situation: "Un incaricato dice che il tuo contratto luce e sbagliato e che solo firmando subito avrai diritto a uno sconto riservato.", isRisky: true, difficulty: "media", redFlags: ["Firma immediata", "Sconto riservato", "Confusione contratto"], explanation: "Le vendite aggressive puntano a farti firmare prima di leggere. Uno sconto vero puo essere verificato con calma.", safeAction: "Non firmare subito. Chiedi copia dell offerta e confrontala da casa." },
+  { id: "door_charity_child_guilt", category: "Di persona", situation: "Una persona mostra foto di bambini malati e ti chiede contanti subito, dicendo che rifiutare significa non avere cuore.", isRisky: true, difficulty: "media", redFlags: ["Senso di colpa", "Contanti", "Nessuna verifica"], explanation: "La pressione emotiva può essere usata per impedire verifiche. Una raccolta seria accetta controlli e canali ufficiali.", safeAction: "Non donare in contanti sotto pressione. Cerca l ente e dona dal sito ufficiale." },
+  { id: "door_utility_discount_now", category: "Di persona", situation: "Un incaricato dice che il tuo contratto luce e sbagliato e che solo firmando subito avrai diritto a uno sconto riservato.", isRisky: true, difficulty: "media", redFlags: ["Firma immediata", "Sconto riservato", "Confusione contratto"], explanation: "Le vendite aggressive puntano a farti firmare prima di leggere. Uno sconto vero può essere verificato con calma.", safeAction: "Non firmare subito. Chiedi copia dell offerta e confrontala da casa." },
   { id: "cash_investment_neighbor", category: "Di persona", situation: "Un vicino propone di consegnargli contanti per una occasione di investimento riservata, senza contratto.", isRisky: true, difficulty: "difficile", redFlags: ["Contanti", "Investimento riservato", "Nessun contratto"], explanation: "Vicinanza e fiducia di quartiere possono far abbassare le difese. Contanti senza contratto sono un rischio alto.", safeAction: "Non consegnare contanti per investimenti. Chiedi documenti e soggetto autorizzato." },
-  { id: "community_collection_clear", category: "Di persona", situation: "Un gruppo di quartiere raccoglie piccole quote per una spesa comune, con elenco pubblico e ricevute.", isRisky: false, difficulty: "media", redFlags: ["Trasparenza", "Ricevute", "Importo piccolo"], explanation: "La trasparenza rende la situazione piu gestibile. Resta utile sapere chi custodisce il denaro.", safeAction: "Versa solo importi sostenibili e con ricevuta o traccia." },
+  { id: "community_collection_clear", category: "Di persona", situation: "Un gruppo di quartiere raccoglie piccole quote per una spesa comune, con elenco pubblico e ricevute.", isRisky: false, difficulty: "media", redFlags: ["Trasparenza", "Ricevute", "Importo piccolo"], explanation: "La trasparenza rende la situazione più gestibile. Resta utile sapere chi custodisce il denaro.", safeAction: "Versa solo importi sostenibili e con ricevuta o traccia." },
   { id: "elderly_fake_police_jewels", category: "Familiari", situation: "Un anziano riceve visita di persone che dicono di dover controllare gioielli per una indagine di polizia.", isRisky: true, difficulty: "facile", redFlags: ["Falsa autorita", "Gioielli", "Visita a casa"], explanation: "Forze dell ordine non chiedono di consegnare gioielli a casa in questo modo.", safeAction: "Non consegnare nulla e chiama il 112 o familiari da numeri conosciuti." },
   { id: "official_police_station", category: "Familiari", situation: "Una persona viene invitata a recarsi in caserma per una denuncia tramite comunicazione verificabile.", isRisky: false, difficulty: "media", redFlags: ["Sede ufficiale", "Verificabile", "Nessuna richiesta denaro"], explanation: "Una convocazione verificabile presso sede ufficiale non ha i segnali tipici della truffa economica.", safeAction: "Verifica telefonando alla sede ufficiale se hai dubbi." },
-  { id: "parking_qr_fake", category: "Pagamenti reali", situation: "In un parcheggio trovi un QR code adesivo sopra il cartello ufficiale per pagare la sosta.", isRisky: true, difficulty: "difficile", redFlags: ["QR code adesivo", "Pagamento", "Sito non verificato"], explanation: "QR code falsi possono portare a siti che rubano dati. Un adesivo sovrapposto e un segnale da verificare.", safeAction: "Usa app ufficiale o sito indicato da fonti certe, non un QR sospetto." },
-  { id: "restaurant_qr_menu_safe", category: "Pagamenti reali", situation: "Al ristorante il QR code porta solo al menu, non chiede dati personali o pagamenti.", isRisky: false, difficulty: "facile", redFlags: ["Menu", "Nessun pagamento", "Nessun dato sensibile"], explanation: "Un QR per consultare il menu e normale se non richiede dati o pagamenti sospetti.", safeAction: "Controlla comunque l indirizzo se devi inserire dati o pagare." },
+  { id: "parking_qr_fake", category: "Pagamenti reali", situation: "In un parcheggio trovi un QR code adesivo sopra il cartello ufficiale per pagare la sosta.", isRisky: true, difficulty: "difficile", redFlags: ["QR code adesivo", "Pagamento", "Sito non verificato"], explanation: "QR code falsi possono portare a siti che rubano dati. Un adesivo sovrapposto è un segnale da verificare.", safeAction: "Usa app ufficiale o sito indicato da fonti certe, non un QR sospetto." },
+  { id: "restaurant_qr_menu_safe", category: "Pagamenti reali", situation: "Al ristorante il QR code porta solo al menu, non chiede dati personali o pagamenti.", isRisky: false, difficulty: "facile", redFlags: ["Menu", "Nessun pagamento", "Nessun dato sensibile"], explanation: "Un QR per consultare il menu è normale se non richiede dati o pagamenti sospetti.", safeAction: "Controlla comunque l indirizzo se devi inserire dati o pagare." },
   { id: "atm_stranger_help", category: "Pagamenti reali", situation: "Al bancomat uno sconosciuto ti offre aiuto e si avvicina mentre inserisci PIN e carta.", isRisky: true, difficulty: "facile", redFlags: ["Bancomat", "PIN", "Sconosciuto vicino"], explanation: "La vicinanza durante prelievo o inserimento PIN espone a furto di dati o carta.", safeAction: "Copri il PIN, annulla se ti senti osservato e non accettare aiuto da sconosciuti." },
-  { id: "pos_amount_receipt", category: "Pagamenti reali", situation: "Paghi con carta in negozio, il commerciante ti mostra importo sul POS e ti consegna ricevuta.", isRisky: false, difficulty: "facile", redFlags: ["Importo visibile", "Ricevuta", "Negozio fisico"], explanation: "E una procedura normale. Il controllo dell importo resta sempre utile.", safeAction: "Verifica importo prima di avvicinare la carta e conserva ricevuta se serve." },
-  { id: "invoice_iban_changed_extra2", category: "Banca e pagamenti", situation: "Ricevi una fattura reale da un fornitore, ma una seconda email comunica un nuovo IBAN per pagare.", isRisky: true, difficulty: "difficile", redFlags: ["IBAN cambiato", "Fattura reale", "Email separata"], explanation: "Le frodi su IBAN modificato sfruttano documenti veri e cambiano solo il conto di pagamento.", safeAction: "Verifica il cambio IBAN chiamando un numero gia noto, non quello indicato nella email." },
-  { id: "condo_iban_change", category: "Casa e condominio", situation: "L amministratore comunica un nuovo IBAN per le spese condominiali da una email insolita e con tono urgente.", isRisky: true, difficulty: "difficile", redFlags: ["IBAN nuovo", "Email insolita", "Urgenza"], explanation: "Un cambio IBAN e sempre da verificare. Le truffe usano contesti reali come condominio o fornitori.", safeAction: "Contatta l amministratore da numero gia conosciuto prima di pagare." },
+  { id: "pos_amount_receipt", category: "Pagamenti reali", situation: "Paghi con carta in negozio, il commerciante ti mostra importo sul POS e ti consegna ricevuta.", isRisky: false, difficulty: "facile", redFlags: ["Importo visibile", "Ricevuta", "Negozio fisico"], explanation: "È una procedura normale. Il controllo dell importo resta sempre utile.", safeAction: "Verifica importo prima di avvicinare la carta e conserva ricevuta se serve." },
+  { id: "invoice_iban_changed_extra2", category: "Banca e pagamenti", situation: "Ricevi una fattura reale da un fornitore, ma una seconda email comunica un nuovo IBAN per pagare.", isRisky: true, difficulty: "difficile", redFlags: ["IBAN cambiato", "Fattura reale", "Email separata"], explanation: "Le frodi su IBAN modificato sfruttano documenti veri e cambiano solo il conto di pagamento.", safeAction: "Verifica il cambio IBAN chiamando un numero già noto, non quello indicato nella email." },
+  { id: "condo_iban_change", category: "Casa e condominio", situation: "L amministratore comunica un nuovo IBAN per le spese condominiali da una email insolita e con tono urgente.", isRisky: true, difficulty: "difficile", redFlags: ["IBAN nuovo", "Email insolita", "Urgenza"], explanation: "Un cambio IBAN e sempre da verificare. Le truffe usano contesti reali come condominio o fornitori.", safeAction: "Contatta l amministratore da numero già conosciuto prima di pagare." },
   { id: "condo_official_notice", category: "Casa e condominio", situation: "Ricevi comunicazione di assemblea condominiale con canali noti e nessuna richiesta di pagamento immediato.", isRisky: false, difficulty: "facile", redFlags: ["Canale noto", "Nessun pagamento urgente", "Verificabile"], explanation: "Non presenta segnali forti di truffa. Le comunicazioni ordinarie possono comunque essere controllate.", safeAction: "Confronta con bacheca, PEC o contatti abituali se hai dubbi." },
-  { id: "rental_owner_abroad_docs", category: "Affitti e casa", situation: "Il proprietario dice di vivere all estero, invia documenti e chiede caparra prima della visita tramite bonifico estero.", isRisky: true, difficulty: "difficile", redFlags: ["Proprietario all estero", "Caparra prima visita", "Bonifico estero"], explanation: "Documenti inviati in chat possono essere falsi o rubati. Caparra prima di vedere resta un segnale critico.", safeAction: "Visita l immobile, verifica proprieta e contratto prima di pagare." },
-  { id: "rental_after_visit_receipt", category: "Affitti e casa", situation: "Dopo visita di una stanza, coinquilini e proprietario verificabili chiedono una piccola caparra tracciabile con ricevuta.", isRisky: false, difficulty: "media", redFlags: ["Visita effettuata", "Ricevuta", "Tracciabilita"], explanation: "La visita e la tracciabilita riducono il rischio. Serve comunque leggere condizioni e identita.", safeAction: "Paga solo con causale chiara e conserva ricevuta e accordo." },
-  { id: "used_car_no_vin", category: "Auto usata", situation: "Il venditore di un auto usata rifiuta di condividere targa o telaio prima dell incontro e chiede anticipo per bloccarla.", isRisky: true, difficulty: "media", redFlags: ["Dati auto negati", "Anticipo", "Prezzo attraente"], explanation: "Rifiutare dati base e chiedere anticipo prima delle verifiche aumenta il rischio.", safeAction: "Verifica documenti, storico, proprieta e auto dal vivo prima di pagare." },
-  { id: "used_car_mechanic_ok", category: "Auto usata", situation: "Il venditore accetta controllo dal meccanico, visura, prova su strada e pagamento tracciabile dopo passaggio.", isRisky: false, difficulty: "media", redFlags: ["Controllo meccanico", "Documenti", "Pagamento tracciabile"], explanation: "E un comportamento piu trasparente. Non elimina ogni rischio, ma permette verifiche concrete.", safeAction: "Fai controlli, usa pagamento tracciabile e verifica il passaggio di proprieta." },
+  { id: "rental_owner_abroad_docs", category: "Affitti e casa", situation: "Il proprietàrio dice di vivere all estero, invia documenti e chiede caparra prima della visita tramite bonifico estero.", isRisky: true, difficulty: "difficile", redFlags: ["Proprietario all estero", "Caparra prima visita", "Bonifico estero"], explanation: "Documenti inviati in chat possono essere falsi o rubati. Caparra prima di vedere resta un segnale critico.", safeAction: "Visita l immobile, verifica proprietà e contratto prima di pagare." },
+  { id: "rental_after_visit_receipt", category: "Affitti e casa", situation: "Dopo visita di una stanza, coinquilini e proprietàrio verificabili chiedono una piccola caparra tracciabile con ricevuta.", isRisky: false, difficulty: "media", redFlags: ["Visita effettuata", "Ricevuta", "Tracciabilità"], explanation: "La visita e la tracciabilità riducono il rischio. Serve comunque leggere condizioni e identità.", safeAction: "Paga solo con causale chiara e conserva ricevuta e accordo." },
+  { id: "used_car_no_vin", category: "Auto usata", situation: "Il venditore di un auto usata rifiuta di condividere targa o telaio prima dell incontro e chiede anticipo per bloccarla.", isRisky: true, difficulty: "media", redFlags: ["Dati auto negati", "Anticipo", "Prezzo attraente"], explanation: "Rifiutare dati base è chiedere anticipo prima delle verifiche aumenta il rischio.", safeAction: "Verifica documenti, storico, proprietà e auto dal vivo prima di pagare." },
+  { id: "used_car_mechanic_ok", category: "Auto usata", situation: "Il venditore accetta controllo dal meccanico, visura, prova su strada e pagamento tracciabile dopo passaggio.", isRisky: false, difficulty: "media", redFlags: ["Controllo meccanico", "Documenti", "Pagamento tracciabile"], explanation: "È un comportamento più trasparente. Non elimina ogni rischio, ma permette verifiche concrete.", safeAction: "Fai controlli, usa pagamento tracciabile e verifica il passaggio di proprietà." },
   { id: "job_reshipping_packages", category: "Lavoro", situation: "Un lavoro da casa ti chiede di ricevere pacchi e rispedirli, promettendo compensi facili senza colloquio vero.", isRisky: true, difficulty: "difficile", redFlags: ["Pacchi da rispedire", "Lavoro facile", "Nessun colloquio"], explanation: "Potresti diventare intermediario inconsapevole di merce acquistata fraudolentemente.", safeAction: "Non accettare lavori che usano il tuo indirizzo o conto senza contratto chiaro e azienda verificata." },
   { id: "job_fake_check_equipment", category: "Lavoro", situation: "Un presunto datore invia un assegno per comprare attrezzatura e chiede di girare una parte a un fornitore indicato.", isRisky: true, difficulty: "difficile", redFlags: ["Assegno", "Fornitore imposto", "Anticipo"], explanation: "Gli assegni possono risultare falsi dopo giorni. Intanto tu avresti inviato soldi veri.", safeAction: "Non anticipare o girare denaro per un datore non verificato." },
   { id: "job_regular_contract_safe", category: "Lavoro", situation: "Un azienda verificabile propone contratto, colloquio, mansioni e pagamento su conto intestato a te.", isRisky: false, difficulty: "facile", redFlags: ["Contratto", "Azienda verificabile", "Mansioni chiare"], explanation: "Sono elementi normali di un rapporto di lavoro. Leggi comunque condizioni e contratto.", safeAction: "Verifica azienda, contratto e retribuzione prima di firmare." },
-  { id: "subscription_trial_card", category: "Abbonamenti", situation: "Un sito poco conosciuto offre prova gratuita ma chiede carta e rende poco chiaro come disdire.", isRisky: true, difficulty: "media", redFlags: ["Prova gratuita", "Disdetta opaca", "Carta richiesta"], explanation: "Alcuni servizi puntano su rinnovi difficili da cancellare. La poca chiarezza e un segnale.", safeAction: "Cerca condizioni, recensioni e modalita di recesso prima di inserire la carta." },
-  { id: "subscription_known_terms", category: "Abbonamenti", situation: "Un servizio noto indica prezzo, rinnovo e pulsante di cancellazione prima dell acquisto.", isRisky: false, difficulty: "facile", redFlags: ["Prezzo chiaro", "Recesso visibile", "Servizio noto"], explanation: "La trasparenza su prezzo e disdetta e un segnale positivo, anche se devi valutare se ti serve davvero.", safeAction: "Controlla data rinnovo e salva promemoria se attivi la prova." },
+  { id: "subscription_trial_card", category: "Abbonamenti", situation: "Un sito poco conosciuto offre prova gratuita ma chiede carta e rende poco chiaro come disdire.", isRisky: true, difficulty: "media", redFlags: ["Prova gratuita", "Disdetta opaca", "Carta richiesta"], explanation: "Alcuni servizi puntano su rinnovi difficili da cancellare. La poca chiarezza è un segnale.", safeAction: "Cerca condizioni, recensioni e modalità di recesso prima di inserire la carta." },
+  { id: "subscription_known_terms", category: "Abbonamenti", situation: "Un servizio noto indica prezzo, rinnovo e pulsante di cancellazione prima dell acquisto.", isRisky: false, difficulty: "facile", redFlags: ["Prezzo chiaro", "Recesso visibile", "Servizio noto"], explanation: "La trasparenza su prezzo e disdetta è un segnale positivo, anche se devi valutare se ti serve davvero.", safeAction: "Controlla data rinnovo e salva promemoria se attivi la prova." },
   { id: "tax_refund_card_link", category: "Pubblica amministrazione", situation: "Ricevi una email che promette rimborso fiscale immediato e chiede dati carta tramite link.", isRisky: true, difficulty: "facile", redFlags: ["Rimborso", "Dati carta", "Link"], explanation: "Gli enti pubblici non chiedono dati carta via email per erogare rimborsi in questo modo.", safeAction: "Accedi solo dal sito ufficiale digitando l indirizzo o usando app istituzionali." },
   { id: "municipal_pagopa_safe", category: "Pubblica amministrazione", situation: "Ricevi un avviso di pagamento con codice pagoPA verificabile sul portale ufficiale.", isRisky: false, difficulty: "media", redFlags: ["PagoPA", "Portale ufficiale", "Codice verificabile"], explanation: "Un pagamento verificabile su canali ufficiali e meno rischioso. Occhio a link copiati o siti clone.", safeAction: "Apri il portale ufficiale senza usare link sospetti e verifica il codice." },
   { id: "green_bond_private", category: "Investimenti", situation: "Un sito propone obbligazioni green riservate ai privati con rendimento alto e logo di aziende famose.", isRisky: true, difficulty: "difficile", redFlags: ["Rendimento alto", "Loghi famosi", "Sito non verificato"], explanation: "Loghi e temi sostenibili possono essere usati per sembrare affidabili. Rendimento alto e canale non verificato sono rischiosi.", safeAction: "Verifica emittente, prospetto, intermediario autorizzato e registri ufficiali." },
-  { id: "bank_branch_product_docs", category: "Investimenti", situation: "La tua banca ti propone un prodotto in filiale, consegna documenti KID e ti lascia tempo per valutare.", isRisky: false, difficulty: "media", redFlags: ["Documenti ufficiali", "Tempo", "Canale verificato"], explanation: "Non e una truffa tipica, ma puo comunque non essere adatto o avere costi alti.", safeAction: "Leggi costi, rischi e alternative prima di aderire." },
+  { id: "bank_branch_product_docs", category: "Investimenti", situation: "La tua banca ti propone un prodotto in filiale, consegna documenti KID e ti lascia tempo per valutare.", isRisky: false, difficulty: "media", redFlags: ["Documenti ufficiali", "Tempo", "Canale verificato"], explanation: "Non è una truffa tipica, ma può comunque non essere adatto o avere costi alti.", safeAction: "Leggi costi, rischi e alternative prima di aderire." },
   { id: "trading_signal_influencer", category: "Investimenti", situation: "Un influencer offre una prova gratuita dei suoi segnali di trading e mostra solo operazioni vincenti.", isRisky: true, difficulty: "media", redFlags: ["Solo vittorie", "Segnali trading", "Influencer"], explanation: "Mostrare solo guadagni crea una percezione falsa. Il trading resta rischioso e i risultati possono essere selezionati.", safeAction: "Non pagare segnali senza verifiche, track record indipendente e comprensione dei rischi." },
-  { id: "crypto_withdraw_tax", category: "Crypto", situation: "Una piattaforma crypto ti mostra profitti, ma per prelevare chiede prima una tassa da pagare separatamente.", isRisky: true, difficulty: "difficile", redFlags: ["Prelievo bloccato", "Tassa anticipata", "Profitti visibili"], explanation: "Chiedere soldi per sbloccare profitti e un segnale classico di truffa. I profitti mostrati potrebbero essere finti.", safeAction: "Non pagare ulteriori somme. Raccogli prove e valuta segnalazione." },
-  { id: "crypto_exchange_2fa", category: "Crypto", situation: "Usi un exchange noto, hai 2FA attiva e prelevi su conto intestato a te con procedure standard.", isRisky: false, difficulty: "media", redFlags: ["2FA", "Exchange noto", "Conto intestato"], explanation: "Non e automaticamente rischioso, ma crypto e custodia restano aree da gestire con attenzione.", safeAction: "Usa sicurezza forte, controlla indirizzi e non investire piu di quanto puoi perdere." },
-  { id: "delivery_unexpected_cod", category: "Corrieri", situation: "Un corriere arriva con un pacco non atteso e chiede pagamento in contanti alla consegna.", isRisky: true, difficulty: "media", redFlags: ["Pacco non atteso", "Contanti", "Consegna"], explanation: "Il contrassegno su pacchi non attesi puo essere usato per farti pagare merce inutile o mai ordinata.", safeAction: "Rifiuta se non riconosci ordine e mittente. Verifica con familiari prima di pagare." },
-  { id: "delivery_expected_cod_safe", category: "Corrieri", situation: "Aspetti un pacco in contrassegno acquistato da te e l importo corrisponde all ordine.", isRisky: false, difficulty: "facile", redFlags: ["Pacco atteso", "Importo corretto", "Ordine riconosciuto"], explanation: "La situazione e coerente con un acquisto fatto da te. Controlla sempre importo e mittente.", safeAction: "Paga solo se ordine, importo e corriere corrispondono." },
+  { id: "crypto_withdraw_tax", category: "Crypto", situation: "Una piattaforma crypto ti mostra profitti, ma per prelevare chiede prima una tassa da pagare separatamente.", isRisky: true, difficulty: "difficile", redFlags: ["Prelievo bloccato", "Tassa anticipata", "Profitti visibili"], explanation: "Chiedere soldi per sbloccare profitti è un segnale classico di truffa. I profitti mostrati potrebbero essere finti.", safeAction: "Non pagare ulteriori somme. Raccogli prove e valuta segnalazione." },
+  { id: "crypto_exchange_2fa", category: "Crypto", situation: "Usi un exchange noto, hai 2FA attiva e prelevi su conto intestato a te con procedure standard.", isRisky: false, difficulty: "media", redFlags: ["2FA", "Exchange noto", "Conto intestato"], explanation: "Non è automaticamente rischioso, ma crypto e custodia restano aree da gestire con attenzione.", safeAction: "Usa sicurezza forte, controlla indirizzi e non investire più di quanto puoi perdere." },
+  { id: "delivery_unexpected_cod", category: "Corrieri", situation: "Un corriere arriva con un pacco non atteso e chiede pagamento in contanti alla consegna.", isRisky: true, difficulty: "media", redFlags: ["Pacco non atteso", "Contanti", "Consegna"], explanation: "Il contrassegno su pacchi non attesi può essere usato per farti pagare merce inutile o mai ordinata.", safeAction: "Rifiuta se non riconosci ordine e mittente. Verifica con familiari prima di pagare." },
+  { id: "delivery_expected_cod_safe", category: "Corrieri", situation: "Aspetti un pacco in contrassegno acquistato da te e l importo corrisponde all ordine.", isRisky: false, difficulty: "facile", redFlags: ["Pacco atteso", "Importo corretto", "Ordine riconosciuto"], explanation: "La situazione è coerente con un acquisto fatto da te. Controlla sempre importo e mittente.", safeAction: "Paga solo se ordine, importo e corriere corrispondono." },
   { id: "school_trip_iban_change", category: "Famiglia e scuola", situation: "Ricevi in un gruppo genitori un messaggio con nuovo IBAN per pagare una gita scolastica entro sera.", isRisky: true, difficulty: "difficile", redFlags: ["Gruppo chat", "IBAN nuovo", "Urgenza"], explanation: "Anche i gruppi reali possono essere compromessi o confusi. Nuovo IBAN e fretta vanno verificati.", safeAction: "Chiedi conferma alla scuola tramite canale ufficiale prima di pagare." },
   { id: "school_registry_payment", category: "Famiglia e scuola", situation: "La scuola invia comunicazione ufficiale dal registro elettronico con importo e causale verificabili.", isRisky: false, difficulty: "facile", redFlags: ["Registro ufficiale", "Causale", "Verificabile"], explanation: "Il canale ufficiale riduce il rischio. Resta utile controllare importo e scadenza.", safeAction: "Paga tramite canale indicato dalla scuola e conserva ricevuta." },
   { id: "health_miracle_supplement", category: "Salute e benessere", situation: "Un annuncio promette guarigione rapida o dimagrimento garantito se compri subito un integratore costoso.", isRisky: true, difficulty: "media", redFlags: ["Promessa garantita", "Salute", "Urgenza acquisto"], explanation: "Promesse sanitarie garantite e pressione commerciale sono segnali di rischio e possono danneggiare salute e soldi.", safeAction: "Parla con un professionista sanitario e diffida da promesse assolute." },
-  { id: "health_official_visit", category: "Salute e benessere", situation: "Prenoti una visita da un centro noto, ricevi conferma ufficiale e paghi con ricevuta.", isRisky: false, difficulty: "facile", redFlags: ["Centro noto", "Ricevuta", "Prenotazione"], explanation: "E un processo normale. Controlla sempre dati e importi.", safeAction: "Usa canali ufficiali e conserva ricevute." },
+  { id: "health_official_visit", category: "Salute e benessere", situation: "Prenoti una visita da un centro noto, ricevi conferma ufficiale e paghi con ricevuta.", isRisky: false, difficulty: "facile", redFlags: ["Centro noto", "Ricevuta", "Prenotazione"], explanation: "È un processo normale. Controlla sempre dati e importi.", safeAction: "Usa canali ufficiali e conserva ricevute." },
   { id: "ticket_soldout_cheap", category: "Eventi", situation: "Trovi biglietti per un concerto sold out a prezzo basso e il venditore chiede bonifico amici e familiari.", isRisky: true, difficulty: "media", redFlags: ["Prezzo basso", "Sold out", "Pagamento non protetto"], explanation: "Biglietti falsi e pagamenti non protetti sono rischi frequenti negli eventi sold out.", safeAction: "Usa piattaforme ufficiali di rivendita e pagamenti con tutela." },
   { id: "ticket_official_resale_safe", category: "Eventi", situation: "Acquisti biglietto da piattaforma ufficiale di rivendita con trasferimento nominativo tracciato.", isRisky: false, difficulty: "media", redFlags: ["Piattaforma ufficiale", "Trasferimento nominativo", "Pagamento protetto"], explanation: "La piattaforma ufficiale riduce il rischio di biglietti falsi.", safeAction: "Controlla condizioni, nominativo e ricevuta." },
   { id: "pet_free_shipping_fee", category: "Animali", situation: "Un annuncio regala un cucciolo ma chiede soldi per trasporto, vaccini e documenti prima di vederlo.", isRisky: true, difficulty: "media", redFlags: ["Cucciolo gratuito", "Spese anticipo", "Nessuna visita"], explanation: "Le truffe sugli animali usano emozione e desiderio di aiutare. Le spese anticipate sono il vero obiettivo.", safeAction: "Vedi animale, allevamento o associazione e documenti prima di pagare." },
@@ -1230,7 +1242,7 @@ const awarenessActions: AwarenessAction[] = [
     difficulty: 1,
     sacrifice: 1,
     minutes: 10,
-    why: "Molti abbonamenti restano attivi anche quando non li usi piu. Toglierne uno e un risparmio immediato, senza rinunce vere.",
+    why: "Molti abbonamenti restano attivi anche quando non li usi più. Toglierne uno è un risparmio immediato, senza rinunce vere.",
     steps: [
       "Apri l'elenco delle spese ricorrenti della carta o del conto",
       "Segna gli abbonamenti che non usi da almeno 30 giorni",
@@ -1248,7 +1260,7 @@ const awarenessActions: AwarenessAction[] = [
     difficulty: 2,
     sacrifice: 1,
     minutes: 15,
-    why: "Buttare cibo significa buttare denaro. Una piccola organizzazione prima della spesa puo liberare soldi ogni mese.",
+    why: "Buttare cibo significa buttare denaro. Una piccola organizzazione prima della spesa può liberare soldi ogni mese.",
     steps: [
       "Controlla frigo e dispensa prima di uscire",
       "Pianifica 3 pasti semplici per i prossimi giorni",
@@ -1284,12 +1296,12 @@ const awarenessActions: AwarenessAction[] = [
     difficulty: 2,
     sacrifice: 1,
     minutes: 20,
-    why: "Se paghi piu del necessario per un servizio simile, stai rinunciando a risparmio senza ottenere vero valore in cambio.",
+    why: "Se paghi più del necessario per un servizio simile, stai rinunciando a risparmio senza ottenere vero valore in cambio.",
     steps: [
       "Controlla quanto paghi oggi per telefono e internet",
       "Confronta 2 o 3 offerte simili",
-      "Verifica vincoli, costi di attivazione e qualita del servizio",
-      "Cambia solo se il risparmio e reale e il servizio resta adeguato",
+      "Verifica vincoli, costi di attivazione e qualità del servizio",
+      "Cambia solo se il risparmio è reale e il servizio resta adeguato",
     ],
   },
   {
@@ -1302,11 +1314,11 @@ const awarenessActions: AwarenessAction[] = [
     difficulty: 2,
     sacrifice: 1,
     minutes: 15,
-    why: "Canoni, carte e piccole commissioni sembrano dettagli, ma sommati nel tempo possono pesare piu di quanto pensi.",
+    why: "Canoni, carte e piccole commissioni sembrano dettagli, ma sommati nel tempo possono pesare più di quanto pensi.",
     steps: [
       "Controlla canone conto, carta e prelievi",
       "Guarda se paghi commissioni ricorrenti",
-      "Confronta un'alternativa con costi piu bassi",
+      "Confronta un'alternativa con costi più bassi",
       "Tieni solo i servizi che usi davvero",
     ],
   },
@@ -1320,11 +1332,11 @@ const awarenessActions: AwarenessAction[] = [
     difficulty: 2,
     sacrifice: 1,
     minutes: 15,
-    why: "La liquidita che resta ferma sul conto puo perdere valore nel tempo. Una parte della liquidita non investita, se non ti serve subito, puo stare su un conto remunerato semplice e svincolato.",
+    why: "La liquidita che resta ferma sul conto può perdere valore nel tempo. Una parte della liquidita non investita, se non ti serve subito, può stare su un conto remunerato semplice e svincolato.",
     steps: [
-      "Individua quanta liquidita vuoi tenere disponibile per spese e imprevisti",
+      "Individua quanta liquidita vuoi tenere disponibile per spese è imprevisti",
       "Confronta conti remunerati o soluzioni simili, controllando tasso, costi, vincoli e sicurezza",
-      "Trade Republic e un esempio: al momento offre il 2% annuo lordo sulla liquidita con accredito mensile, ma verifica sempre le condizioni aggiornate",
+      "Trade Republic è un esempio: al momento offre il 2% annuo lordo sulla liquidita con accredito mensile, ma verifica sempre le condizioni aggiornate",
       "Non spostare tutta la liquidita: tieni sempre una parte facilmente accessibile per le spese quotidiane",
     ],
   },
@@ -1374,7 +1386,7 @@ const awarenessActions: AwarenessAction[] = [
     difficulty: 3,
     sacrifice: 2,
     minutes: 5,
-    why: "Le rate piccole rendono invisibile il costo reale. Se un acquisto non e essenziale, la rata puo diventare una trappola gentile.",
+    why: "Le rate piccole rendono invisibile il costo reale. Se un acquisto non è essenziale, la rata può diventare una trappola gentile.",
     steps: [
       "Individua le rate attive per oggetti non essenziali",
       "Evita nuove rate per acquisti impulsivi",
@@ -1392,7 +1404,7 @@ const awarenessActions: AwarenessAction[] = [
     difficulty: 3,
     sacrifice: 1,
     minutes: 25,
-    why: "Assicurazione e servizi collegati all'auto cambiano nel tempo. Controllarli una volta l'anno puo evitare costi inutili.",
+    why: "Assicurazione e servizi collegati all'auto cambiano nel tempo. Controllarli una volta l'anno può evitare costi inutili.",
     steps: [
       "Controlla quanto paghi oggi per assicurazione e servizi auto",
       "Confronta preventivi simili prima del rinnovo",
@@ -1410,7 +1422,7 @@ const awarenessActions: AwarenessAction[] = [
     difficulty: 3,
     sacrifice: 1,
     minutes: 30,
-    why: "A volte il modo piu rapido per liberare capitale e trasformare oggetti inutilizzati in denaro utile per un obiettivo.",
+    why: "A volte il modo più rapido per liberare capitale e trasformare oggetti inutilizzati in denaro utile per un obiettivo.",
     steps: [
       "Scegli 3 oggetti che non usi da mesi",
       "Stima un prezzo realistico, non perfetto",
@@ -1910,7 +1922,7 @@ function buildBadges(params: {
     {
       id: "awareness_first_action",
       title: "Occhio allenato",
-      description: "Hai completato la prima azione di consapevolezza: meno sprechi, piu controllo.",
+      description: "Hai completato la prima azione di consapevolezza: meno sprechi, più controllo.",
       unlocked: awarenessActionsCompleted >= 1,
       tier: "consapevolezza",
       icon: "👀",
@@ -1934,7 +1946,7 @@ function buildBadges(params: {
     {
       id: "awareness_150_month",
       title: "Budget sveglio",
-      description: "Hai liberato almeno 150 € al mese: ora il tuo PAC puo respirare davvero.",
+      description: "Hai liberato almeno 150 € al mese: ora il tuo PAC può respirare davvero.",
       unlocked: monthlyFreedByAwareness >= 150,
       tier: "consapevolezza",
       icon: "💡",
@@ -1970,7 +1982,7 @@ function buildBadges(params: {
     {
       id: "fraud_shield",
       title: "Scudo anti-truffa",
-      description: "Hai completato il test anti-truffe: fermarsi prima di cliccare e gia protezione.",
+      description: "Hai completato il test anti-truffe: fermarsi prima di cliccare e già protezione.",
       unlocked: fraudChecksCompleted >= 3,
       tier: "consapevolezza",
       icon: "🛡️",
@@ -2249,14 +2261,14 @@ const [authReady, setAuthReady] = useState(false);
   const [profileResetLoading, setProfileResetLoading] = useState(false);
   const [profileResetMessage, setProfileResetMessage] = useState("");
 
-  const [goalTitle, setGoalTitle] = useState("Liberta finanziaria");
+  const [goalTitle, setGoalTitle] = useState("Libertà finanziaria");
   const [goalTarget, setGoalTarget] = useState("100000");
   const [goalCurrentValue, setGoalCurrentValue] = useState("0");
   const [goalPreviousValue, setGoalPreviousValue] = useState("0");
   const [goalReason, setGoalReason] = useState<GoalChangeReason>("stabile");
   const [goalEndYear, setGoalEndYear] = useState(String(new Date().getFullYear() + 10));
   const [goalLoaded, setGoalLoaded] = useState(false);
-  const [draftGoalTitle, setDraftGoalTitle] = useState("Liberta finanziaria");
+  const [draftGoalTitle, setDraftGoalTitle] = useState("Libertà finanziaria");
   const [draftGoalTarget, setDraftGoalTarget] = useState("100000");
   const [draftGoalCurrentValue, setDraftGoalCurrentValue] = useState("0");
   const [draftGoalPreviousValue, setDraftGoalPreviousValue] = useState("0");
@@ -2364,7 +2376,7 @@ const [authReady, setAuthReady] = useState(false);
   const [mortgageFixedExpensesMonthly, setMortgageFixedExpensesMonthly] = useState("1000");
   const [mortgageLiquidAfterPurchase, setMortgageLiquidAfterPurchase] = useState("15000");
   const [mortgageEmergencyMonths, setMortgageEmergencyMonths] = useState("6");
-  const [mortgageMode, setMortgageMode] = useState<MortgageMode>("sostenibilita");
+  const [mortgageMode, setMortgageMode] = useState<MortgageMode>("sostenibilità");
   const [mortgageOfferName, setMortgageOfferName] = useState("");
   const [mortgagePiesFields, setMortgagePiesFields] = useState<Record<string, MortgagePiesFieldState>>(() =>
     getDefaultMortgagePiesFields()
@@ -2596,12 +2608,12 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     // Protezione importante: uno stato temporaneo non sbloccato non deve mai
-    // sovrascrivere un pagamento gia salvato.
+    // sovrascrivere un pagamento già salvato.
     if (savedUnlocked && !purchase.unlocked) return;
 
     localStorage.setItem(key, JSON.stringify(purchase));
 
-    // Se il piano e sbloccato, lo salviamo anche su Supabase: cosi lo stesso
+    // Se il piano e sbloccato, lo salviamo anche su Supabase: così lo stesso
     // utente resta sbloccato anche da un altro dispositivo/browser.
     if (purchase.unlocked) {
       void savePurchaseToDb(purchase);
@@ -2954,17 +2966,17 @@ const [authReady, setAuthReady] = useState(false);
       : "Inserisci rata o TAEG";
   const vehiclePaymentCheckMessage =
     vehiclePaymentCheckStatus === "coincide"
-      ? "La rata dichiarata e la rata calcolata dal TAEG coincidono. Il preventivo risulta piu chiaro e leggibile."
+      ? "La rata dichiarata e la rata calcolata dal TAEG coincidono. Il preventivo risulta più chiaro e leggibile."
       : vehiclePaymentCheckStatus === "coerente"
-      ? `La differenza tra rata dichiarata e rata stimata dal TAEG e inferiore a 5 euro (${formatEuro(vehicleMonthlyPaymentDifferenceRounded)}). Il dato e coerente.`
+      ? `La differenza tra rata dichiarata e rata stimata dal TAEG e inferiore a 5 euro (${formatEuro(vehicleMonthlyPaymentDifferenceRounded)}). Il dato è coerente.`
       : vehiclePaymentCheckStatus === "alert_rata_bassa"
-      ? `La rata dichiarata e piu bassa della stima calcolata dal TAEG. Potrebbero esserci costi, servizi o condizioni non evidenti nella rata comunicata. Rata dichiarata: ${formatEuro(vehicle.monthlyPayment)}/mese. Rata stimata: circa ${formatEuro(vehicleEstimatedMonthlyPaymentFromTaeg)}/mese.`
+      ? `La rata dichiarata e più bassa della stima calcolata dal TAEG. Potrebbero esserci costi, servizi o condizioni non evidenti nella rata comunicata. Rata dichiarata: ${formatEuro(vehicle.monthlyPayment)}/mese. Rata stimata: circa ${formatEuro(vehicleEstimatedMonthlyPaymentFromTaeg)}/mese.`
       : vehiclePaymentCheckStatus === "alert_rata_alta"
-      ? `La rata dichiarata e piu alta della stima basata sul TAEG. Potrebbero essere inclusi servizi, assicurazioni, accessori o condizioni particolari. Rata dichiarata: ${formatEuro(vehicle.monthlyPayment)}/mese. Rata stimata: circa ${formatEuro(vehicleEstimatedMonthlyPaymentFromTaeg)}/mese.`
+      ? `La rata dichiarata e più alta della stima basata sul TAEG. Potrebbero essere inclusi servizi, assicurazioni, accessori o condizioni particolari. Rata dichiarata: ${formatEuro(vehicle.monthlyPayment)}/mese. Rata stimata: circa ${formatEuro(vehicleEstimatedMonthlyPaymentFromTaeg)}/mese.`
       : vehiclePaymentCheckStatus === "stimata"
       ? `Hai inserito il TAEG ma non la rata. L'app stima una rata di circa ${formatEuro(vehicleEstimatedMonthlyPaymentFromTaeg)}/mese: usala come riferimento indicativo prima di confrontarla con il preventivo ufficiale.`
       : vehiclePaymentCheckStatus === "solo_rata"
-      ? "Abbiamo usato la rata che hai inserito. Per una verifica piu completa, cerca anche il TAEG nel preventivo: e il dato piu utile per leggere il costo reale del finanziamento."
+      ? "Abbiamo usato la rata che hai inserito. Per una verifica più completa, cerca anche il TAEG nel preventivo: è il dato più utile per leggere il costo reale del finanziamento."
       : "Per una stima utile inserisci almeno la rata mensile oppure il TAEG indicato nel preventivo.";
   const vehiclePaymentCheckTone = vehiclePaymentCheckStatus === "alert_rata_bassa" || vehiclePaymentCheckStatus === "alert_rata_alta"
     ? "amber"
@@ -2976,9 +2988,9 @@ const [authReady, setAuthReady] = useState(false);
   const vehicleHasBalloonPayment = vehicle.balloonPayment > 0;
   const vehicleInsidePaymentAvailable = vehicleHasDeclaredPayment && vehicleCreditAmountForCalculation > 0 && (vehicleHasBalloonPayment || vehicle.tan > 0);
 
-  // Se c'e una maxi rata finale, usiamo quella come riferimento principale:
+  // Se c'è una maxi rata finale, usiamo quella come riferimento principale:
   // indica quanta parte del debito resta ancora da gestire alla scadenza.
-  // In questo caso la quota capitale media e piu utile della quota capitale del primo mese.
+  // In questo caso la quota capitale media e più utile della quota capitale del primo mese.
   const vehicleAverageCapitalFromBalloon = vehicleHasBalloonPayment
     ? Math.max((vehicleCreditAmountForCalculation - vehicle.balloonPayment) / vehicleRegularInstallmentMonths, 0)
     : 0;
@@ -3021,18 +3033,18 @@ const [authReady, setAuthReady] = useState(false);
   })();
   const vehicleBalloonIsHigh = vehicleRemainingDebtRatio > 0.4;
   const vehicleScrappageMessage = vehicle.hasScrappage
-    ? "Hai indicato che l'offerta prevede rottamazione. Lo sconto iniziale puo rendere il prezzo piu interessante, ma non elimina il costo del finanziamento: confronta sempre prezzo scontato, importo totale dovuto, rata finale e TAEG."
+    ? "Hai indicato che l'offerta prevede rottamazione. Lo sconto iniziale può rendere il prezzo più interessante, ma non elimina il costo del finanziamento: confronta sempre prezzo scontato, importo totale dovuto, rata finale e TAEG."
     : null;
   const vehicleBalloonExplanation = vehicleBalloonIsHigh
-    ? "La rata finale rappresenta una parte importante del prezzo. La rata mensile puo sembrare leggera, ma una quota rilevante del costo resta concentrata alla fine: dovrai pagarla, rifinanziarla oppure gestire restituzione o sostituzione secondo contratto."
+    ? "La rata finale rappresenta una parte importante del prezzo. La rata mensile può sembrare leggera, ma una quota rilevante del costo resta concentrata alla fine: dovrai pagarla, rifinanziarla oppure gestire restituzione o sostituzione secondo contratto."
     : null;
   const vehicleInsidePaymentMessage = vehicleInsidePaymentAvailable
     ? vehicleHasBalloonPayment
-      ? `Su una rata mensile di ${formatEuro(vehicle.monthlyPayment)}, circa ${formatEuro(vehicleInsidePaymentCapital)} stanno riducendo il debito principale sull'auto, mentre circa ${formatEuro(vehicleInsidePaymentInterestAndCosts)} coprono interessi, costi finanziari, servizi o altre componenti del contratto. Questo succede perche una parte molto importante del capitale resta concentrata nella rata finale: alla scadenza dovrai ancora gestire circa ${formatEuro(vehicle.balloonPayment)}.`
+      ? `Su una rata mensile di ${formatEuro(vehicle.monthlyPayment)}, circa ${formatEuro(vehicleInsidePaymentCapital)} stanno riducendo il debito principale sull'auto, mentre circa ${formatEuro(vehicleInsidePaymentInterestAndCosts)} coprono interessi, costi finanziari, servizi o altre componenti del contratto. Questo succede perché una parte molto importante del capitale resta concentrata nella rata finale: alla scadenza dovrai ancora gestire circa ${formatEuro(vehicle.balloonPayment)}.`
       : vehicleFirstMonthCapitalRatio < 0.4
-      ? "Nella prima parte del finanziamento la rata sta riducendo poco il debito sull'auto: una quota importante puo essere assorbita da interessi e costi finanziari, mentre una parte rilevante del capitale resta da gestire alla scadenza."
+      ? "Nella prima parte del finanziamento la rata sta riducendo poco il debito sull'auto: una quota importante può essere assorbita da interessi e costi finanziari, mentre una parte rilevante del capitale resta da gestire alla scadenza."
       : "La rata riduce una quota significativa del debito, ma controlla comunque totale dovuto e condizioni del contratto."
-    : "Inserisci rata dichiarata e importo finanziato. Se c'e una maxi rata finale, inseriscila: rende questa lettura molto piu vicina alla realta. Se non c'e maxi rata, inserisci anche il TAN.";
+    : "Inserisci rata dichiarata e importo finanziato. Se c'è una maxi rata finale, inseriscila: rende questa lettura molto più vicina alla realta. Se non c'è maxi rata, inserisci anche il TAN.";
   const vehicleRefinance = {
     amount: vehicle.balloonPayment,
     months: Math.max(safeNumber(vehicleRefinanceMonths), 1),
@@ -3056,7 +3068,7 @@ const [authReady, setAuthReady] = useState(false);
       ? vehicleTotalCostWithRefinance / (vehicle.durationMonths + vehicleRefinance.months)
       : 0;
   const vehicleRefinanceMessage = vehicleRefinanceAvailable
-    ? `Se alla scadenza non paghi la maxi rata in un'unica soluzione, potresti dover rifinanziare circa ${formatEuro(vehicleRefinance.amount)}. Con i dati inseriti, la nuova rata stimata sarebbe circa ${formatEuro(vehicleRefinanceMonthlyPayment)}/mese per ${vehicleRefinance.months} mesi. Questo aiuta a capire che la maxi rata non sparisce: se la rifinanzi, diventa un nuovo debito e puo portare a rate piu alte e nuovi interessi.`
+    ? `Se alla scadenza non paghi la maxi rata in un'unica soluzione, potresti dover rifinanziare circa ${formatEuro(vehicleRefinance.amount)}. Con i dati inseriti, la nuova rata stimata sarebbe circa ${formatEuro(vehicleRefinanceMonthlyPayment)}/mese per ${vehicleRefinance.months} mesi. Questo aiuta a capire che la maxi rata non sparisce: se la rifinanzi, diventa un nuovo debito e può portare a rate più alte e nuovi interessi.`
     : "Inserisci una maxi rata finale per stimare cosa potrebbe succedere se dovessi rifinanziarla invece di pagarla subito.";
 
   const vehicleAlerts = [
@@ -3068,10 +3080,10 @@ const [authReady, setAuthReady] = useState(false);
     vehicleIncomeRatio > 0.2
       ? "Costo auto molto pesante rispetto al reddito."
       : vehicleIncomeRatio > 0.15
-        ? "Costo auto da monitorare: puo comprimere risparmio e PAC."
+        ? "Costo auto da monitorare: può comprimere risparmio e PAC."
         : null,
     vehicle.kmExpected > vehicle.kmLimit && vehicle.kmLimit > 0
-      ? "Attenzione ai km: superare il limite puo ridurre il valore garantito."
+      ? "Attenzione ai km: superare il limite può ridurre il valore garantito."
       : null,
   ].filter(Boolean) as string[];
 
@@ -3125,7 +3137,7 @@ const [authReady, setAuthReady] = useState(false);
     ? "Il mutuo sembra sostenibile rispetto ai dati inseriti. Mantieni comunque un fondo emergenza adeguato."
     : mortgageSustainabilityLevel === "medio"
     ? "Il mutuo assorbe una parte importante del reddito. Prima di firmare, controlla bene margine mensile e liquidita residua."
-    : "Il mutuo puo diventare pesante: lascia poco spazio a imprevisti, spese familiari o cali di reddito.";
+    : "Il mutuo può diventare pesante: lascia poco spazio a imprevisti, spese familiari o cali di reddito.";
   const mortgageTrafficLight = mortgageSustainabilityLevel === "buono"
     ? {
         label: "Verde",
@@ -3139,7 +3151,7 @@ const [authReady, setAuthReady] = useState(false);
     ? {
         label: "Giallo",
         title: "Da valutare con attenzione",
-        shortText: "Il mutuo puo essere gestibile, ma sta assorbendo una parte importante del reddito.",
+        shortText: "Il mutuo può essere gestibile, ma sta assorbendo una parte importante del reddito.",
         advice: "Prima di firmare, controlla bene margine mensile, fondo emergenza, costi iniziali e cosa succede negli stress test.",
         dotClass: "bg-amber-500",
         badgeClass: "border-amber-200 bg-amber-100 text-amber-800",
@@ -3148,7 +3160,7 @@ const [authReady, setAuthReady] = useState(false);
         label: "Rosso",
         title: "Potenzialmente rischioso",
         shortText: "Il costo della casa lascia poco margine per imprevisti, spese familiari o cali di reddito.",
-        advice: "Valuta una rata piu bassa, piu anticipo, una durata diversa o una casa meno costosa. Non ignorare questo segnale.",
+        advice: "Valuta una rata più bassa, più anticipo, una durata diversa o una casa meno costosa. Non ignorare questo segnale.",
         dotClass: "bg-red-500",
         badgeClass: "border-red-200 bg-red-100 text-red-800",
       };
@@ -3157,16 +3169,16 @@ const [authReady, setAuthReady] = useState(false);
   const mortgageIsCapRate = mortgage.rateType === "cap";
   const mortgageHasValidCap = mortgageIsCapRate && mortgage.capRate > 0;
   const mortgageStressIntroText = mortgageIsFixedRate
-    ? "Con un tasso fisso la rata e piu prevedibile. Qui lo stress test serve soprattutto a capire se il mutuo resta sostenibile se diminuisce il reddito o aumentano le spese familiari."
+    ? "Con un tasso fisso la rata e più prevedibile. Qui lo stress test serve soprattutto a capire se il mutuo resta sostenibile se diminuisce il reddito o aumentano le spese familiari."
     : mortgageIsVariableRate
-    ? "Con un tasso variabile la rata puo aumentare. Guarda con attenzione gli scenari +1%, +2% e +3%: ti aiutano a capire se il mutuo resta gestibile anche in caso di aumento dei tassi."
+    ? "Con un tasso variabile la rata può aumentare. Guarda con attenzione gli scenari +1%, +2% e +3%: ti aiutano a capire se il mutuo resta gestibile anche in caso di aumento dei tassi."
     : "Il cap limita il tasso massimo, ma non significa che la rata non possa salire. Controlla la rata stimata al cap: e quella che devi riuscire a sostenere nello scenario peggiore previsto dal contratto.";
   const mortgageStressAdvice = mortgageIsFixedRate
-    ? "Per un fisso, la domanda principale non e se il tasso sale: e se il tuo bilancio regge anche con meno reddito, piu spese o imprevisti. Proteggi soprattutto margine mensile e fondo emergenza."
+    ? "Per un fisso, la domanda principale non è se il tasso sale: e se il tuo bilancio regge anche con meno reddito, più spese o imprevisti. Proteggi soprattutto margine mensile e fondo emergenza."
     : mortgageIsVariableRate
     ? "Per un variabile, non guardare solo la rata iniziale. Chiediti: se la rata salisse di 100, 200 o 300 euro, riusciresti comunque a vivere, risparmiare e gestire imprevisti?"
     : mortgageHasValidCap
-    ? `Con il cap inserito, lo scenario peggiore contrattuale e circa ${mortgage.capRate}%. Non basta che la rata iniziale sia comoda: devi poter sostenere anche la rata al cap.`
+    ? `Con il cap inserito, lo scenario peggiore contrattuale è circa ${mortgage.capRate}%. Non basta che la rata iniziale sia comoda: devi poter sostenere anche la rata al cap.`
     : "Hai scelto variabile con cap: inserisci il tasso massimo previsto dal contratto per vedere la rata massima stimata. Senza quel dato, il cap resta una protezione teorica ma non misurabile.";
   const mortgageStressTests = [1, 2, 3].map((shock) => {
     const rawRate = mortgage.annualRate + shock;
@@ -3249,6 +3261,89 @@ const [authReady, setAuthReady] = useState(false);
     return "unknown";
   };
 
+  const isGreenDiscountSelected = (fields = mortgagePiesFields) => {
+    const discountValue = (fields.discountConditions?.value || "").toLowerCase();
+    const requirementValue = (fields.greenDiscountRequirement?.value || "").toLowerCase();
+    return discountValue.includes("green") || discountValue.includes("classe energetica") || requirementValue.includes("classe") || requirementValue.includes("energetic");
+  };
+
+
+  const getMortgagePolicyCategory = (fields = mortgagePiesFields) => {
+    const value = (fields.policiesObligation?.value || "").toLowerCase();
+    if (!value) return "unknown";
+    if (value.includes("nessuna polizza")) return "none";
+    if (value.includes("non trovato")) return "missing";
+    if (value.includes("non chiaro") || value.includes("obbligatorieta non chiara")) return "unclear";
+    return "present";
+  };
+
+  const getMortgageDiscountCategory = (fields = mortgagePiesFields) => {
+    const value = (fields.discountConditions?.value || "").toLowerCase();
+    if (!value) return "unknown";
+    if (value.includes("nessuno sconto")) return "none";
+    if (value.includes("green") || value.includes("classe energetica")) return "green";
+    if (value.includes("polizze")) return "policy";
+    if (value.includes("conto") || value.includes("accredito") || value.includes("prodotti") || value.includes("bancari")) return "linkedProducts";
+    if (value.includes("requisiti commerciali") || value.includes("altre condizioni")) return "other";
+    if (value.includes("non trovato")) return "missing";
+    if (value.includes("non chiaro") || value.includes("condizioni non chiare")) return "unclear";
+    return "present";
+  };
+
+  const isMortgagePiesFieldVisible = (fieldId: string, fields = mortgagePiesFields) => {
+    const rateTypeCategory = getMortgageRateTypeCategory(fields);
+    const policyCategory = getMortgagePolicyCategory(fields);
+    const discountCategory = getMortgageDiscountCategory(fields);
+    const linkedProductsValue = (fields.linkedProducts?.value || "").toLowerCase();
+    const productsRequirementValue = (fields.productsRequiredForRate?.value || "").toLowerCase();
+
+    if (["referenceIndex", "spread"].includes(fieldId)) {
+      return ["variable", "cap"].includes(rateTypeCategory);
+    }
+
+    if (["mixedChangeConditions", "mixedChangeAfterYears", "mixedChangeOutcome"].includes(fieldId)) {
+      return rateTypeCategory === "mixed";
+    }
+
+    if (["capValue", "floorValue", "maxInstallmentAtCap"].includes(fieldId)) {
+      return rateTypeCategory === "cap";
+    }
+
+    if (fieldId === "rateLocked") {
+      return rateTypeCategory === "fixed" || rateTypeCategory === "unknown";
+    }
+
+    if (fieldId === "variableSimulation") {
+      return ["variable", "cap", "mixed"].includes(rateTypeCategory);
+    }
+
+    if (["policyChoiceFreedom", "policyCost", "policyCostAmount"].includes(fieldId)) {
+      return ["present", "unclear", "missing"].includes(policyCategory);
+    }
+
+    if (["productsRequiredForRate", "linkedProductsDetails"].includes(fieldId)) {
+      const hasLinkedProducts = linkedProductsValue && !linkedProductsValue.includes("nessun prodotto");
+      const hasProductsRequirement = productsRequirementValue && !productsRequirementValue.includes("nessun prodotto");
+      return hasLinkedProducts || hasProductsRequirement || ["linkedProducts", "policy", "other", "unclear", "missing"].includes(discountCategory);
+    }
+
+    if (fieldId === "discountConsequence") {
+      return ["linkedProducts", "policy", "green", "other", "unclear", "missing"].includes(discountCategory);
+    }
+
+    if (fieldId === "greenDiscountRequirement") {
+      return isGreenDiscountSelected(fields);
+    }
+
+    return true;
+  };
+
+  const getVisibleMortgagePiesFieldDefinitions = (fields = mortgagePiesFields) =>
+    mortgagePiesFieldDefinitions.filter((field) => isMortgagePiesFieldVisible(field.id, fields));
+
+  const getVisibleMortgagePiesFieldsForSection = (section: MortgagePiesSection, fields = mortgagePiesFields) =>
+    section.fields.filter((field) => isMortgagePiesFieldVisible(field.id, fields));
+
   const getMortgagePiesEffectiveStatus = (fieldId: string, state: MortgagePiesFieldState, fields = mortgagePiesFields): MortgagePiesStatus => {
     if (fieldId === "rateLocked") {
       const rateTypeCategory = getMortgageRateTypeCategory(fields);
@@ -3261,6 +3356,36 @@ const [authReady, setAuthReady] = useState(false);
       if (rateTypeCategory === "missing" || rateTypeCategory === "unclear" || rateTypeCategory === "unknown") {
         if (!rateLockedValue || rateLockedValue.includes("non applicabile") || rateLockedValue.includes("non trovato") || rateLockedValue.includes("non chiaro")) return "found";
       }
+    }
+
+    if (fieldId === "referenceIndex" || fieldId === "spread") {
+      const rateTypeCategory = getMortgageRateTypeCategory(fields);
+      if (rateTypeCategory === "fixed" || rateTypeCategory === "mixed" || rateTypeCategory === "missing" || rateTypeCategory === "unclear" || rateTypeCategory === "unknown") {
+        return "found";
+      }
+    }
+
+    if (["mixedChangeConditions", "mixedChangeAfterYears", "mixedChangeOutcome"].includes(fieldId)) {
+      const rateTypeCategory = getMortgageRateTypeCategory(fields);
+      if (rateTypeCategory !== "mixed") return "found";
+    }
+
+    if (fieldId === "capValue" || fieldId === "floorValue" || fieldId === "maxInstallmentAtCap") {
+      const rateTypeCategory = getMortgageRateTypeCategory(fields);
+      if (rateTypeCategory !== "cap") return "found";
+    }
+
+    if (fieldId === "greenDiscountRequirement") {
+      if (!isGreenDiscountSelected(fields)) return "found";
+    }
+
+    if (fieldId === "discountConsequence") {
+      const discountCategory = getMortgageDiscountCategory(fields);
+      if (!["linkedProducts", "policy", "green", "other", "unclear", "missing"].includes(discountCategory)) return "found";
+    }
+
+    if (fieldId === "productsRequiredForRate" || fieldId === "linkedProductsDetails") {
+      if (!isMortgagePiesFieldVisible(fieldId, fields)) return "found";
     }
 
     if (fieldId === "variableSimulation") {
@@ -3302,6 +3427,13 @@ const [authReady, setAuthReady] = useState(false);
       if (obligationValue.includes("nessuna polizza") || costValue.includes("non ci sono polizze") || isPolicyCostSoftFound(fields)) return "found";
     }
 
+    if (fieldId === "earlyRepayment") {
+      const value = (fields.earlyRepayment?.value || "").toLowerCase();
+      if (value.includes("condizioni chiare") || value.includes("estinzione/surroga chiare")) return "found";
+      if (value.includes("rimando generico") || value.includes("rimborso polizze non indicato") || value.includes("polizze collegate non chiare") || value.includes("non chiaro") || value.includes("non chiare")) return "unclear";
+      if (value.includes("non trovato")) return "missing";
+    }
+
     return state.status;
   };
 
@@ -3312,7 +3444,7 @@ const [authReady, setAuthReady] = useState(false);
         ? "missing"
         : normalized.includes("non trovato") || normalized.includes("non presente") || normalized.includes("non indicato") || normalized.includes("costo non indicato")
         ? "missing"
-        : normalized.includes("non chiaro") || normalized.includes("non chiare") || normalized.includes("non chiara") || normalized.includes("incomplete")
+        : normalized.includes("non chiaro") || normalized.includes("non chiare") || normalized.includes("non chiara") || normalized.includes("incomplete") || normalized.includes("rimando generico") || normalized.includes("non dettagliate")
         ? "unclear"
         : "found";
 
@@ -3356,33 +3488,33 @@ const [authReady, setAuthReady] = useState(false);
     const rateTypeCategory = getMortgageRateTypeCategory();
 
     if (rateTypeCategory === "fixed") {
-      return "Per un mutuo a tasso fisso questo controllo e importante: verifica se tasso e condizioni restano validi fino alla stipula o fino a una data precisa.";
+      return "Per un mutuo a tasso fisso questo controllo è importante: verifica se tasso e condizioni restano validi fino alla stipula o fino a una data precisa.";
     }
 
     if (rateTypeCategory === "variable") {
-      return "Per un mutuo a tasso variabile la data di blocco del tasso di solito non e applicabile. Contano soprattutto parametro di riferimento, spread, periodicita di aggiornamento e simulazioni di aumento rata.";
+      return "Per un mutuo a tasso variabile la data di blocco del tasso di solito non è applicabile. Contano soprattutto parametro di riferimento, spread, periodicità di aggiornamento e simulazioni di aumento rata.";
     }
 
     if (rateTypeCategory === "cap") {
-      return "Per un variabile con cap il punto centrale non e il blocco del tasso, ma capire valore del cap, eventuale floor e rata massima stimata.";
+      return "Per un variabile con cap il punto centrale non è il blocco del tasso, ma capire valore del cap, eventuale floor e rata massima stimata.";
     }
 
     if (rateTypeCategory === "mixed") {
-      return "Per un tasso misto e piu utile chiarire quando puo cambiare il tasso, se il passaggio e automatico o facoltativo e quali condizioni si applicano dopo il cambio.";
+      return "Per un tasso misto è più utile chiarire quando può cambiare il tasso, se il passaggio è automatico o facoltativo e quali condizioni si applicano dopo il cambio.";
     }
 
-    return "Se non e chiaro il tipo di tasso, prima chiedi conferma se il mutuo e fisso, variabile, misto o variabile con cap.";
+    return "Se non è chiaro il tipo di tasso, prima chiedi conferma se il mutuo è fisso, variabile, misto o variabile con cap.";
   };
 
   const getMortgageRateSimulationInfo = () => {
     const rateTypeCategory = getMortgageRateTypeCategory();
 
     if (rateTypeCategory === "fixed") {
-      return "Per un mutuo a tasso fisso la simulazione di aumento rata non e essenziale: il controllo importante e verificare che tasso e condizioni siano bloccati fino alla stipula.";
+      return "Per un mutuo a tasso fisso la simulazione di aumento rata non è essenziale: il controllo importante è verificare che tasso e condizioni siano bloccati fino alla stipula.";
     }
 
     if (rateTypeCategory === "variable") {
-      return "Per un mutuo variabile la simulazione di aumento rata e importante: aiuta a capire quanto potrebbe salire la rata in scenari +1%, +2% e +3%.";
+      return "Per un mutuo variabile la simulazione di aumento rata è importante: aiuta a capire quanto potrebbe salire la rata in scenari +1%, +2% e +3%.";
     }
 
     if (rateTypeCategory === "cap") {
@@ -3390,10 +3522,10 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     if (rateTypeCategory === "mixed") {
-      return "Per un tasso misto il punto principale e capire quando il tasso puo cambiare, se il passaggio e automatico o facoltativo e quali condizioni si applicano dopo il cambio.";
+      return "Per un tasso misto il punto principale è capire quando il tasso può cambiare, se il passaggio è automatico o facoltativo e quali condizioni si applicano dopo il cambio.";
     }
 
-    return "Prima di valutare le simulazioni, chiarisci se il mutuo e fisso, variabile, misto o variabile con cap.";
+    return "Prima di valutare le simulazioni, chiarisci se il mutuo è fisso, variabile, misto o variabile con cap.";
   };
 
   const getMortgagePiesIssueCopy = (field: MortgagePiesFieldDefinition, status?: MortgagePiesStatus) => {
@@ -3405,12 +3537,76 @@ const [authReady, setAuthReady] = useState(false);
           issue: "Blocco tasso non applicabile al tipo di tasso selezionato",
           why: getMortgageRateLockInfo(),
           question: rateTypeCategory === "variable"
-            ? "Potete confermarmi parametro di riferimento, spread, periodicita di aggiornamento e simulazioni della rata in caso di aumento dei tassi?"
+            ? "Potete confermarmi parametro di riferimento, spread, periodicità di aggiornamento e simulazioni della rata in caso di aumento dei tassi?"
             : rateTypeCategory === "cap"
             ? "Potete confermarmi valore del cap, eventuale floor e rata massima stimata?"
-            : "Potete confermarmi quando il tasso puo cambiare e con quali condizioni?",
+            : "Potete confermarmi quando il tasso può cambiare e con quali condizioni?",
         };
       }
+    }
+
+    if (field.id === "referenceIndex" || field.id === "spread") {
+      return {
+        issue: field.issue,
+        why: field.why,
+        question: "Potete confermarmi parametro di riferimento, spread e periodicità di aggiornamento del tasso variabile?",
+      };
+    }
+
+    if (["mixedChangeConditions", "mixedChangeAfterYears", "mixedChangeOutcome"].includes(field.id)) {
+      return {
+        issue: field.issue,
+        why: field.why,
+        question: "Potete confermarmi dopo quanto tempo può cambiare il tasso, se il cambio è automatico o facoltativo, quale tasso si applica dopo il cambio e quali simulazioni di rata sono disponibili?",
+      };
+    }
+
+    if (field.id === "discountConsequence") {
+      return {
+        issue: field.issue,
+        why: field.why,
+        question: "Potete confermarmi cosa accade al tasso o alle condizioni economiche se il requisito dello sconto non viene rispettato, chiuso o revocato?",
+      };
+    }
+
+    if (field.id === "productsRequiredForRate" || field.id === "linkedProductsDetails") {
+      if (mortgageHasLinkedDiscountBundle) {
+        return {
+          issue: "Pacchetto prodotti / requisiti commerciali non chiaro",
+          why: "La proposta sembra collegare tasso, sconto o condizioni economiche a prodotti o requisiti commerciali. L'utente deve capire quali elementi sono necessari, quali costi hanno e cosa succede se non vengono mantenuti.",
+          question: "Potete confermarmi quali prodotti o requisiti commerciali sono necessari per ottenere o mantenere il tasso, quali costi hanno, se sono inclusi nel TAEG e cosa cambia se non li mantengo?",
+        };
+      }
+
+      return {
+        issue: field.issue,
+        why: field.why,
+        question: "Potete indicarmi quali prodotti o requisiti commerciali sono necessari per ottenere o mantenere il tasso, il costo di ciascuno e cosa cambia se non li mantengo?",
+      };
+    }
+
+    if (field.id === "policyCost" || field.id === "policyCostAmount") {
+      return {
+        issue: "Costi delle polizze non chiari",
+        why: "Il costo delle polizze serve per capire quanto pesa sul costo complessivo, se il premio viene pagato subito o finanziato e se rientra nel TAEG.",
+        question: "Qual è il costo di ciascuna polizza? Il premio viene pagato subito o finanziato? Il costo è incluso nel TAEG?",
+      };
+    }
+
+    if (field.id === "capValue" || field.id === "floorValue" || field.id === "maxInstallmentAtCap") {
+      return {
+        issue: field.issue,
+        why: field.why,
+        question: "Potete confermarmi valore del cap, eventuale floor, rata massima stimata al cap e modalità di applicazione di questi limiti?",
+      };
+    }
+
+    if (field.id === "greenDiscountRequirement") {
+      return {
+        issue: field.issue,
+        why: field.why,
+        question: "Quale classe energetica e quale documentazione sono necessarie per ottenere e mantenere lo sconto Green? Cosa accade al tasso se il requisito non viene confermato o mantenuto?",
+      };
     }
 
     if (field.id !== "variableSimulation") {
@@ -3430,8 +3626,8 @@ const [authReady, setAuthReady] = useState(false);
     if (rateTypeCategory === "mixed") {
       return {
         issue: "Condizioni del tasso misto da chiarire",
-        why: "Nel tasso misto e importante capire quando puo cambiare il tasso, se il passaggio e automatico o facoltativo e quali condizioni si applicano dopo il cambio.",
-        question: "Potete confermarmi quando il tasso puo cambiare, se il passaggio e automatico o facoltativo e quali condizioni si applicano dopo il cambio?",
+        why: "Nel tasso misto è importante capire quando può cambiare il tasso, se il passaggio è automatico o facoltativo e quali condizioni si applicano dopo il cambio.",
+        question: "Potete confermarmi dopo quanto tempo può cambiare il tasso, se il passaggio è automatico o facoltativo, quale tasso si applica dopo il cambio e quali simulazioni di rata sono disponibili?",
       };
     }
 
@@ -3446,8 +3642,8 @@ const [authReady, setAuthReady] = useState(false);
     if (rateTypeCategory === "missing" || rateTypeCategory === "unclear" || rateTypeCategory === "unknown") {
       return {
         issue: "Prima chiarire il tipo di tasso",
-        why: "Prima di valutare le simulazioni serve capire se il mutuo e fisso, variabile, misto o variabile con cap.",
-        question: "Potete confermarmi se il mutuo e a tasso fisso, variabile, misto o variabile con cap?",
+        why: "Prima di valutare le simulazioni serve capire se il mutuo è fisso, variabile, misto o variabile con cap.",
+        question: "Potete confermarmi se il mutuo è a tasso fisso, variabile, misto o variabile con cap?",
       };
     }
 
@@ -3483,20 +3679,79 @@ const [authReady, setAuthReady] = useState(false);
     }
   };
 
-  const mortgagePiesIssues = mortgagePiesFieldDefinitions
+  const getMortgagePiesBundleValue = (fieldId: string, fields = mortgagePiesFields) => (fields[fieldId]?.value ?? "").toLowerCase();
+
+  const getMortgageHasLinkedDiscountBundle = (fields = mortgagePiesFields) => {
+    const discountConditionsValue = getMortgagePiesBundleValue("discountConditions", fields);
+    const linkedProductsValue = getMortgagePiesBundleValue("linkedProducts", fields);
+    const productsRequiredValue = getMortgagePiesBundleValue("productsRequiredForRate", fields);
+    const policyFreedomValue = getMortgagePiesBundleValue("policyChoiceFreedom", fields);
+
+    return (
+      discountConditionsValue.includes("sconto collegato a polizze") ||
+      discountConditionsValue.includes("sconto collegato a conto") ||
+      discountConditionsValue.includes("prodotti bancari") ||
+      discountConditionsValue.includes("requisiti commerciali") ||
+      discountConditionsValue.includes("condizioni non chiare") ||
+      discountConditionsValue.includes("non chiaro")
+    ) && (
+      linkedProductsValue.includes("necessari per ottenere il tasso") ||
+      linkedProductsValue.includes("costi non chiari") ||
+      linkedProductsValue.includes("non chiaro") ||
+      productsRequiredValue.includes("conto") ||
+      productsRequiredValue.includes("accredito") ||
+      productsRequiredValue.includes("carta") ||
+      productsRequiredValue.includes("polizze") ||
+      productsRequiredValue.includes("più prodotti") ||
+      productsRequiredValue.includes("requisiti commerciali") ||
+      policyFreedomValue.includes("vincolata dalla banca") ||
+      policyFreedomValue.includes("non chiaro")
+    );
+  };
+
+  const mortgageHasLinkedDiscountBundle = getMortgageHasLinkedDiscountBundle();
+
+  const visibleMortgagePiesFieldDefinitions = getVisibleMortgagePiesFieldDefinitions();
+
+  const mortgagePiesIssues = visibleMortgagePiesFieldDefinitions
     .map((field) => {
       const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
       return { field, state: { ...state, status: getMortgagePiesEffectiveStatus(field.id, state) } };
     })
-    .filter((item) => item.state.status !== "found")
-    .sort((a, b) => b.field.penalty - a.field.penalty);
-  const mortgagePiesFound = mortgagePiesFieldDefinitions
+    .filter((item) => {
+      if (item.state.status === "found") return false;
+
+      // Evita di mostrare due volte lo stesso dubbio: se il campo "costo polizze"
+      // è già da chiarire, non aggiungiamo anche "importo polizze" come criticità separata.
+      if (item.field.id === "policyCostAmount") {
+        const policyCostState = mortgagePiesFields.policyCost ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+        return getMortgagePiesEffectiveStatus("policyCost", policyCostState) === "found";
+      }
+
+      // Nei casi con pacchetto promozionale, evita di mostrare nel report tanti punti separati
+      // che fanno riferimento allo stesso tema. La mail e il report usano una richiesta accorpata.
+      if (
+        mortgageHasLinkedDiscountBundle &&
+        ["linkedProductsDetails", "discountConditions", "discountConsequence"].includes(item.field.id)
+      ) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      const sectionIndexA = mortgagePiesSections.findIndex((section) => section.fields.some((field) => field.id === a.field.id));
+      const sectionIndexB = mortgagePiesSections.findIndex((section) => section.fields.some((field) => field.id === b.field.id));
+      if (sectionIndexA !== sectionIndexB) return sectionIndexA - sectionIndexB;
+      return b.field.penalty - a.field.penalty;
+    });
+  const mortgagePiesFound = visibleMortgagePiesFieldDefinitions
     .map((field) => {
       const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
       return { field, state: { ...state, status: getMortgagePiesEffectiveStatus(field.id, state) } };
     })
     .filter((item) => item.state.status === "found");
-  const mortgagePiesTotalWeight = mortgagePiesFieldDefinitions.reduce((sum, field) => sum + field.penalty, 0);
+  const mortgagePiesTotalWeight = visibleMortgagePiesFieldDefinitions.reduce((sum, field) => sum + field.penalty, 0);
   const mortgagePiesFoundWeight = mortgagePiesFound.reduce((sum, item) => sum + item.field.penalty, 0);
   const mortgageClarityScore = mortgagePiesTotalWeight > 0 ? Math.round((mortgagePiesFoundWeight / mortgagePiesTotalWeight) * 100) : 0;
   const mortgageClarityBand = mortgageClarityScore >= 80 ? "chiaro" : mortgageClarityScore >= 60 ? "da_chiarire" : mortgageClarityScore >= 40 ? "attenzione" : "confuso";
@@ -3509,7 +3764,7 @@ const [authReady, setAuthReady] = useState(false);
     : mortgageClarityBand === "da_chiarire"
     ? {
         label: "Alcuni punti da chiarire",
-        message: "La proposta e leggibile, ma ci sono elementi da confermare per iscritto prima di procedere.",
+        message: "La proposta è leggibile, ma ci sono elementi da confermare per iscritto prima di procedere.",
         className: "border-amber-200 bg-amber-50 text-amber-900",
       }
     : mortgageClarityBand === "attenzione"
@@ -3520,7 +3775,7 @@ const [authReady, setAuthReady] = useState(false);
       }
     : {
         label: "Alto rischio di confusione",
-        message: "La documentazione e troppo incompleta o ambigua. Non firmare senza chiarimenti scritti sui punti critici.",
+        message: "La documentazione è troppo incompleta o ambigua. Non firmare senza chiarimenti scritti sui punti critici.",
         className: "border-red-200 bg-red-50 text-red-900",
       };
   const mortgagePiesRawValue = (fieldId: string) => (mortgagePiesFields[fieldId]?.value ?? "").trim();
@@ -3547,11 +3802,63 @@ const [authReady, setAuthReady] = useState(false);
     ? mortgagePolicyCostAmountNumber / mortgagePiesAmountNumberForAttention
     : 0;
   const mortgagePolicyCostValue = mortgagePiesRawValue("policyCost").toLowerCase();
+  const mortgagePolicyPremiumIsFinanced = mortgagePolicyCostValue.includes("finanziato");
   const mortgagePolicyFreedomValue = mortgagePiesRawValue("policyChoiceFreedom").toLowerCase();
   const mortgageLinkedProductsValue = mortgagePiesRawValue("linkedProducts").toLowerCase();
   const mortgageDiscountConditionsValue = mortgagePiesRawValue("discountConditions").toLowerCase();
+  const mortgageProductsRequiredValue = mortgagePiesRawValue("productsRequiredForRate").toLowerCase();
+  const mortgageLinkedProductsDetailsValue = mortgagePiesRawValue("linkedProductsDetails");
+  const mortgageDiscountConsequenceValue = mortgagePiesRawValue("discountConsequence").toLowerCase();
+  const mortgageRateTypeCategoryForAttention = getMortgageRateTypeCategory();
+  const mortgageCapValueForAttention = mortgagePiesRawValue("capValue");
+  const mortgageFloorValueForAttention = mortgagePiesRawValue("floorValue");
+  const mortgageMaxInstallmentAtCapNumber = parseMortgageLooseNumber(mortgagePiesRawValue("maxInstallmentAtCap"));
+  const mortgageReferenceIndexValue = mortgagePiesRawValue("referenceIndex");
+  const mortgageSpreadValue = mortgagePiesRawValue("spread");
+  const mortgageGreenRequirementValue = mortgagePiesRawValue("greenDiscountRequirement");
+  const mortgageHasGreenDiscount = isGreenDiscountSelected();
+  const mortgageEarlyRepaymentValue = mortgagePiesRawValue("earlyRepayment").toLowerCase();
+  const mortgageEarlyRepaymentHasRefund = mortgageEarlyRepaymentValue.includes("rimborso") && (mortgageEarlyRepaymentValue.includes("premio") || mortgageEarlyRepaymentValue.includes("polizza") || mortgageEarlyRepaymentValue.includes("non godut"));
 
   const mortgageEconomicAttentionFlags = [
+    ...(mortgageRateTypeCategoryForAttention === "mixed" ? [{
+      id: "mixed_rate_structure",
+      sectionId: "rate-costs",
+      area: "tasso" as const,
+      severity: "Media" as const,
+      title: "Tasso misto da comprendere bene",
+      why: "Il tasso misto può cambiare dopo un periodo iniziale. È importante capire quando cambia, se il cambio è automatico o facoltativo e quali condizioni si applicano dopo il cambio.",
+      question: "Potete confermarmi dopo quanto tempo può cambiare il tasso, se il cambio è automatico o facoltativo, quale tasso si applica dopo il cambio e quali simulazioni di rata sono disponibili?",
+    }] : []),
+    ...(mortgageRateTypeCategoryForAttention === "cap" && mortgageCapValueForAttention && mortgageFloorValueForAttention ? [{
+      id: "cap_floor_structure",
+      sectionId: "rate-costs",
+      area: "tasso" as const,
+      severity: "Media" as const,
+      title: "Variabile con cap e floor da comprendere",
+      why: `Il cap limita il tasso massimo${mortgageCapValueForAttention ? ` (${mortgageCapValueForAttention})` : ""}, mentre il floor indica un tasso minimo${mortgageFloorValueForAttention ? ` (${mortgageFloorValueForAttention})` : ""}. Questa struttura può rendere il rischio più controllato in alto, ma limita il beneficio se i tassi scendono molto.${mortgageMaxInstallmentAtCapNumber > 0 ? ` La rata massima stimata inserita è circa ${formatEuro(mortgageMaxInstallmentAtCapNumber)}.` : ""}`,
+      question: mortgageMaxInstallmentAtCapNumber > 0
+        ? `Potete confermarmi come vengono applicati cap e floor, se il floor limita il beneficio in caso di discesa dei tassi e se la rata massima stimata indicata, pari a circa ${formatEuro(mortgageMaxInstallmentAtCapNumber)}, è riferita allo scenario al cap?`
+        : "Potete confermarmi come vengono applicati cap e floor, se il floor limita il beneficio in caso di discesa dei tassi e qual è la rata massima stimata nello scenario al cap?",
+    }] : []),
+    ...(mortgageHasGreenDiscount ? [{
+      id: "green_discount_condition",
+      sectionId: "policies-products",
+      area: "polizze" as const,
+      severity: "Media" as const,
+      title: "Sconto Green collegato alla classe energetica",
+      why: `Lo sconto sembra dipendere da un requisito energetico${mortgageGreenRequirementValue ? `: ${mortgageGreenRequirementValue}` : ""}. È utile verificare quale documentazione serve, entro quando va consegnata e cosa succede se il requisito non viene confermato o mantenuto.`,
+      question: "Quale documentazione energetica è necessaria per ottenere e mantenere lo sconto Green? Cosa accade al tasso o alle condizioni se il requisito non viene confermato o mantenuto?",
+    }] : []),
+    ...((mortgageProductsRequiredValue.includes("conto") || mortgageProductsRequiredValue.includes("accredito") || mortgageProductsRequiredValue.includes("carta") || mortgageProductsRequiredValue.includes("polizze") || mortgageProductsRequiredValue.includes("più prodotti") || mortgageProductsRequiredValue.includes("requisiti commerciali") || mortgageDiscountConditionsValue.includes("requisiti commerciali")) ? [{
+      id: "commercial_requirements_condition",
+      sectionId: "policies-products",
+      area: "polizze" as const,
+      severity: (mortgageDiscountConditionsValue.includes("requisiti commerciali") || mortgageDiscountConditionsValue.includes("condizioni non chiare") || mortgageDiscountConditionsValue.includes("sconto collegato")) ? "Alta" as const : "Media" as const,
+      title: "Requisiti commerciali collegati al tasso",
+      why: `Il tasso o lo sconto sembrano dipendere da prodotti o requisiti commerciali${mortgageLinkedProductsDetailsValue ? `: ${mortgageLinkedProductsDetailsValue}` : ""}. È utile capire quali costi comportano e cosa succede se non vengono mantenuti.`,
+      question: "Potete confermarmi quali prodotti o requisiti commerciali sono necessari per ottenere o mantenere il tasso, il costo di ciascuno e cosa cambia se non li mantengo?",
+    }] : []),
     ...(mortgageTaegTanDifference > 0.8 ? [{
       id: "taeg_tan_high_gap",
       sectionId: "rate-costs",
@@ -3566,7 +3873,7 @@ const [authReady, setAuthReady] = useState(false);
       area: "costo" as const,
       severity: "Media" as const,
       title: "TAEG superiore al TAN: da controllare",
-      why: `Il TAEG supera il TAN di circa ${mortgageTaegTanDifference.toFixed(2).replace(".", ",")} punti percentuali. La differenza puo dipendere da spese o prodotti collegati: va capita per confrontare correttamente l'offerta.`,
+      why: `Il TAEG supera il TAN di circa ${mortgageTaegTanDifference.toFixed(2).replace(".", ",")} punti percentuali. La differenza può dipendere da spese o prodotti collegati: va capita per confrontare correttamente l'offerta.`,
       question: "Potete indicarmi in modo sintetico quali costi spiegano la differenza tra TAN e TAEG?",
     }] : []),
     ...(mortgagePolicyCostAmountNumber >= 5000 || mortgagePolicyCostRatio >= 0.03 ? [{
@@ -3574,17 +3881,29 @@ const [authReady, setAuthReady] = useState(false);
       sectionId: "policies-products",
       area: "polizze" as const,
       severity: "Alta" as const,
-      title: "Polizza di importo rilevante",
-      why: `Nel PIES risulta una polizza di circa ${formatEuro(mortgagePolicyCostAmountNumber)}${mortgagePolicyCostRatio > 0 ? `, pari a circa ${(mortgagePolicyCostRatio * 100).toFixed(1).replace(".", ",")}% dell'importo del mutuo` : ""}. Non e automaticamente un problema, ma e un costo importante da verificare.`,
-      question: "Potete confermarmi se la polizza e facoltativa, se il premio viene finanziato, se e incluso nel TAEG e cosa succede in caso di recesso, estinzione anticipata o surroga?",
+      title: mortgagePolicyPremiumIsFinanced ? "Premio assicurativo finanziato da valutare" : "Polizza di importo rilevante",
+      why: mortgagePolicyPremiumIsFinanced
+        ? `Nel PIES risulta una polizza di circa ${formatEuro(mortgagePolicyCostAmountNumber)}${mortgagePolicyCostRatio > 0 ? `, pari a circa ${(mortgagePolicyCostRatio * 100).toFixed(1).replace(".", ",")}% dell'importo del mutuo` : ""}. Il premio risulta finanziato nel piano di rimborso: questo può generare interessi per tutta la durata se non viene rimborsato anticipatamente.`
+        : `Nel PIES risulta una polizza di circa ${formatEuro(mortgagePolicyCostAmountNumber)}${mortgagePolicyCostRatio > 0 ? `, pari a circa ${(mortgagePolicyCostRatio * 100).toFixed(1).replace(".", ",")}% dell'importo del mutuo` : ""}. Non è automaticamente un problema, ma è un costo importante da verificare.`,
+      question: mortgagePolicyPremiumIsFinanced
+        ? mortgageEarlyRepaymentHasRefund
+          ? "Potete indicarmi il costo complessivo stimato degli interessi generati dal premio assicurativo finanziato e le modalità operative per richiedere il rimborso della quota non goduta già indicato in caso di estinzione anticipata o surroga?"
+          : "Potete confermarmi che il premio della polizza è finanziato nel piano di rimborso, che è incluso nel TAEG, quali interessi può generare nel tempo e come funziona il rimborso della quota non goduta in caso di estinzione anticipata o surroga?"
+        : "Potete confermarmi se la polizza è facoltativa, se il premio viene finanziato, se è incluso nel TAEG e cosa succede in caso di recesso, estinzione anticipata o surroga?",
     }] : mortgagePolicyCostAmountNumber >= 2000 || mortgagePolicyCostRatio >= 0.015 ? [{
       id: "policy_cost_medium",
       sectionId: "policies-products",
       area: "polizze" as const,
       severity: "Media" as const,
-      title: "Costo polizza da valutare",
-      why: `Nel PIES risulta una polizza di circa ${formatEuro(mortgagePolicyCostAmountNumber)}. E utile capire se e obbligatoria, facoltativa o collegata a condizioni economiche della proposta.`,
-      question: "Potete confermarmi il ruolo della polizza nella proposta, se il costo e incluso nel TAEG e se posso scegliere una compagnia esterna senza modifiche al tasso?",
+      title: mortgagePolicyPremiumIsFinanced ? "Premio assicurativo finanziato da capire" : "Costo polizza da valutare",
+      why: mortgagePolicyPremiumIsFinanced
+        ? `Nel PIES risulta una polizza di circa ${formatEuro(mortgagePolicyCostAmountNumber)} finanziata nel piano di rimborso. È utile capire quanto incide nel tempo e se il costo è incluso nel TAEG.`
+        : `Nel PIES risulta una polizza di circa ${formatEuro(mortgagePolicyCostAmountNumber)}. È utile capire se è obbligatoria, facoltativa o collegata a condizioni economiche della proposta.`,
+      question: mortgagePolicyPremiumIsFinanced
+        ? mortgageEarlyRepaymentHasRefund
+          ? "Potete indicarmi il costo complessivo stimato degli interessi generati dal premio finanziato e le modalità operative per richiedere il rimborso della quota non goduta già indicato in caso di estinzione o surroga?"
+          : "Potete confermarmi se il premio finanziato è incluso nel TAEG, quali interessi può generare e come funziona il rimborso della quota non goduta in caso di estinzione o surroga?"
+        : "Potete confermarmi il ruolo della polizza nella proposta, se il costo è incluso nel TAEG e se posso scegliere una compagnia esterna senza modifiche al tasso?",
     }] : []),
     ...(mortgagePolicyCostValue.includes("inclusione nel taeg non chiara") ? [{
       id: "policy_taeg_unclear",
@@ -3592,8 +3911,8 @@ const [authReady, setAuthReady] = useState(false);
       area: "polizze" as const,
       severity: "Media" as const,
       title: "Inclusione della polizza nel TAEG non chiara",
-      why: "Quando una polizza incide sul costo, e importante sapere se il suo premio e incluso nel TAEG e se viene finanziato.",
-      question: "Potete confermarmi se il costo della polizza e incluso integralmente nel TAEG e se il premio viene finanziato nel mutuo?",
+      why: "Quando una polizza incide sul costo, è importante sapere se il suo premio è incluso nel TAEG e se viene finanziato.",
+      question: "Potete confermarmi se il costo della polizza è incluso integralmente nel TAEG e se il premio viene finanziato nel mutuo?",
     }] : []),
     ...(mortgagePolicyCostValue.includes("non incluso nel taeg") ? [{
       id: "policy_not_in_taeg",
@@ -3601,7 +3920,7 @@ const [authReady, setAuthReady] = useState(false);
       area: "polizze" as const,
       severity: "Media" as const,
       title: "Costo polizza indicato come non incluso nel TAEG",
-      why: "Un costo non incluso nel TAEG puo rendere meno immediato il confronto tra offerte. Va considerato separatamente nel costo complessivo.",
+      why: "Un costo non incluso nel TAEG può rendere meno immediato il confronto tra offerte. Va considerato separatamente nel costo complessivo.",
       question: "Potete confermarmi quali costi assicurativi non sono inclusi nel TAEG e come devo considerarli nel costo complessivo dell'operazione?",
     }] : []),
     ...(mortgagePolicyFreedomValue.includes("vincolata dalla banca") ? [{
@@ -3609,8 +3928,8 @@ const [authReady, setAuthReady] = useState(false);
       sectionId: "policies-products",
       area: "polizze" as const,
       severity: "Alta" as const,
-      title: "Liberta di scelta della polizza da verificare",
-      why: "Se la polizza e proposta o vincolata dalla banca, puo incidere su costo, flessibilita e possibilita di confronto con compagnie esterne.",
+      title: "Libertà di scelta della polizza da verificare",
+      why: "Se la polizza è proposta o vincolata dalla banca, può incidere su costo, flessibilità e possibilità di confronto con compagnie esterne.",
       question: "Potete confermarmi se posso sottoscrivere una polizza equivalente presso una compagnia esterna senza modifiche al tasso o alle condizioni economiche?",
     }] : []),
     ...(mortgageDiscountConditionsValue.includes("sconto collegato a polizze") || mortgageDiscountConditionsValue.includes("sconto collegato a conto") ? [{
@@ -3621,12 +3940,20 @@ const [authReady, setAuthReady] = useState(false);
       title: "Sconto sul tasso collegato a prodotti o polizze",
       why: "Uno sconto collegato a prodotti o polizze va capito bene: l'utente deve sapere cosa cambia se non sottoscrive, chiude o recede dai prodotti collegati.",
       question: "Da quali prodotti o polizze dipende lo sconto sul tasso? Cosa accade al TAN, al TAEG o alle altre condizioni se non sottoscrivo o se recedo?",
+    }] : mortgageDiscountConditionsValue.includes("sconto collegato ad altre condizioni") ? [{
+      id: "discount_other_conditions",
+      sectionId: "policies-products",
+      area: "polizze" as const,
+      severity: "Media" as const,
+      title: "Sconto collegato a condizioni da verificare",
+      why: "Quando uno sconto dipende da condizioni specifiche, conviene capire bene quali requisiti vanno rispettati e cosa cambia se vengono meno.",
+      question: "Da quali condizioni dipende lo sconto sul tasso e cosa accade se tali condizioni non vengono rispettate o mantenute?",
     }] : []),
     ...(mortgageLinkedProductsValue.includes("necessari per ottenere il tasso") || mortgageLinkedProductsValue.includes("costi non chiari") ? [{
       id: "linked_products_conditions",
       sectionId: "policies-products",
       area: "polizze" as const,
-      severity: mortgageLinkedProductsValue.includes("necessari per ottenere il tasso") ? "Alta" as const : "Media" as const,
+      severity: (mortgageLinkedProductsValue.includes("necessari per ottenere il tasso") || mortgageDiscountConditionsValue.includes("requisiti commerciali") || mortgageDiscountConditionsValue.includes("condizioni non chiare")) ? "Alta" as const : "Media" as const,
       title: "Prodotti collegati da verificare",
       why: "Prodotti collegati a condizioni promozionali possono incidere sul costo reale o sui vincoli nel tempo, anche quando non sono formalmente obbligatori.",
       question: "Quali prodotti collegati sono necessari per mantenere le condizioni indicate? Quali costi cambiano se non li apro o se li chiudo?",
@@ -3635,7 +3962,7 @@ const [authReady, setAuthReady] = useState(false);
 
 
   const getMortgageAreaStatus = (area: MortgagePiesFieldDefinition["area"]) => {
-    const areaItems = mortgagePiesFieldDefinitions.filter((field) => field.area === area);
+    const areaItems = visibleMortgagePiesFieldDefinitions.filter((field) => field.area === area);
     const issueCount = areaItems.filter((field) => {
       const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
       return getMortgagePiesEffectiveStatus(field.id, state) !== "found";
@@ -3677,10 +4004,64 @@ const [authReady, setAuthReady] = useState(false);
     })
     .filter((item) => item.issues.length > 0);
 
+  const mortgageLinkedDiscountEmailQuestions = mortgageHasLinkedDiscountBundle
+    ? [
+        {
+          question: "Potete confermarmi quali prodotti, polizze o requisiti commerciali sono necessari per ottenere e mantenere il TAN promozionale, inclusi eventuali conto corrente, accredito stipendio, carte o altri prodotti collegati?",
+          type: "Richiesta riepilogo condizioni promozionali",
+        },
+        {
+          question: "Potete confermarmi quali di questi elementi sono obbligatori, quali sono facoltativi, quali costi ricorrenti hanno e se tali costi sono inclusi nel TAEG?",
+          type: "Richiesta costi prodotti collegati",
+        },
+        {
+          question: "Se non sottoscrivo, chiudo o recedo da uno di questi prodotti o requisiti, cosa accade al TAN, allo sconto o alle altre condizioni economiche? Se sono previste polizze collegate, posso sottoscrivere una copertura equivalente presso una compagnia esterna senza perdere lo sconto?",
+          type: "Richiesta conseguenze e libertà di scelta",
+        },
+      ]
+    : [];
+
+  const mortgageEconomicAttentionFlagsForEmail = mortgageEconomicAttentionFlags.filter((flag) => {
+    // Il report può mostrare anche segnali educativi; la mail alla banca deve invece restare operativa
+    // e contenere solo richieste realmente necessarie, non domande ridondanti su dati già inseriti.
+    switch (flag.id) {
+      case "cap_floor_structure":
+        return mortgageMaxInstallmentAtCapNumber <= 0;
+      case "taeg_tan_medium_gap":
+        return false;
+      case "green_discount_condition":
+        return !mortgageGreenRequirementValue;
+      case "policy_cost_medium":
+        return false;
+      case "policy_bank_bound":
+      case "discount_linked_products":
+      case "linked_products_conditions":
+      case "commercial_requirements_condition":
+        return !mortgageHasLinkedDiscountBundle;
+      default:
+        return true;
+    }
+  });
+
   const mortgageCombinedEmailSections = mortgagePiesSections
     .map((section) => {
       const documentQuestions = section.fields
         .map((field) => {
+          if (
+            mortgageHasLinkedDiscountBundle &&
+            section.id === "policies-products" &&
+            ["policyChoiceFreedom", "policyCost", "policyCostAmount", "linkedProducts", "productsRequiredForRate", "linkedProductsDetails", "discountConditions", "discountConsequence"].includes(field.id)
+          ) {
+            return null;
+          }
+
+          // Evita domande duplicate: se "costo polizze" è già mancante/non chiaro,
+          // non chiediamo anche l'importo polizze con una seconda domanda quasi identica.
+          if (field.id === "policyCostAmount") {
+            const policyCostState = mortgagePiesFields.policyCost ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+            if (getMortgagePiesEffectiveStatus("policyCost", policyCostState) !== "found") return null;
+          }
+
           const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
           const effectiveStatus = getMortgagePiesEffectiveStatus(field.id, state);
           return effectiveStatus !== "found"
@@ -3688,10 +4069,14 @@ const [authReady, setAuthReady] = useState(false);
             : null;
         })
         .filter((item): item is { question: string; type: string } => Boolean(item));
-      const economicQuestions = mortgageEconomicAttentionFlags
+      const economicQuestions = mortgageEconomicAttentionFlagsForEmail
         .filter((flag) => flag.sectionId === section.id)
         .map((flag) => ({ question: flag.question, type: `Segnale economico ${flag.severity.toLowerCase()}` }));
-      return { section, questions: [...documentQuestions, ...economicQuestions] };
+      const consolidatedQuestions = section.id === "policies-products" ? mortgageLinkedDiscountEmailQuestions : [];
+      const questions = [...documentQuestions, ...consolidatedQuestions, ...economicQuestions].filter((item, index, array) =>
+        array.findIndex((candidate) => candidate.question === item.question) === index
+      );
+      return { section, questions };
     })
     .filter((item) => item.questions.length > 0);
 
@@ -3699,7 +4084,7 @@ const [authReady, setAuthReady] = useState(false);
 
   const mortgageGeneratedEmail = !mortgageHasQuestionsForBank
     ? "Oggetto: Conferma condizioni proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo. Al momento i dati principali risultano individuati.\n\nVi chiedo cortesemente di confermarmi che il PIES ricevuto e aggiornato alle condizioni definitive e che non ci sono ulteriori costi, polizze o prodotti obbligatori non indicati nella documentazione.\n\nGrazie.\nCordiali saluti"
-    : `Oggetto: Richiesta chiarimenti su proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo e avrei bisogno di chiarire alcuni punti prima di procedere.\n\nVi chiedo cortesemente di confermarmi per iscritto i seguenti chiarimenti, ordinati secondo le sezioni del PIES:\n\n${mortgageCombinedEmailSections.map(({ section, questions }, sectionIndex) => `${sectionIndex + 1}. ${section.title.replace(/^\d+\.\s*/, "")}\n${questions.map((item, issueIndex) => `   ${sectionIndex + 1}.${issueIndex + 1} ${item.question}`).join("\n")}`).join("\n\n")}\n\nLa richiesta e finalizzata esclusivamente a comprendere correttamente la proposta prima della firma.\n\nGrazie.\nCordiali saluti`;
+    : `Oggetto: Richiesta chiarimenti su proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo e avrei bisogno di chiarire alcuni punti prima di procedere.\n\nVi chiedo cortesemente di confermarmi per iscritto i seguenti chiarimenti, ordinati secondo le sezioni del PIES:\n\n${mortgageCombinedEmailSections.map(({ section, questions }, sectionIndex) => `${sectionIndex + 1}. ${section.title.replace(/^\d+\.\s*/, "")}\n${questions.map((item, issueIndex) => `   ${sectionIndex + 1}.${issueIndex + 1} ${item.question}`).join("\n")}`).join("\n\n")}\n\nLa richiesta è finalizzata esclusivamente a comprendere correttamente la proposta prima della firma.\n\nGrazie.\nCordiali saluti`;
 
   const mortgageRequestPiesEmail = "Oggetto: Richiesta PIES e documentazione mutuo\n\nBuongiorno,\nprima di procedere con la valutazione del mutuo, vi chiedo cortesemente di inviarmi il PIES aggiornato relativo alla proposta, insieme al piano di ammortamento e al prospetto completo delle condizioni economiche.\n\nVi chiedo inoltre di indicarmi eventuali polizze, prodotti collegati o condizioni necessarie per ottenere o mantenere il tasso proposto.\n\nGrazie.\nCordiali saluti";
 
@@ -3812,7 +4197,7 @@ const [authReady, setAuthReady] = useState(false);
           <div class="question-box">${escapeReportHtml(flag.question)}</div>
         </article>
       `).join("")
-      : `<div class="empty-state avoid-break"><strong>Nessun segnale economico rilevante.</strong><span>Il documento puo comunque essere confrontato con altre offerte prima della firma.</span></div>`;
+      : `<div class="empty-state avoid-break"><strong>Nessun segnale economico rilevante.</strong><span>Il documento può comunque essere confrontato con altre offerte prima della firma.</span></div>`;
 
     const foundItems = mortgagePiesFound.length
       ? mortgagePiesFound.map((item) => `
@@ -4197,7 +4582,7 @@ const [authReady, setAuthReady] = useState(false);
           <div class="score-bar"><div class="score-fill"></div></div>
           <strong class="score-title">${escapeReportHtml(mortgageClarityCopy.label)}</strong>
           <p>${escapeReportHtml(mortgageClarityCopy.message)}</p>
-          <p style="margin-top:10px;">Dati trovati: <strong>${mortgagePiesFound.length}/${mortgagePiesFieldDefinitions.length}</strong></p>
+          <p style="margin-top:10px;">Dati trovati: <strong>${mortgagePiesFound.length}/${visibleMortgagePiesFieldDefinitions.length}</strong></p>
         </article>
 
         <article class="summary-card">
@@ -4217,7 +4602,7 @@ const [authReady, setAuthReady] = useState(false);
         <span>Costi o vincoli da comprendere meglio</span>
       </div>
       <section class="report-section avoid-break">
-        <p class="neutral-note">Questi segnali non indicano irregolarita. Servono a evidenziare elementi economici che possono incidere sul costo complessivo o sulla liberta di scelta dell'utente.</p>
+        <p class="neutral-note">Questi segnali non indicano irregolarità. Servono a evidenziare elementi economici che possono incidere sul costo complessivo o sulla libertà di scelta dell'utente.</p>
         <div class="issue-list">${economicAttentionCards}</div>
       </section>
 
@@ -4305,8 +4690,8 @@ const [authReady, setAuthReady] = useState(false);
       weight: 60,
       severity: "critico",
       minRisk: "molto alto",
-      why: "L'accesso remoto puo permettere a un truffatore di controllare dispositivo, conto, carte o app di pagamento.",
-      action: "Non installare nulla e non condividere lo schermo. Se lo hai gia fatto, disconnetti internet e contatta subito la banca.",
+      why: "L'accesso remoto può permettere a un truffatore di controllare dispositivo, conto, carte o app di pagamento.",
+      action: "Non installare nulla e non condividere lo schermo. Se lo hai già fatto, disconnetti internet e contatta subito la banca.",
     },
     {
       id: "safe_account",
@@ -4332,7 +4717,7 @@ const [authReady, setAuthReady] = useState(false);
       weight: 40,
       severity: "critico",
       minRisk: "alto",
-      why: "Negli investimenti non esistono guadagni elevati e garantiti senza rischio. Questa promessa e un segnale molto pericoloso.",
+      why: "Negli investimenti non esistono guadagni elevati e garantiti senza rischio. Questa promessa è un segnale molto pericoloso.",
       action: "Non versare soldi. Verifica intermediario, autorizzazioni e documenti ufficiali prima di qualunque decisione.",
     },
     {
@@ -4350,11 +4735,11 @@ const [authReady, setAuthReady] = useState(false);
       weight: 18,
       severity: "forte",
       why: "La fretta riduce la lucidita e ti spinge a saltare controlli importanti.",
-      action: "Fermati almeno qualche minuto. Una richiesta seria puo aspettare una verifica.",
+      action: "Fermati almeno qualche minuto. Una richiesta seria può aspettare una verifica.",
     },
     {
       id: "unknown_link",
-      text: "C'e un link, QR code, numero o email non verificato?",
+      text: "C'è un link, QR code, numero o email non verificato?",
       weight: 18,
       severity: "forte",
       why: "Link, QR e numeri non verificati possono portarti a pagine clone o finti operatori.",
@@ -4389,7 +4774,7 @@ const [authReady, setAuthReady] = useState(false);
     fraudRiskLevel === "molto alto"
       ? "Fermati subito. Non pagare, non inviare dati e verifica da un canale ufficiale."
       : fraudRiskLevel === "alto"
-        ? "Non procedere. Il segnale rilevato e importante e richiede verifica scritta o canale ufficiale."
+        ? "Non procedere. Il segnale rilevato è importante e richiede verifica scritta o canale ufficiale."
         : fraudRiskLevel === "medio"
           ? "Fermati e verifica prima di continuare."
           : "Resta prudente e controlla comunque i dettagli.";
@@ -4631,7 +5016,7 @@ const [authReady, setAuthReady] = useState(false);
   const rebalanceStatus = rebalanceTotalInvested <= 0
     ? "Inserisci i valori attuali dei tuoi asset per vedere lo scostamento dal modello."
     : totalRebalanceAbsoluteDrift === 0
-    ? "Il portafoglio e in linea: gli scostamenti entro l'1% per asset sono normali. Se vuoi essere molto preciso, sotto trovi comunque come orientare il prossimo PAC."
+    ? "Il portafoglio è in linea: gli scostamenti entro l'1% per asset sono normali. Se vuoi essere molto preciso, sotto trovi comunque come orientare il prossimo PAC."
     : automaticRebalance.feasible
     ? `Il portafoglio si e allontanato dal modello: con il PAC indicato puoi simulare un rientro graduale verso le percentuali esatte in circa ${automaticRebalance.months} ${automaticRebalance.months === 1 ? "mese" : "mesi"}.`
     : "Il portafoglio si e allontanato dal modello: con il PAC indicato il rientro richiede molto tempo, quindi valuta anche le alternative educative sotto.";
@@ -4750,16 +5135,16 @@ const [authReady, setAuthReady] = useState(false);
     const reasons: string[] = [];
     if (savedExitAdvice === "bucket") {
       reasons.push("vuoi usare il capitale nel tempo senza vendere sempre la parte azionaria");
-      reasons.push("la parte difensiva puo finanziare i prelievi quando il mercato scende");
-      reasons.push("e una strategia adatta a chi ragiona in termini di rendita");
+      reasons.push("la parte difensiva può finanziare i prelievi quando il mercato scende");
+      reasons.push("è una strategia adatta a chi ragiona in termini di rendita");
     } else if (savedExitAdvice === "graduale") {
       reasons.push("vuoi ridurre il rischio di vendere tutto nel momento sbagliato");
       reasons.push("preferisci una procedura semplice e facile da seguire");
       reasons.push("hai bisogno di trasformare il capitale in liquidita in modo ordinato");
     } else if (savedExitAdvice === "regole") {
       reasons.push("vuoi evitare decisioni emotive quando il mercato si muove molto");
-      reasons.push("sei disposto a seguire soglie gia decise prima");
-      reasons.push("puo aiutare a proteggere parte dei guadagni senza uscire tutto insieme");
+      reasons.push("sei disposto a seguire soglie già decise prima");
+      reasons.push("può aiutare a proteggere parte dei guadagni senza uscire tutto insieme");
     } else if (savedExitAdvice === "obiettivo") {
       reasons.push("hai un traguardo concreto da raggiungere");
       reasons.push("la priorita diventa proteggere il risultato quando sei vicino al target");
@@ -4772,9 +5157,9 @@ const [authReady, setAuthReady] = useState(false);
     const key = savedExitAdvice || selectedExitStrategy;
     const explanations: Record<ExitStrategyKey, string> = {
       graduale: "Strategia semplice: trasformi il capitale in liquidita poco alla volta, riducendo il rischio di vendere tutto in una giornata sfavorevole.",
-      regole: "Strategia disciplinata: decidi prima soglie e comportamenti, cosi il mercato non ti costringe a scegliere sotto stress.",
+      regole: "Strategia disciplinata: decidi prima soglie e comportamenti, così il mercato non ti costringe a scegliere sotto stress.",
       obiettivo: "Strategia concreta: parti dal bisogno reale e riduci il rischio man mano che ti avvicini alla cifra che ti serve.",
-      bucket: "Strategia da rendita: separi una parte difensiva da cui prelevare e una parte investita che puo continuare a lavorare.",
+      bucket: "Strategia da rendita: separi una parte difensiva da cui prelevare è una parte investita che può continuare a lavorare.",
     };
 
     return {
@@ -4795,17 +5180,17 @@ const [authReady, setAuthReady] = useState(false);
   }> = {
     graduale: {
       title: "Uscita graduale",
-      plain: "Vendi una parte alla volta, invece di uscire tutto in un solo giorno. E la strategia piu semplice quando vuoi trasformare gli investimenti in soldi disponibili senza dipendere dal prezzo di una singola giornata.",
+      plain: "Vendi una parte alla volta, invece di uscire tutto in un solo giorno. È la strategia più semplice quando vuoi trasformare gli investimenti in soldi disponibili senza dipendere dal prezzo di una singola giornata.",
       when: [
         "Ti serviranno i soldi nei prossimi mesi o nei prossimi anni",
         "Vuoi ridurre il rischio senza prendere una decisione brusca",
-        "Preferisci una procedura facile da seguire: una quota al mese e poi controllo",
+        "Preferisci una procedura facile da seguire: una quota al mese è poi controllo",
       ],
       steps: [
         `Scegli quale capitale vuoi rendere disponibile: nella simulazione stai usando ${formatEuro(exitCurrentNumber)}.`,
         `Decidi in quanti mesi uscire: ora hai impostato ${exitMonthsNumber} ${exitMonthsNumber === 1 ? "mese" : "mesi"}.`,
         `Vendi circa ${formatEuro(exitMonthlySale)} al mese, senza farti guidare dalle notizie del giorno.`,
-        "Dopo ogni vendita, sposta il denaro verso liquidita o strumenti piu prudenti se quei soldi ti servono davvero.",
+        "Dopo ogni vendita, sposta il denaro verso liquidita o strumenti più prudenti se quei soldi ti servono davvero.",
         "Alla fine del periodo controlla: hai ancora bisogno di uscire oppure puoi lasciare investita una parte?",
       ],
       pros: [
@@ -4816,33 +5201,33 @@ const [authReady, setAuthReady] = useState(false);
       cons: [
         "Se il mercato sale, potresti aver venduto una parte troppo presto",
         "Se il mercato scende, continui comunque a vendere una quota",
-        "Ogni vendita puo generare tasse, costi o conseguenze fiscali da verificare",
+        "Ogni vendita può generare tasse, costi o conseguenze fiscali da verificare",
       ],
     },
     regole: {
       title: "Uscita a regole",
       plain: "Decidi prima cosa fare e poi segui le regole. Serve quando vuoi evitare scelte impulsive: non vendi per paura e non resti investito solo per avidita.",
       when: [
-        "Hai gia ottenuto un buon risultato e vuoi proteggerne una parte",
+        "Hai già ottenuto un buon risultato e vuoi proteggerne una parte",
         "Vuoi una procedura scritta prima, non decisa nel momento di stress",
-        "Accetti una strategia un po piu tecnica, ma ancora gestibile",
+        "Accetti una strategia un po più tecnica, ma ancora gestibile",
       ],
       steps: [
         "Scrivi una regola semplice, per esempio: vendo una parte se il portafoglio scende troppo dal massimo raggiunto.",
-        "Decidi quanto vendere se la regola scatta: una quota parziale e spesso piu prudente di una vendita totale.",
+        "Decidi quanto vendere se la regola scatta: una quota parziale e spesso più prudente di una vendita totale.",
         `Con i dati attuali, una vendita parziale del 25% vale circa ${formatEuro(exitRuleSaleAmount)}.`,
-        "Dopo la vendita, sposta la parte uscita verso liquidita o strumenti piu prudenti.",
+        "Dopo la vendita, sposta la parte uscita verso liquidita o strumenti più prudenti.",
         "Controlla le regole una volta al mese: guardarle ogni giorno aumenta solo ansia e confusione.",
       ],
       pros: [
         "Riduce le decisioni emotive",
         "Ti obbliga a sapere prima cosa farai se il mercato cambia",
-        "Puo proteggere parte dei guadagni senza chiudere tutto il piano",
+        "Può proteggere parte dei guadagni senza chiudere tutto il piano",
       ],
       cons: [
         "Richiede disciplina: la regola funziona solo se la rispetti",
         "E meno immediata per chi e alle prime armi",
-        "Puo generare vendite non necessarie se le soglie sono scelte male",
+        "Può generare vendite non necessarie se le soglie sono scelte male",
       ],
     },
     obiettivo: {
@@ -4851,7 +5236,7 @@ const [authReady, setAuthReady] = useState(false);
       when: [
         "Hai una spesa concreta: casa, famiglia, studio, progetto o sicurezza",
         "Vuoi proteggere una cifra precisa invece di inseguire sempre nuovi guadagni",
-        "L'obiettivo e vicino e non vuoi rischiare di perderlo per un ribasso improvviso",
+        "L'obiettivo è vicino e non vuoi rischiare di perderlo per un ribasso improvviso",
       ],
       steps: [
         `Scrivi la cifra obiettivo: ora hai impostato ${formatEuro(exitGoalNumber)}.`,
@@ -4863,24 +5248,24 @@ const [authReady, setAuthReady] = useState(false);
       pros: [
         "E molto intuitiva: collega l'investimento alla vita reale",
         "Evita di rischiare soldi che ti servono davvero",
-        "Aiuta a smettere di inseguire rendimento quando il traguardo e gia vicino",
+        "Aiuta a smettere di inseguire rendimento quando il traguardo e già vicino",
       ],
       cons: [
         "Potresti uscire mentre il mercato continua a salire",
         "Richiede chiarezza sull'obiettivo: se non sai cosa vuoi, e difficile applicarla",
-        "Una vendita finale troppo grande puo concentrare tasse e decisioni in un solo momento",
+        "Una vendita finale troppo grande può concentrare tasse è decisioni in un solo momento",
       ],
     },
     bucket: {
       title: "Bucket strategy 3%",
-      plain: "Dividi il capitale in due contenitori: una parte prudente da cui prelevare e una parte ancora investita. Serve quando vuoi usare il capitale nel tempo, non solo venderlo tutto.",
+      plain: "Dividi il capitale in due contenitori: una parte prudente da cui prelevare è una parte ancora investita. Serve quando vuoi usare il capitale nel tempo, non solo venderlo tutto.",
       when: [
         "Vuoi creare una rendita o prelevare denaro in modo regolare",
         "Hai ancora un orizzonte lungo per una parte del capitale",
         "Vuoi evitare di vendere azioni proprio nei momenti di mercato negativo",
       ],
       steps: [
-        `Separa una parte piu prudente: esempio ${formatEuro(exitSafeBucket)} in liquidita/strumenti difensivi e ${formatEuro(exitInvestedBucket)} ancora investiti.`,
+        `Separa una parte più prudente: esempio ${formatEuro(exitSafeBucket)} in liquidita/strumenti difensivi e ${formatEuro(exitInvestedBucket)} ancora investiti.`,
         `Imposta un prelievo prudente: circa ${formatEuro(exitAnnualWithdrawal)} all'anno, pari al 3% del capitale simulato.`,
         "Quando la parte investita cresce molto, puoi vendere una quota e ricaricare il contenitore prudente.",
         "Quando il mercato scende, preleva dalla parte prudente e lascia respirare la parte investita.",
@@ -4892,9 +5277,9 @@ const [authReady, setAuthReady] = useState(false);
         "Lascia una parte del capitale ancora investita per il lungo periodo",
       ],
       cons: [
-        "Il 3% e una regola prudente, non una garanzia",
-        "Richiede controllo periodico e un po di organizzazione",
-        "Il capitale puo comunque oscillare o ridursi se i mercati o i prelievi pesano troppo",
+        "Il 3% è una regola prudente, non una garanzia",
+        "Richiede controllo periodico e un po' di organizzazione",
+        "Il capitale può comunque oscillare o ridursi se i mercati o i prelievi pesano troppo",
       ],
     },
   };
@@ -4907,8 +5292,8 @@ const [authReady, setAuthReady] = useState(false);
 
   const dashboardMessage =
     totalInvested > 0
-      ? "Stai costruendo un modello reale con dati persistenti e una struttura sempre piu chiara."
-      : "La dashboard e pronta: ora ti manca solo il primo investimento per trasformare il piano in azione.";
+      ? "Stai costruendo un modello reale con dati persistenti e una struttura sempre più chiara."
+      : "La dashboard è pronta: ora ti manca solo il primo investimento per trasformare il piano in azione.";
 
   const portfolioRate = getPortfolioRate(selectedPortfolio.profileFamily);
 
@@ -4945,11 +5330,11 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     if (goalDelta > 0) {
-      return "Il tuo capitale e aumentato. Continua a dare priorita alla costanza piu che alla ricerca del momento perfetto.";
+      return "Il tuo capitale e aumentato. Continua a dare priorita alla costanza più che alla ricerca del momento perfetto.";
     }
 
     if (goalDelta < 0 && goalReason === "prelievo") {
-      return "Hai utilizzato parte del capitale: puo succedere. L'importante e riprendere il piano con serenita quando possibile.";
+      return "Hai utilizzato parte del capitale: può succedere. L'importante e riprendere il piano con serenità quando possibile.";
     }
 
     if (goalDelta < 0 && goalReason === "mercato") {
@@ -4960,7 +5345,7 @@ const [authReady, setAuthReady] = useState(false);
       return "Il valore si e ridotto rispetto all'aggiornamento precedente. Mantieni calma e metodo, poi rivaluta il contesto.";
     }
 
-    return "Stai mantenendo il piano. Anche la stabilita e un risultato importante quando il percorso e di lungo periodo.";
+    return "Stai mantenendo il piano. Anche la stabilita è un risultato importante quando il percorso è di lungo periodo.";
   }, [goalCurrentNumber, goalDelta, goalReason]);
 
   const homeProjection = calculatePAC(Number(homeMonthly || 0), Number(homeYears || 0), 0.07);
@@ -5036,7 +5421,7 @@ const [authReady, setAuthReady] = useState(false);
     goalTargetNumber > 0 ? (monthlyPacAmount / goalTargetNumber) * 100 : 0;
   const nextMilestone =
     currentStreak >= 12
-      ? "Hai gia raggiunto il traguardo dei 12 mesi consecutivi."
+      ? "Hai già raggiunto il traguardo dei 12 mesi consecutivi."
       : currentStreak >= 6
       ? "Prossimo traguardo: 12 mesi consecutivi."
       : currentStreak >= 3
@@ -5056,10 +5441,10 @@ const [authReady, setAuthReady] = useState(false);
     currentStreak >= 12
       ? "Sei avanti rispetto alla maggior parte delle persone: proteggi questa abitudine."
       : currentStreak >= 6
-      ? "Stai facendo cio che funziona davvero: ripetere il piano nel tempo."
+      ? "Stai facendo ciò che funziona davvero: ripetere il piano nel tempo."
       : currentStreak >= 3
-      ? "Stai costruendo una routine: ora il tuo vantaggio e la continuita."
-      : "Hai appena iniziato: il primo obiettivo e rendere il PAC un gesto mensile.";
+      ? "Stai costruendo una routine: ora il tuo vantaggio è la continuità."
+      : "Hai appena iniziato: il primo obiettivo è rendere il PAC un gesto mensile.";
 
   const nextUserLevelMessage =
     currentStreak >= 12
@@ -5101,10 +5486,10 @@ const [authReady, setAuthReady] = useState(false);
     ? "Catena protetta"
     : "Non spezzare la catena";
   const chainMessage = !hasStartedPac
-    ? "Il PAC e il Piano di Accumulo mensile: investi una cifra ricorrente, senza provare a prevedere il mercato."
+    ? "Il PAC è il Piano di Accumulo mensile: investi una cifra ricorrente, senza provare a prevedere il mercato."
     : currentMonthCompleted
     ? "Hai chiuso il mese. Ora la priorita e proteggere questa continuita nel tempo."
-    : "Hai gia iniziato: completa anche questo mese per non interrompere la serie.";
+    : "Hai già iniziato: completa anche questo mese per non interrompere la serie.";
   const chainNextStep = currentStreak >= 12
     ? "Hai raggiunto 12 mesi consecutivi. Ora devi solo mantenere il metodo."
     : chainRemaining === 0
@@ -5142,7 +5527,7 @@ const [authReady, setAuthReady] = useState(false);
     !setupCompleted
       ? {
           title: "Completa prima il setup",
-          text: "Il setup iniziale va fatto una sola volta. Dopo, il sistema diventa molto piu semplice da mantenere.",
+          text: "Il setup iniziale va fatto una sola volta. Dopo, il sistema diventa molto più semplice da mantenere.",
         }
       : null,
     !currentMonthCompleted
@@ -5152,12 +5537,12 @@ const [authReady, setAuthReady] = useState(false);
         }
       : {
           title: "Mese chiuso",
-          text: "Hai fatto il gesto piu importante: ora evita di controllare troppo spesso il mercato.",
+          text: "Hai fatto il gesto più importante: ora evita di controllare troppo spesso il mercato.",
         },
     currentStreak < 3
       ? {
           title: "Punta alla prima serie",
-          text: "Arrivare a 3 mesi consecutivi e il primo vero segnale che il piano sta diventando abitudine.",
+          text: "Arrivare a 3 mesi consecutivi è il primo vero segnale che il piano sta diventando abitudine.",
         }
       : null,
     !currentMonthCompleted
@@ -5175,7 +5560,7 @@ const [authReady, setAuthReady] = useState(false);
     progressDelta > 0
       ? {
           title: "Il progresso si vede",
-          text: `Da ${progressStartLabel} hai costruito ${formatEuro(progressDelta)} in piu. Questo rende il percorso concreto.`,
+          text: `Da ${progressStartLabel} hai costruito ${formatEuro(progressDelta)} in più. Questo rende il percorso concreto.`,
         }
       : null,
   ].filter(Boolean) as { title: string; text: string }[];
@@ -5183,7 +5568,7 @@ const [authReady, setAuthReady] = useState(false);
     ? `Mese chiuso. Sei a ${currentStreak} ${currentStreak === 1 ? "mese" : "mesi"} consecutivi: proteggi questa serie.`
     : hasStartedPac
     ? "Non spezzare la catena: completa il PAC mensile e mantieni vivo il ritmo."
-    : "Il primo PAC e il passaggio chiave: da qui il piano smette di essere teoria e diventa abitudine.";
+    : "Il primo PAC è il passaggio chiave: da qui il piano smette di essere teoria e diventa abitudine.";
   const dashboardOverallProgress = Math.round(
     (checklistPercent + (holdings.length > 0 ? 100 : 0) + (currentMonthCompleted ? 100 : 0) + Math.min(100, currentStreak * 33)) / 4
   );
@@ -5321,7 +5706,7 @@ const [authReady, setAuthReady] = useState(false);
       : nextBadge?.id === "streak_3"
       ? `Proteggi la catena: mancano ${Math.max(0, 3 - currentStreak)} mesi a Routine attivata.`
       : nextBadge?.id === "streak_6"
-      ? `Continua cosi: mancano ${Math.max(0, 6 - currentStreak)} mesi a Disciplina reale.`
+      ? `Continua così: mancano ${Math.max(0, 6 - currentStreak)} mesi a Disciplina reale.`
       : nextBadge?.id === "streak_12"
       ? `Non spezzare la catena: mancano ${Math.max(0, 12 - currentStreak)} mesi a Macchina da compounding.`
       : nextBadge?.id === "capital_1000"
@@ -5633,14 +6018,14 @@ const [authReady, setAuthReady] = useState(false);
 
   const pacFeedback = useMemo(() => {
     const completedMonths = pacHistory.filter((m) => m.completed).length;
-    if (completedMonths === 0) return "Hai gia il piano. Ora il prossimo passo e completare il primo mese.";
-    if (currentStreak >= 12) return "Stai facendo quello che la maggior parte delle persone non riesce a fare: continuita reale.";
-    if (currentStreak >= 6) return "Stai costruendo una disciplina molto solida. Continua cosi.";
-    if (currentStreak >= 3) return "Stai costruendo continuita. E cosi che si ottengono risultati.";
+    if (completedMonths === 0) return "Hai già il piano. Ora il prossimo passo è completare il primo mese.";
+    if (currentStreak >= 12) return "Stai facendo quello che la maggior parte delle persone non riesce a fare: continuità reale.";
+    if (currentStreak >= 6) return "Stai costruendo una disciplina molto solida. Continua così.";
+    if (currentStreak >= 3) return "Stai costruendo continuità. È così che si ottengono risultati.";
     if (pacHistory.some((m, i) => i > 0 && !pacHistory[i - 1].completed && m.completed)) {
       return "Hai ripreso il piano dopo una pausa. Ottima scelta: ripartire conta molto.";
     }
-    return "Hai iniziato. E il passo piu importante.";
+    return "Hai iniziato. È il passo più importante.";
   }, [pacHistory, currentStreak]);
 
   async function handleAuthSubmit() {
@@ -5869,7 +6254,7 @@ const [authReady, setAuthReady] = useState(false);
   function applyMortgageCheckState(saved: any) {
     if (!saved || typeof saved !== "object") return;
 
-    if (saved.mortgageMode === "sostenibilita" || saved.mortgageMode === "pies") {
+    if (saved.mortgageMode === "sostenibilità" || saved.mortgageMode === "pies") {
       setMortgageMode(saved.mortgageMode);
     }
 
@@ -6483,7 +6868,7 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   function applyGoalData(data: any) {
-    setGoalTitle(data.goal_title || data.goalTitle || "Liberta finanziaria");
+    setGoalTitle(data.goal_title || data.goalTitle || "Libertà finanziaria");
     setGoalTarget(String(data.goal_target ?? data.goalTarget ?? "100000"));
     setGoalCurrentValue(String(data.goal_current_value ?? data.goalCurrentValue ?? "0"));
     setGoalPreviousValue(String(data.goal_previous_value ?? data.goalPreviousValue ?? "0"));
@@ -6496,7 +6881,7 @@ const [authReady, setAuthReady] = useState(false);
     const portfolioKey = selectedPortfolio.key;
     const loadKey = `${currentUser.id}:${portfolioKey}`;
 
-    // In sviluppo React/Next puo avviare lo stesso caricamento due volte.
+    // In sviluppo React/Next può avviare lo stesso caricamento due volte.
     // Evitiamo richieste sovrapposte, che in Supabase possono generare AbortError/lock broken.
     if (goalLoadKeyRef.current === loadKey) return;
 
@@ -7056,7 +7441,7 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     if (plan === "core") {
-      setGoalTitle("Liberta finanziaria");
+      setGoalTitle("Libertà finanziaria");
       setGoalTarget("100000");
       setGoalCurrentValue("0");
       setGoalPreviousValue("0");
@@ -7098,7 +7483,7 @@ const [authReady, setAuthReady] = useState(false);
       email: user?.email || prev.email,
       selectedPortfolio: finalPortfolio,
     }));
-    setGoalTitle("Liberta finanziaria");
+    setGoalTitle("Libertà finanziaria");
     setGoalTarget("100000");
     setGoalCurrentValue("0");
     setGoalPreviousValue("0");
@@ -7261,7 +7646,7 @@ const [authReady, setAuthReady] = useState(false);
     setPacHistory(generateRecentMonths(12).map((month) => ({ month, completed: false })));
     setCheckedPacAllocations({});
     setRetakeMeta({ count: 0, lastAt: null });
-    setGoalTitle("Liberta finanziaria");
+    setGoalTitle("Libertà finanziaria");
     setGoalTarget("100000");
     setGoalCurrentValue("0");
     setGoalPreviousValue("0");
@@ -7299,7 +7684,7 @@ const [authReady, setAuthReady] = useState(false);
     ]);
 
     // Seconda protezione per i test: se la DELETE del profilo non passa per policy/RLS,
-    // almeno svuotiamo il modello salvato cosi il prossimo quiz non eredita il piano precedente.
+    // almeno svuotiamo il modello salvato così il prossimo quiz non eredita il piano precedente.
     await supabase
       .from("user_profiles")
       .upsert({
@@ -7583,18 +7968,18 @@ const [authReady, setAuthReady] = useState(false);
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
             <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Prima di passare al Pro</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">Il Pro e pensato per una fase piu avanzata</h2>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">Il Pro è pensato per una fase più avanzata</h2>
               <p className="mt-4 text-sm leading-6 text-slate-600">
-                Il piano Pro e consigliato non prima del secondo anno e soprattutto quando il portafoglio presenta discostamenti importanti rispetto al modello. Se stai iniziando ora, il Core da 29 EUR/anno resta il piano piu adatto.
+                Il piano Pro è consigliato non prima del secondo anno e soprattutto quando il portafoglio presenta discostamenti importanti rispetto al modello. Se stai iniziando ora, il Core da 29 EUR/anno resta il piano più adatto.
               </p>
               <div className="mt-5 rounded-2xl bg-slate-50 p-5 text-sm leading-6 text-slate-700">
                 {isCorePlan ? (
                   <p>
-                    Hai gia attivo il Core: per fare l'upgrade al Pro paghi solo la differenza tra 59 EUR e quanto hai gia pagato. Importo upgrade: <strong>{proPriceToPay} EUR</strong>.
+                    Hai già attivo il Core: per fare l'upgrade al Pro paghi solo la differenza tra 59 EUR e quanto hai già pagato. Importo upgrade: <strong>{proPriceToPay} EUR</strong>.
                   </p>
                 ) : (
                   <p>
-                    Il Pro costa <strong>59 EUR/anno</strong>. Include tutte le funzioni Core piu ribilanciamento guidato, alert e supporto piu avanzato.
+                    Il Pro costa <strong>59 EUR/anno</strong>. Include tutte le funzioni Core più ribilanciamento guidato, alert e supporto più avanzato.
                   </p>
                 )}
               </div>
@@ -7627,7 +8012,7 @@ const [authReady, setAuthReady] = useState(false);
                 Soldi Semplici ti aiuta a costruire un piano, seguire una guida operativa e usare strumenti pratici per risparmio, investimenti, auto, mutuo, anti-truffe e strategia d’uscita.
               </p>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
-                L'app ha finalita educative e informative. Non sostituisce una consulenza finanziaria personalizzata e non promette rendimenti.
+                L'app ha finalità educative e informative. Non sostituisce una consulenza finanziaria personalizzata e non promette rendimenti.
               </p>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-700">
                 Non è solo teoria: è una guida pratica per evitare errori costosi e prendere decisioni più consapevoli.
@@ -7636,7 +8021,7 @@ const [authReady, setAuthReady] = useState(false);
               <div className="mt-8 grid gap-4 lg:grid-cols-3">
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
                   <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">1. Capisci</p>
-                  <h3 className="mt-2 text-xl font-bold tracking-tight">Cos'e un PAC?</h3>
+                  <h3 className="mt-2 text-xl font-bold tracking-tight">Cos'è un PAC?</h3>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
                     PAC significa Piano di Accumulo: investi una somma sostenibile ogni mese, invece di dover decidere tutto in una volta.
                   </p>
@@ -7744,7 +8129,7 @@ const [authReady, setAuthReady] = useState(false);
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Prima di rispondere</p>
               <h2 className="mt-2 text-3xl font-bold tracking-tight">Questionario orientativo</h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Rispondi con attenzione e sincerita. Non esiste una risposta giusta: il risultato mostra un possibile modello educativo, non una raccomandazione personalizzata.
+                Rispondi con attenzione e sincerità. Non esiste una risposta giusta: il risultato mostra un possibile modello educativo, non una raccomandazione personalizzata.
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Il risultato non serve a trovare il modello perfetto, ma a orientarti verso un metodo coerente con il tuo comportamento reale.
@@ -7892,7 +8277,7 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
                 </div>
                 <div className="border-l border-slate-200 bg-slate-50 p-8 md:p-10">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">La logica e semplice</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">La logica è semplice</p>
                   <div className="mt-6 space-y-5">
                     <div className="rounded-2xl border border-slate-200 bg-white p-5">
                       <p className="text-sm font-semibold text-slate-500">Gratis</p>
@@ -7923,7 +8308,7 @@ const [authReady, setAuthReady] = useState(false);
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Core</p>
                 <h3 className="mt-3 text-4xl font-bold tracking-tight">29 EUR / anno</h3>
                 <p className="mt-4 text-sm leading-6 text-slate-600">
-                  Il metodo completo per partire, seguire il piano mese dopo mese e prendere decisioni più consapevoli nella vita quotidiana.
+                  Il metodo completo per partire, seguire il piano mese dopo mese è prendere decisioni più consapevoli nella vita quotidiana.
                 </p>
                 <div className="mt-6 rounded-2xl bg-slate-50 p-5">
                   <p className="text-sm font-bold text-slate-900">Con Core hai accesso a:</p>
@@ -7951,20 +8336,20 @@ const [authReady, setAuthReady] = useState(false);
                 <p className="mt-5 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Pro</p>
                 <h3 className="mt-3 text-4xl font-bold tracking-tight">{isCorePlan ? proPriceToPay + " EUR upgrade" : "59 EUR / anno"}</h3>
                 <p className="mt-4 text-sm leading-6 text-slate-600">
-                  Il Pro e pensato per una fase piu matura: dal secondo anno, oppure quando il portafoglio cresce e vuoi gestire scostamenti, ribilanciamento e strategie di uscita.
-                  {isCorePlan ? " Hai gia il Core: per passare al Pro paghi 30 EUR e il piano Pro sara valido per 365 giorni dalla data di upgrade." : ""}
+                  Il Pro è pensato per una fase più matura: dal secondo anno, oppure quando il portafoglio cresce e vuoi gestire scostamenti, ribilanciamento e strategie di uscita.
+                  {isCorePlan ? " Hai già il Core: per passare al Pro paghi 30 EUR e il piano Pro sarà valido per 365 giorni dalla data di upgrade." : ""}
                 </p>
                 <div className="mt-6 rounded-2xl bg-slate-50 p-5">
-                  <p className="text-sm font-bold text-slate-900">Include tutto il Core, piu:</p>
+                  <p className="text-sm font-bold text-slate-900">Include tutto il Core, più:</p>
                   <ul className="mt-3 space-y-3 text-sm leading-6 text-slate-700">
                     <li>• Ribilanciamento guidato con calcolo automatico</li>
                     <li>• Strategie di uscita a fine investimento</li>
-                    <li>• Questionario guidato per scegliere la strategia piu coerente</li>
+                    <li>• Questionario guidato per scegliere la strategia più coerente</li>
                     <li>• Supporto decisionale nei momenti critici</li>
                   </ul>
                 </div>
                 <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
-                  <strong>Nota onesta:</strong> se stai iniziando ora, il Core e probabilmente sufficiente. Il Pro ha piu senso quando hai gia capitale investito e vuoi gestire scostamenti importanti.
+                  <strong>Nota onesta:</strong> se stai iniziando ora, il Core e probabilmente sufficiente. Il Pro ha più senso quando hai già capitale investito e vuoi gestire scostamenti importanti.
                 </div>
                 <button
                   onClick={requestProUpgrade}
@@ -7984,7 +8369,7 @@ const [authReady, setAuthReady] = useState(false);
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-5">
                   <p className="font-bold text-slate-900">Pro = ottimizzi il piano</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">Per chi ha gia iniziato e vuole gestire ribilanciamento, scostamenti e uscita dal PAC.</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Per chi ha già iniziato e vuole gestire ribilanciamento, scostamenti e uscita dal PAC.</p>
                 </div>
               </div>
             </div>
@@ -8072,7 +8457,7 @@ const [authReady, setAuthReady] = useState(false);
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Uso educativo</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Il modello e le categorie mostrate hanno finalita informative. Gli eventuali strumenti indicati sono esempi e non costituiscono raccomandazioni operative.
+                  Il modello è le categorie mostrate hanno finalità informative. Gli eventuali strumenti indicati sono esempi e non costituiscono raccomandazioni operative.
                 </p>
               </div>
 
@@ -8113,7 +8498,7 @@ const [authReady, setAuthReady] = useState(false);
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <h3 className="text-xl font-semibold">Simula il tuo percorso nel tempo</h3>
               <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-                Qui puoi provare una simulazione piu personale in base al tuo profilo.
+                Qui puoi provare una simulazione più personale in base al tuo profilo.
                 Il rendimento medio e preimpostato in modo coerente con la famiglia del modello.
               </p>
 
@@ -8536,7 +8921,7 @@ const [authReady, setAuthReady] = useState(false);
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Configura il tuo piano</p>
                   <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Rendiamo questa dashboard davvero tua</h2>
                   <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-                    Tre passaggi rapidi: obiettivo, PAC mensile e anno finale. Dopo arrivi alla guida operativa con il piano gia impostato.
+                    Tre passaggi rapidi: obiettivo, PAC mensile e anno finale. Dopo arrivi alla guida operativa con il piano già impostato.
                   </p>
                 </div>
               </div>
@@ -8566,7 +8951,7 @@ const [authReady, setAuthReady] = useState(false);
                       <input
                         value={goalTitle}
                         onChange={(e) => setGoalTitle(e.target.value)}
-                        placeholder="Es. Liberta finanziaria"
+                        placeholder="Es. Libertà finanziaria"
                         className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
                       />
                     </div>
@@ -8589,7 +8974,7 @@ const [authReady, setAuthReady] = useState(false);
                     <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Passo 2 di 3</p>
                     <h3 className="mt-2 text-2xl font-bold tracking-tight">Quanto puoi investire ogni mese?</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Scegli una cifra sostenibile. Un PAC piccolo ma regolare vale piu di uno grande che abbandoni.
+                      Scegli una cifra sostenibile. Un PAC piccolo ma regolare vale più di uno grande che abbandoni.
                     </p>
                   </div>
 
@@ -8752,7 +9137,7 @@ const [authReady, setAuthReady] = useState(false);
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Scheda risparmio</p>
                       <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Libera soldi ogni mese, senza stravolgere la vita</h3>
                       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
-                        Qui trovi azioni semplici e concrete: meno sprechi, meno costi invisibili, piu denaro disponibile per PAC, obiettivi e serenita. Scegli 2 o 3 azioni sostenibili: la costanza conta piu dei tagli estremi.
+                        Qui trovi azioni semplici e concrete: meno sprechi, meno costi invisibili, più denaro disponibile per PAC, obiettivi e serenità. Scegli 2 o 3 azioni sostenibili: la costanza conta più dei tagli estremi.
                       </p>
                     </div>
                     <div className="rounded-2xl border border-emerald-200 bg-white p-4 text-sm shadow-sm">
@@ -8768,12 +9153,12 @@ const [authReady, setAuthReady] = useState(false);
                     <div>
                       <p className="text-sm font-semibold text-slate-950">Da dove iniziare</p>
                       <p className="mt-1 text-sm leading-6 text-slate-600">
-                        Le card sono ordinate per probabilita di risultato: prima le azioni facili, ricorrenti e con buon impatto. Non devi farle tutte: scegli quelle piu adatte alla tua situazione.
+                        Le card sono ordinate per probabilita di risultato: prima le azioni facili, ricorrenti e con buon impatto. Non devi farle tutte: scegli quelle più adatte alla tua situazione.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs font-semibold">
                       <span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700 ring-1 ring-emerald-200">Primary = azione da fare</span>
-                      <span className="rounded-full bg-slate-50 px-3 py-2 text-slate-600 ring-1 ring-slate-200">Secondary = azione gia completata</span>
+                      <span className="rounded-full bg-slate-50 px-3 py-2 text-slate-600 ring-1 ring-slate-200">Secondary = azione già completata</span>
                     </div>
                   </div>
                 </div>
@@ -8825,7 +9210,7 @@ const [authReady, setAuthReady] = useState(false);
 
 
                   <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                    <strong>Prima regola anti-spreco:</strong> controlla frigo e dispensa prima di aggiungere prodotti. Se lo hai gia in casa, non comprarlo di nuovo.
+                    <strong>Prima regola anti-spreco:</strong> controlla frigo e dispensa prima di aggiungere prodotti. Se lo hai già in casa, non comprarlo di nuovo.
                   </div>
 
                   <div className="mt-5 grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
@@ -8913,7 +9298,7 @@ const [authReady, setAuthReady] = useState(false);
                       <div>
                         <h5 className="text-lg font-black text-slate-950">La tua lista attiva</h5>
                         <p className="mt-1 text-sm leading-6 text-slate-600">
-                          Spunta ogni voce quando la metti nel carrello. Gli extra restano evidenziati: non sono vietati, ma e meglio vederli separati.
+                          Spunta ogni voce quando la metti nel carrello. Gli extra restano evidenziati: non sono vietati, ma è meglio vederli separati.
                         </p>
                       </div>
                       {shoppingItems.length > 0 && (
@@ -9072,11 +9457,11 @@ const [authReady, setAuthReady] = useState(false);
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Motore auto</p>
                     <h3 className="mt-2 text-2xl font-bold tracking-tight">Quanto ti costa davvero l'auto?</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Inserisci i dati del preventivo. La rata e importante, ma il TAEG aiuta a controllare se il costo del finanziamento e coerente con quello che ti e stato comunicato.
+                      Inserisci i dati del preventivo. La rata è importante, ma il TAEG aiuta a controllare se il costo del finanziamento è coerente con quello che ti è stato comunicato.
                     </p>
 
                     <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
-                      <strong>Cos'e il TAEG?</strong> E il costo annuo del finanziamento. Include interessi e diversi costi collegati, come pratiche, incasso rata o servizi obbligatori. Se hai gia la rata, il TAEG serve come controllo intelligente.
+                      <strong>Cos'è il TAEG?</strong> È il costo annuo del finanziamento. Include interessi e diversi costi collegati, come pratiche, incasso rata o servizi obbligatori. Se hai già la rata, il TAEG serve come controllo intelligente.
                     </div>
 
                     <div className="mt-5 space-y-5">
@@ -9086,12 +9471,12 @@ const [authReady, setAuthReady] = useState(false);
                           {[
                             ["Prezzo auto", vehiclePrice, setVehiclePrice, "Prezzo totale dell'auto dopo eventuale sconto indicato nel preventivo."],
                             ["Anticipo", vehicleDownPayment, setVehicleDownPayment, "Quanto paghi subito."],
-                            ["Importo totale del credito", vehicleTotalCredit, setVehicleTotalCredit, "Se il preventivo lo indica, inseriscilo: rende il calcolo piu vicino alla realta. Altrimenti lascia vuoto."],
+                            ["Importo totale del credito", vehicleTotalCredit, setVehicleTotalCredit, "Se il preventivo lo indica, inseriscilo: rende il calcolo più vicino alla realta. Altrimenti lascia vuoto."],
                             ["Rata mensile dichiarata", vehicleMonthlyPayment, setVehicleMonthlyPayment, "La rata che vedi nel preventivo."],
-                            ["TAN annuo (%)", vehicleTan, setVehicleTan, "Serve soprattutto se non c'e maxi rata finale. Se c'e maxi rata, il dato finale inserito rende il calcolo piu concreto."],
+                            ["TAN annuo (%)", vehicleTan, setVehicleTan, "Serve soprattutto se non c'è maxi rata finale. Se c'è maxi rata, il dato finale inserito rende il calcolo più concreto."],
                             ["TAEG annuo (%)", vehicleTaeg, setVehicleTaeg, "Dato spesso scritto in piccolo: usalo per controllare il costo reale del finanziamento."],
-                            ["Durata mesi", vehicleDurationMonths, setVehicleDurationMonths, "Per quanti mesi paghi. Se c'e maxi rata finale, includi anche il mese finale."],
-                            ["Maxi rata finale", vehicleBalloonPayment, setVehicleBalloonPayment, "Se non c'e, scrivi 0."],
+                            ["Durata mesi", vehicleDurationMonths, setVehicleDurationMonths, "Per quanti mesi paghi. Se c'è maxi rata finale, includi anche il mese finale."],
+                            ["Maxi rata finale", vehicleBalloonPayment, setVehicleBalloonPayment, "Se non c'è, scrivi 0."],
                           ].map(([label, value, setter, hint]) => (
                             <label key={String(label)} className="text-sm font-medium text-slate-700">
                               {label as string}
@@ -9223,7 +9608,7 @@ const [authReady, setAuthReady] = useState(false);
                       </div>
                     </div>
                     <p className="mt-4 text-xs leading-5 text-slate-500">
-                      Stima educativa: con maxi rata finale usiamo il valore finale inserito per stimare quanto capitale viene davvero ridotto dalle rate mensili. Il piano ufficiale puo distinguere in modo diverso interessi, spese, servizi e imposte: per il dettaglio preciso serve il piano di ammortamento del finanziamento.
+                      Stima educativa: con maxi rata finale usiamo il valore finale inserito per stimare quanto capitale viene davvero ridotto dalle rate mensili. Il piano ufficiale può distinguere in modo diverso interessi, spese, servizi e imposte: per il dettaglio preciso serve il piano di ammortamento del finanziamento.
                     </p>
                   </div>
 
@@ -9249,7 +9634,7 @@ const [authReady, setAuthReady] = useState(false);
                   {vehicleHasBalloonPayment && (
                     <div className="rounded-3xl border border-orange-200 bg-orange-50 p-6 shadow-sm">
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-orange-700">Se rifinanzi la maxi rata</p>
-                      <h4 className="mt-2 text-xl font-bold text-orange-950">La rata finale puo diventare un secondo finanziamento</h4>
+                      <h4 className="mt-2 text-xl font-bold text-orange-950">La rata finale può diventare un secondo finanziamento</h4>
                       <p className="mt-2 text-sm leading-6 text-orange-900">
                         {vehicleRefinanceMessage}
                       </p>
@@ -9324,7 +9709,7 @@ const [authReady, setAuthReady] = useState(false);
                   <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Lettura costo reale</p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Questa non e una perizia: distingue il costo mensile che percepisci oggi dal costo reale stimato, cioe quanto pesa l'auto se consideri anche anticipo, costi ricorrenti e maxi rata finale.
+                      Questa non è una perizia: distingue il costo mensile che percepisci oggi dal costo reale stimato, cioe quanto pesa l'auto se consideri anche anticipo, costi ricorrenti e maxi rata finale.
                     </p>
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
                       <PremiumStatCard eyebrow="Costo mensile percepito" value={formatEuro(vehicleCashMonthlyCost)} note="Rata + costi ricorrenti che senti ogni mese" />
@@ -9353,10 +9738,10 @@ const [authReady, setAuthReady] = useState(false);
                     <h4 className="text-xl font-bold">Scenari da valutare</h4>
                     <div className="mt-4 grid gap-3">
                       {[
-                        ["Paghi la maxi rata", "Diventi proprietario, ma devi avere liquidita finale."],
+                        ["Paghi la maxi rata", "Diventi proprietàrio, ma devi avere liquidita finale."],
                         ["Rifinanzi la maxi rata", "Paghi ancora interessi sulla stessa auto."],
                         ["Cambi auto", "Chiudi un contratto e ne riapri un altro: attenzione al ciclo di debito."],
-                        ["Auto meno costosa", "Stessa mobilita con piu capitale libero per emergenze e PAC."],
+                        ["Auto meno costosa", "Stessa mobilita con più capitale libero per emergenze e PAC."],
                       ].map(([title, description]) => (
                         <div key={title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                           <p className="font-semibold text-slate-950">{title}</p>
@@ -9377,16 +9762,16 @@ const [authReady, setAuthReady] = useState(false);
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Mutuo</p>
                       <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Capisci rata, costi e condizioni prima di firmare</h3>
                       <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                        Usa la scheda in due modi: valuta la sostenibilita del mutuo e, quando hai una proposta reale, fatti guidare nella lettura del PIES. Se qualcosa manca o non e chiaro, l'app prepara una richiesta precisa per la banca.
+                        Usa la scheda in due modi: valuta la sostenibilità del mutuo e, quando hai una proposta reale, fatti guidare nella lettura del PIES. Se qualcosa manca o non è chiaro, l'app prepara una richiesta precisa per la banca.
                       </p>
                       <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         <button
                           type="button"
-                          onClick={() => setMortgageMode("sostenibilita")}
-                          className={`rounded-2xl border p-4 text-left transition ${mortgageMode === "sostenibilita" ? "border-emerald-300 bg-emerald-50 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                          onClick={() => setMortgageMode("sostenibilità")}
+                          className={`rounded-2xl border p-4 text-left transition ${mortgageMode === "sostenibilità" ? "border-emerald-300 bg-emerald-50 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"}`}
                         >
                           <span className="text-2xl">📊</span>
-                          <span className="mt-3 block text-base font-bold text-slate-950">Calcola sostenibilita</span>
+                          <span className="mt-3 block text-base font-bold text-slate-950">Calcola sostenibilità</span>
                           <span className="mt-1 block text-sm leading-5 text-slate-600">Rata, reddito, altri debiti, costi iniziali, fondo emergenza e stress test.</span>
                         </button>
                         <button
@@ -9413,22 +9798,22 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
                 </div>
 
-                {mortgageMode === "sostenibilita" && (
+                {mortgageMode === "sostenibilità" && (
                   <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
                     <div className="space-y-6">
                       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
                         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Percorso 1</p>
                         <h4 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Sostenibilita del mutuo</h4>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
-                          Inserisci i dati che conosci. Se hai una rata proposta dalla banca, usa quella: e piu concreta della stima calcolata.
+                          Inserisci i dati che conosci. Se hai una rata proposta dalla banca, usa quella: e più concreta della stima calcolata.
                         </p>
 
                         <div className="mt-6 grid gap-4 md:grid-cols-2">
                           {[
                             ["Prezzo casa", mortgageHomePrice, setMortgageHomePrice, "Prezzo richiesto per la casa. Oltre al prezzo ci sono anticipo, notaio, imposte e altre spese."],
                             ["Anticipo", mortgageDownPayment, setMortgageDownPayment, "Soldi che metti subito. Non consumare tutta la liquidita solo per aumentare l'anticipo."],
-                            ["Importo mutuo", mortgagePrincipal, setMortgagePrincipal, "Se hai gia il preventivo della banca, inserisci l'importo esatto. Se lo lasci vuoto, lo stimiamo da prezzo casa meno anticipo."],
-                            ["Durata mutuo (anni)", mortgageYears, setMortgageYears, "Durate piu lunghe abbassano la rata, ma di solito aumentano gli interessi totali pagati nel tempo."],
+                            ["Importo mutuo", mortgagePrincipal, setMortgagePrincipal, "Se hai già il preventivo della banca, inserisci l'importo esatto. Se lo lasci vuoto, lo stimiamo da prezzo casa meno anticipo."],
+                            ["Durata mutuo (anni)", mortgageYears, setMortgageYears, "Durate più lunghe abbassano la rata, ma di solito aumentano gli interessi totali pagati nel tempo."],
                             ["Tasso / TAN (%)", mortgageRate, setMortgageRate, "Inserisci il tasso nominale indicato nel preventivo o nel PIES."],
                             ["Rata dichiarata dalla banca", mortgageDeclaredPayment, setMortgageDeclaredPayment, "Se la banca ti ha dato una rata, inseriscila qui: l'app la usa come dato principale."],
                             ["Reddito netto mensile", mortgageMonthlyIncome, setMortgageMonthlyIncome, "Usa il reddito familiare netto stabile, non entrate occasionali."],
@@ -9468,7 +9853,7 @@ const [authReady, setAuthReady] = useState(false);
                                 onChange={(e) => setMortgageCapRate(e.target.value)}
                                 className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
                               />
-                              <span className="mt-1 block text-xs leading-5 text-slate-500">E il tasso massimo previsto dal contratto. Serve per stimare la rata nello scenario peggiore.</span>
+                              <span className="mt-1 block text-xs leading-5 text-slate-500">È il tasso massimo previsto dal contratto. Serve per stimare la rata nello scenario peggiore.</span>
                             </label>
                           )}
                         </div>
@@ -9485,7 +9870,7 @@ const [authReady, setAuthReady] = useState(false);
                             ["Utenze mensili", mortgageUtilitiesMonthly, setMortgageUtilitiesMonthly, "Luce, gas, acqua, internet e costi simili."],
                             ["Assicurazioni annue", mortgageInsuranceYearly, setMortgageInsuranceYearly, "Polizze casa, incendio/scoppio o altre coperture collegate."],
                             ["Manutenzione annua", mortgageMaintenanceYearly, setMortgageMaintenanceYearly, "Piccoli lavori, riparazioni, manutenzione ordinaria."],
-                            ["Spese fisse mensili familiari", mortgageFixedExpensesMonthly, setMortgageFixedExpensesMonthly, "Spese essenziali escluse rata e costi casa gia inseriti."],
+                            ["Spese fisse mensili familiari", mortgageFixedExpensesMonthly, setMortgageFixedExpensesMonthly, "Spese essenziali escluse rata e costi casa già inseriti."],
                             ["Liquidita residua dopo acquisto", mortgageLiquidAfterPurchase, setMortgageLiquidAfterPurchase, "Soldi che ti restano dopo anticipo e costi iniziali."],
                             ["Mesi fondo emergenza", mortgageEmergencyMonths, setMortgageEmergencyMonths, "Quanti mesi di sicurezza vuoi mantenere dopo l'acquisto."],
                           ].map(([label, value, setter, help]) => (
@@ -9506,12 +9891,12 @@ const [authReady, setAuthReady] = useState(false);
                     <div className="space-y-4">
                       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Lettura semplice</p>
-                        <h4 className="mt-2 text-xl font-bold text-slate-950">Rata, costo casa e sostenibilita</h4>
+                        <h4 className="mt-2 text-xl font-bold text-slate-950">Rata, costo casa e sostenibilità</h4>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
                           {mortgagePrincipalForCalc <= 0
-                            ? "Inserisci almeno prezzo casa e anticipo, oppure direttamente l'importo del mutuo, per vedere una stima piu utile."
+                            ? "Inserisci almeno prezzo casa e anticipo, oppure direttamente l'importo del mutuo, per vedere una stima più utile."
                             : mortgageUsesDeclaredPayment
-                            ? "Stiamo usando la rata che hai inserito. La stima del tasso resta utile come controllo, ma il dato dichiarato e quello piu concreto."
+                            ? "Stiamo usando la rata che hai inserito. La stima del tasso resta utile come controllo, ma il dato dichiarato e quello più concreto."
                             : "Non hai inserito una rata dichiarata: la rata viene stimata usando importo, tasso e durata."}
                         </p>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -9593,7 +9978,7 @@ const [authReady, setAuthReady] = useState(false);
                           {mortgageRateType === "fisso" ? (
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                               <p className="font-semibold text-slate-950">Rata prevedibile</p>
-                              <p className="mt-2 text-sm leading-6 text-slate-600">Con il tasso fisso la rata non dovrebbe cambiare per effetto dei tassi. Qui lo stress test piu utile riguarda reddito, spese e fondo emergenza.</p>
+                              <p className="mt-2 text-sm leading-6 text-slate-600">Con il tasso fisso la rata non dovrebbe cambiare per effetto dei tassi. Qui lo stress test più utile riguarda reddito, spese è fondo emergenza.</p>
                             </div>
                           ) : (
                             mortgageStressTests.map((test) => (
@@ -9613,7 +9998,7 @@ const [authReady, setAuthReady] = useState(false);
                               <p className="font-semibold text-slate-950">Rata massima stimata al cap</p>
                               <p className="mt-2 text-sm leading-6 text-slate-700">
                                 {mortgageHasValidCap
-                                  ? `Se il tasso arrivasse al cap del ${mortgage.capRate}%, la rata stimata sarebbe circa ${formatEuro(mortgageCapPayment)}/mese e il costo casa peserebbe circa ${Math.round(mortgageCapRealRatio * 100)}% del reddito.`
+                                  ? `Se il tasso arrivasse al cap del ${mortgage.capRate}%, la rata stimata sarebbe circa ${formatEuro(mortgageCapPayment)}/mese è il costo casa peserebbe circa ${Math.round(mortgageCapRealRatio * 100)}% del reddito.`
                                   : "Inserisci il tasso massimo / cap per vedere la rata nello scenario peggiore previsto dal contratto."}
                               </p>
                             </div>
@@ -9631,7 +10016,7 @@ const [authReady, setAuthReady] = useState(false);
                           ))}
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <p className="font-semibold text-slate-950">Spese +200€/mese</p>
-                            <p className="mt-2 text-sm text-slate-600">Con 200€ di spese in piu, il costo casa peserebbe circa {Math.round(mortgageExpenseStress * 100)}% del reddito.</p>
+                            <p className="mt-2 text-sm text-slate-600">Con 200€ di spese in più, il costo casa peserebbe circa {Math.round(mortgageExpenseStress * 100)}% del reddito.</p>
                           </div>
                         </div>
                       </div>
@@ -9647,7 +10032,7 @@ const [authReady, setAuthReady] = useState(false);
                           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Percorso 2</p>
                           <h4 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Verifica PIES guidata</h4>
                           <p className="mt-2 text-sm leading-6 text-slate-600">
-                            Apri il PIES e controlla i blocchi sotto. Dove la risposta e guidata, scegli dal menu a tendina. Se inserisci un dato, l'app lo segna automaticamente come trovato; se resta assente o ambiguo, puoi comunque selezionare Non trovato o Non chiaro.
+                            Apri il PIES e controlla i blocchi sotto. L'app mostra solo i campi utili in base alle scelte fatte: per esempio cap e floor compaiono solo se il mutuo è variabile con cap. Se inserisci un dato, l'app lo segna automaticamente come trovato; se resta assente o ambiguo, puoi comunque selezionare Non trovato o Non chiaro.
                           </p>
                           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <p className="text-sm font-bold text-slate-950">Non hai ancora il PIES?</p>
@@ -9672,7 +10057,7 @@ const [authReady, setAuthReady] = useState(false);
                           <div className="mt-4 grid gap-2 sm:grid-cols-2">
                             <div className="rounded-2xl bg-white/70 p-3">
                               <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-70">Dati trovati</p>
-                              <p className="mt-1 text-2xl font-bold">{mortgagePiesFound.length}/{mortgagePiesFieldDefinitions.length}</p>
+                              <p className="mt-1 text-2xl font-bold">{mortgagePiesFound.length}/{visibleMortgagePiesFieldDefinitions.length}</p>
                             </div>
                             <div className="rounded-2xl bg-white/70 p-3">
                               <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-70">Da chiarire</p>
@@ -9719,7 +10104,8 @@ const [authReady, setAuthReady] = useState(false);
                         </div>
 
                         {mortgagePiesSections.map((section, index) => {
-                          const sectionStates = section.fields.map((field) => {
+                          const visibleSectionFields = getVisibleMortgagePiesFieldsForSection(section);
+                          const sectionStates = visibleSectionFields.map((field) => {
                             const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
                             return { ...state, status: getMortgagePiesEffectiveStatus(field.id, state) };
                           });
@@ -9727,7 +10113,7 @@ const [authReady, setAuthReady] = useState(false);
                           const unclearCount = sectionStates.filter((fieldState) => fieldState.status === "unclear").length;
                           const missingCount = sectionStates.filter((fieldState) => fieldState.status === "missing").length;
                           const isOpen = openMortgagePiesSectionId === section.id;
-                          const allFound = foundCount === section.fields.length;
+                          const allFound = visibleSectionFields.length > 0 && foundCount === visibleSectionFields.length;
                           const hasIssues = unclearCount + missingCount > 0;
                           const summaryLabel = allFound
                             ? "Completato"
@@ -9799,7 +10185,7 @@ const [authReady, setAuthReady] = useState(false);
                                 <div className="border-t border-emerald-100 bg-gradient-to-b from-emerald-50/40 to-white p-5 pt-4 md:p-6 md:pt-5">
                                   <p className="rounded-2xl border border-emerald-100 bg-white p-3 text-xs leading-5 text-slate-700 shadow-sm"><strong>Dove cercare:</strong> {section.where}</p>
                                   <div className="mt-5 space-y-4">
-                                    {section.fields.map((field) => {
+                                    {visibleSectionFields.map((field) => {
                                       const rawState = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
                                       const state = { ...rawState, status: getMortgagePiesEffectiveStatus(field.id, rawState) };
                                       const isExternalPolicyCostNote = field.id === "policyCost" && rawState.value.toLowerCase().includes("costo non indicato") && isPolicyCostSoftFound(mortgagePiesFields);
@@ -9864,7 +10250,7 @@ const [authReady, setAuthReady] = useState(false);
                                           </div>
                                           {isExternalPolicyCostNote && (
                                             <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-900">
-                                              <strong>Nota:</strong> se la polizza e obbligatoria ma scegliibile presso compagnia esterna, il costo non indicato non e una criticita documentale grave. E comunque utile stimarlo per confrontare meglio le offerte.
+                                              <strong>Nota:</strong> se la polizza è obbligatoria ma scegliibile presso compagnia esterna, il costo non indicato non è una criticità documentale grave. È comunque utile stimarlo per confrontare meglio le offerte.
                                             </div>
                                           )}
                                           {field.id === "rateLocked" && (
@@ -9877,9 +10263,19 @@ const [authReady, setAuthReady] = useState(false);
                                               <strong>Nota:</strong> {getMortgageRateSimulationInfo()}
                                             </div>
                                           )}
+                                          {(["capValue", "floorValue", "maxInstallmentAtCap"].includes(field.id)) && getMortgageRateTypeCategory() === "cap" && (
+                                            <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">
+                                              <strong>Nota:</strong> nel variabile con cap il cap limita il tasso massimo, il floor limita il tasso minimo e la rata massima stimata aiuta a capire lo scenario peggiore.
+                                            </div>
+                                          )}
+                                          {field.id === "greenDiscountRequirement" && isGreenDiscountSelected() && (
+                                            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-900">
+                                              <strong>Nota:</strong> se lo sconto dipende dalla classe energetica, verifica quale documentazione serve e cosa succede se il requisito non viene confermato o mantenuto.
+                                            </div>
+                                          )}
                                           {state.status !== "found" && (
                                             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
-                                              <strong>Perche conta:</strong> {getMortgagePiesIssueCopy(field, state.status).why}
+                                              <strong>Perché conta:</strong> {getMortgagePiesIssueCopy(field, state.status).why}
                                             </div>
                                           )}
                                         </div>
@@ -9900,7 +10296,7 @@ const [authReady, setAuthReady] = useState(false);
                           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Risultato verifica mutuo</p>
                           <h4 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Report operativo prima della firma</h4>
                           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                            Questa sintesi non giudica se il mutuo conviene: misura quanto la proposta e chiara, documentata e verificabile.
+                            Questa sintesi non giudica se il mutuo conviene: misura quanto la proposta è chiara, documentata è verificabile.
                           </p>
                         </div>
                         <button
@@ -9921,7 +10317,7 @@ const [authReady, setAuthReady] = useState(false);
                           placeholder="Es. Mutuo Banca X - prima casa"
                           className="mt-2 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400"
                         />
-                        <p className="mt-2 text-xs leading-5 text-emerald-800">Questo nome comparira nel report PDF e ti aiutera a distinguere piu preventivi.</p>
+                        <p className="mt-2 text-xs leading-5 text-emerald-800">Questo nome comparira nel report PDF e ti aiutera a distinguere più preventivi.</p>
                       </div>
 
                       <div className="mt-6 grid gap-4 md:grid-cols-4">
@@ -9948,7 +10344,7 @@ const [authReady, setAuthReady] = useState(false);
 
                           <div className="rounded-2xl border border-orange-100 bg-orange-50/70 p-4">
                             <h5 className="font-bold text-slate-950">Segnali di attenzione economica</h5>
-                            <p className="mt-2 text-xs leading-5 text-orange-900">Questi segnali non indicano irregolarita: servono a evidenziare costi o vincoli da capire meglio prima della firma.</p>
+                            <p className="mt-2 text-xs leading-5 text-orange-900">Questi segnali non indicano irregolarità: servono a evidenziare costi o vincoli da capire meglio prima della firma.</p>
                             <div className="mt-4 space-y-3">
                               {mortgageEconomicAttentionFlags.length === 0 ? (
                                 <div className="rounded-2xl border border-emerald-200 bg-white p-4 text-sm leading-6 text-emerald-900">
@@ -9973,7 +10369,7 @@ const [authReady, setAuthReady] = useState(false);
 
                         <div className="space-y-4">
                           <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                            <h5 className="font-bold text-slate-950">Punti critici: problema, perche conta, cosa chiedere</h5>
+                            <h5 className="font-bold text-slate-950">Punti critici: problema, perché conta, cosa chiedere</h5>
                             <div className="mt-4 space-y-3">
                               {mortgagePiesIssues.length === 0 ? (
                                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
@@ -9983,7 +10379,7 @@ const [authReady, setAuthReady] = useState(false);
                                 mortgagePiesIssues.slice(0, 8).map((item) => (
                                   <div key={item.field.id} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                                     <p className="font-bold text-amber-950">{getMortgagePiesIssueCopy(item.field, item.state.status).issue}</p>
-                                    <p className="mt-1 text-sm leading-6 text-amber-900"><strong>Perche conta:</strong> {getMortgagePiesIssueCopy(item.field, item.state.status).why}</p>
+                                    <p className="mt-1 text-sm leading-6 text-amber-900"><strong>Perché conta:</strong> {getMortgagePiesIssueCopy(item.field, item.state.status).why}</p>
                                     <p className="mt-1 text-sm leading-6 text-amber-900"><strong>Cosa chiedere:</strong> {getMortgagePiesIssueCopy(item.field, item.state.status).question}</p>
                                   </div>
                                 ))
@@ -10086,7 +10482,7 @@ const [authReady, setAuthReady] = useState(false);
 
                     {!scamGameQuestions.length && (
                       <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
-                        Premi <strong>Inizia il gioco</strong> per ricevere 5 scenari casuali, con almeno un caso piu difficile quando disponibile. Hai gia visto <strong>{scamAnsweredScenarioCount}/{scamScenarioPool.length}</strong> scenari e completato <strong>{scamPerfectGames}</strong> partite senza errori. Dopo ogni risposta vedrai cosa osservare e quale azione sicura scegliere.
+                        Premi <strong>Inizia il gioco</strong> per ricevere 5 scenari casuali, con almeno un caso più difficile quando disponibile. Hai già visto <strong>{scamAnsweredScenarioCount}/{scamScenarioPool.length}</strong> scenari e completato <strong>{scamPerfectGames}</strong> partite senza errori. Dopo ogni risposta vedrai cosa osservare e quale azione sicura scegliere.
                       </div>
                     )}
 
@@ -10184,10 +10580,10 @@ const [authReady, setAuthReady] = useState(false);
                         <h4 className="mt-2 text-3xl font-bold text-emerald-950">Hai riconosciuto {scamScore} scenari su 5</h4>
                         <p className="mt-3 text-sm leading-6 text-emerald-900">
                           {scamScore >= 4
-                            ? "Ottimo lavoro: ti sei fermato davanti ai segnali importanti. Continua cosi: la prudenza e una protezione concreta."
+                            ? "Ottimo lavoro: ti sei fermato davanti ai segnali importanti. Continua così: la prudenza è una protezione concreta."
                             : scamScore >= 2
                               ? "Buon allenamento. Alcune situazioni sono costruite per sembrare credibili: l'obiettivo e imparare a riconoscere i pattern."
-                              : "Non e un problema sbagliare qui: meglio imparare nell'app che davanti a una truffa vera. Ripeti il gioco e osserva i segnali di rischio."}
+                              : "Non è un problema sbagliare qui: meglio imparare nell'app che davanti a una truffa vera. Ripeti il gioco e osserva i segnali di rischio."}
                         </p>
                         <div className="mt-4 flex flex-wrap gap-2">
                           {scamEncounteredFlags.slice(0, 8).map((flag) => (
@@ -10218,7 +10614,7 @@ const [authReady, setAuthReady] = useState(false);
                     </div>
 
                     <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-                      <h4 className="text-xl font-bold text-amber-950">Se hai gia cliccato o pagato</h4>
+                      <h4 className="text-xl font-bold text-amber-950">Se hai già cliccato o pagato</h4>
                       <ul className="mt-3 space-y-2 text-sm leading-6 text-amber-900">
                         <li>• Blocca carta o conto dal canale ufficiale.</li>
                         <li>• Cambia password e attiva autenticazione a due fattori.</li>
@@ -10304,7 +10700,7 @@ const [authReady, setAuthReady] = useState(false);
                       {mainFraudSignal && (
                         <div className="mt-4 rounded-2xl bg-white/80 p-4 text-sm leading-6 ring-1 ring-slate-200">
                           <p className="font-bold text-slate-950">Segnale principale: {mainFraudSignal.text}</p>
-                          <p className="mt-2 text-slate-700"><strong>Perche conta:</strong> {mainFraudSignal.why}</p>
+                          <p className="mt-2 text-slate-700"><strong>Perché conta:</strong> {mainFraudSignal.why}</p>
                           <p className="mt-2 text-slate-700"><strong>Cosa fare:</strong> {mainFraudSignal.action}</p>
                         </div>
                       )}
@@ -10445,7 +10841,7 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
                   <p className="mt-4 text-sm leading-6 text-slate-600">
                     {setupCompleted
-                      ? "La base e pronta. Ora conta mantenere il gesto mensile e aggiornare i dati senza ossessionarsi."
+                      ? "La base è pronta. Ora conta mantenere il gesto mensile e aggiornare i dati senza ossessionarsi."
                       : `Ti mancano ${Math.max(0, initialChecklistItems.length - completedInitialChecklist)} passaggi per completare la guida iniziale.`}
                   </p>
                 </div>
@@ -10738,7 +11134,7 @@ const [authReady, setAuthReady] = useState(false);
                     {hasStartedPac ? `${currentStreak} ${currentStreak === 1 ? "mese" : "mesi"} consecutivi` : "Parti dal primo mese"}
                   </h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Il PAC e un Piano di Accumulo mensile: il risultato non nasce da un singolo investimento, ma dalla ripetizione del gesto nel tempo.
+                    Il PAC è un Piano di Accumulo mensile: il risultato non nasce da un singolo investimento, ma dalla ripetizione del gesto nel tempo.
                   </p>
                 </div>
 
@@ -10768,7 +11164,7 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
                   <p className="mt-4 text-sm leading-6 text-slate-600">
                     {hasStartedPac
-                      ? "Ogni mese completato mantiene viva la catena. Non serve fare di piu: serve non interromperla."
+                      ? "Ogni mese completato mantiene viva la catena. Non serve fare di più: serve non interromperla."
                       : "Completa il primo mese per accendere la catena e iniziare la tua serie."}
                   </p>
                 </div>
@@ -10808,7 +11204,7 @@ const [authReady, setAuthReady] = useState(false);
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Micro-spunti educativi</p>
                   <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Prossimo passo</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Pochi suggerimenti, solo quando servono. L'obiettivo e ridurre dubbi e aiutarti a seguire il piano.
+                    Pochi suggerimenti, solo quando servono. L'obiettivo è ridurre dubbi e aiutarti a seguire il piano.
                   </p>
                 </div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
@@ -10887,7 +11283,7 @@ const [authReady, setAuthReady] = useState(false);
                         {goalTitle || "Il tuo obiettivo"}
                       </h3>
                       <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                        Aggiorna manualmente il valore reale del tuo capitale: cosi la barra tiene conto anche di mercato, prelievi e variazioni non visibili negli holdings.
+                        Aggiorna manualmente il valore reale del tuo capitale: così la barra tiene conto anche di mercato, prelievi e variazioni non visibili negli holdings.
                       </p>
                     </div>
 
@@ -10971,7 +11367,7 @@ const [authReady, setAuthReady] = useState(false);
                     Aggiorna obiettivo
                   </h4>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Inserisci manualmente il valore aggiornato del capitale. Questo dato puo includere fluttuazioni di mercato, prelievi o variazioni che gli holdings non mostrano. Non serve aggiornarlo ogni giorno: usalo per avere consapevolezza, non per reagire al mercato.
+                    Inserisci manualmente il valore aggiornato del capitale. Questo dato può includere fluttuazioni di mercato, prelievi o variazioni che gli holdings non mostrano. Non serve aggiornarlo ogni giorno: usalo per avere consapevolezza, non per reagire al mercato.
                   </p>
 
                   <div key={goalDraftFormKey} className="mt-5 space-y-4">
@@ -10983,7 +11379,7 @@ const [authReady, setAuthReady] = useState(false);
                         ref={draftGoalTitleRef}
                         defaultValue={draftGoalTitle}
                         onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
-                        placeholder="Es. Liberta finanziaria"
+                        placeholder="Es. Libertà finanziaria"
                         className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
                       />
                     </div>
@@ -11206,7 +11602,7 @@ const [authReady, setAuthReady] = useState(false);
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   {currentMonthEntry?.completed
-                    ? "Hai gia fatto il passo piu importante: ora evita decisioni impulsive."
+                    ? "Hai già fatto il passo più importante: ora evita decisioni impulsive."
                     : "Un solo click rende il mese visibile nella tua continuita."}
                 </p>
               </div>
@@ -11312,12 +11708,12 @@ const [authReady, setAuthReady] = useState(false);
                       title="Categoria principale"
                       text={
                         mostWeightedCategory
-                          ? `${mostWeightedCategory.category} e oggi l'area piu pesante del modello.`
+                          ? `${mostWeightedCategory.category} e oggi l'area più pesante del modello.`
                           : "Non hai ancora categorie attive: il primo investimento attivera la dashboard."
                       }
                     />
                     <InsightCard
-                      title="Scostamento piu importante"
+                      title="Scostamento più importante"
                       text={
                         biggestGap
                           ? biggestGap.delta === 0
@@ -11330,7 +11726,7 @@ const [authReady, setAuthReady] = useState(false);
                     />
                     <InsightCard
                       title="Interpretazione"
-                      text="L'obiettivo non e prevedere il mercato, ma mantenere il modello coerente con il piano assegnato."
+                      text="L'obiettivo non è prevedere il mercato, ma mantenere il modello coerente con il piano assegnato."
                     />
                   </div>
                 </div>
@@ -11447,7 +11843,7 @@ const [authReady, setAuthReady] = useState(false);
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Step 4</p>
                       <h3 className="mt-2 text-xl font-bold tracking-tight text-slate-900">Guida operativa del mese</h3>
                       <p className="mt-1 text-sm leading-6 text-slate-600">
-                        Esegui le quote suggerite e spuntale una alla volta. Questa e la parte pratica del mese, non una registrazione contabile.
+                        Esegui le quote suggerite e spuntale una alla volta. Questa è la parte pratica del mese, non una registrazione contabile.
                       </p>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -11760,20 +12156,20 @@ const [authReady, setAuthReady] = useState(false);
               </h3>
 
               <p className="mt-4 text-sm leading-6 text-slate-600">
-                Il questionario va fatto con attenzione: non esiste una risposta giusta e il risultato e un modello educativo, non una raccomandazione personalizzata.
+                Il questionario va fatto con attenzione: non esiste una risposta giusta e il risultato è un modello educativo, non una raccomandazione personalizzata.
               </p>
 
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Rifarlo spesso puo cambiare modello, PAC e riferimenti della dashboard. Questo rischia di spostare il focus dal metodo alla ricerca continua di un risultato diverso.
+                Rifarlo spesso può cambiare modello, PAC e riferimenti della dashboard. Questo rischia di spostare il focus dal metodo alla ricerca continua di un risultato diverso.
               </p>
 
               {retakeMeta.count > 0 && (
                 <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                   <p className="text-sm font-semibold text-amber-900">
-                    Hai gia rifatto il test {retakeMeta.count} {retakeMeta.count === 1 ? "volta" : "volte"}.
+                    Hai già rifatto il test {retakeMeta.count} {retakeMeta.count === 1 ? "volta" : "volte"}.
                   </p>
                   <p className="mt-1 text-sm leading-6 text-amber-800">
-                    La costanza e piu importante della ricerca del modello perfetto.
+                    La costanza è più importante della ricerca del modello perfetto.
                   </p>
                 </div>
               )}
@@ -11784,13 +12180,13 @@ const [authReady, setAuthReady] = useState(false);
                     Per proteggere la coerenza del piano, potrai rifare il test tra {retakeDaysRemaining} {retakeDaysRemaining === 1 ? "giorno" : "giorni"}.
                   </p>
                   <p className="mt-1 text-sm leading-6 text-red-800">
-                    Nel frattempo continua con il modello attuale: cambiare spesso puo indebolire il percorso.
+                    Nel frattempo continua con il modello attuale: cambiare spesso può indebolire il percorso.
                   </p>
                 </div>
               ) : (
                 <div className="mt-4">
                   <label className="text-sm font-medium text-slate-700">
-                    Perche vuoi rifarlo?
+                    Perché vuoi rifarlo?
                   </label>
                   <select
                     value={retakeReason}
@@ -11831,7 +12227,7 @@ const [authReady, setAuthReady] = useState(false);
                 <div className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Funzione Pro</div>
                 <h2 className="mt-4 text-3xl font-bold tracking-tight">Ribilanciamento guidato</h2>
                 <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-                  Il ribilanciamento ti aiuta a riportare il portafoglio vicino al piano scelto, senza inseguire il mercato e senza prendere decisioni impulsive. E una funzione utile quando hai gia iniziato e vuoi controllare se la tua ripartizione sta restando coerente.
+                  Il ribilanciamento ti aiuta a riportare il portafoglio vicino al piano scelto, senza inseguire il mercato e senza prendere decisioni impulsive. È una funzione utile quando hai già iniziato e vuoi controllare se la tua ripartizione sta restando coerente.
                 </p>
                 <button
                   onClick={requestProUpgrade}
@@ -11906,7 +12302,7 @@ const [authReady, setAuthReady] = useState(false);
                         />
                       </label>
                       <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
-                        <strong>Consiglio semplice:</strong> se lo scostamento non e enorme, spesso e meglio correggere con i prossimi PAC invece di vendere strumenti. Meno fretta, meno costi, meno decisioni impulsive.
+                        <strong>Consiglio semplice:</strong> se lo scostamento non è enorme, spesso è meglio correggere con i prossimi PAC invece di vendere strumenti. Meno fretta, meno costi, meno decisioni impulsive.
                       </div>
                     </div>
 
@@ -11971,7 +12367,7 @@ const [authReady, setAuthReady] = useState(false);
                       </div>
                     </div>
                     <p className="mt-4 text-xs leading-5 text-slate-500">
-                      Il risultato e educativo: non dice cosa comprare o vendere, ma ti aiuta a capire se il portafoglio sta rispettando il modello scelto.
+                      Il risultato è educativo: non dice cosa comprare o vendere, ma ti aiuta a capire se il portafoglio sta rispettando il modello scelto.
                     </p>
                   </div>
 
@@ -12020,10 +12416,10 @@ const [authReady, setAuthReady] = useState(false);
                       <h3 className="mt-2 text-xl font-bold tracking-tight">Ribilanciare non significa correre</h3>
                       <div className="mt-4 grid gap-3 sm:grid-cols-3">
                         <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
-                          <strong>Piccolo scostamento</strong><br />Non e un problema. Se vuoi precisione, usa le quote del PAC suggerite sotto.
+                          <strong>Piccolo scostamento</strong><br />Non è un problema. Se vuoi precisione, usa le quote del PAC suggerite sotto.
                         </div>
                         <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                          <strong>Scostamento medio</strong><br />Usa i prossimi PAC per rafforzare cio che e sotto peso.
+                          <strong>Scostamento medio</strong><br />Usa i prossimi PAC per rafforzare ciò che è sotto peso.
                         </div>
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
                           <strong>Scostamento alto</strong><br />Valuta con calma costi, fiscalita e alternative prima di vendere.
@@ -12055,7 +12451,7 @@ const [authReady, setAuthReady] = useState(false);
                     </div>
                   ) : rebalancePlan.length === 0 ? (
                     <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm leading-6 text-emerald-900">
-                      Il portafoglio e gia molto vicino al modello. Non emergono categorie da rafforzare: puoi continuare con il PAC ordinario e ricontrollare con calma.
+                      Il portafoglio è già molto vicino al modello. Non emergono categorie da rafforzare: puoi continuare con il PAC ordinario e ricontrollare con calma.
                     </div>
                   ) : (
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -12083,13 +12479,13 @@ const [authReady, setAuthReady] = useState(false);
                       <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Soluzione piu prudente</p>
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Soluzione più prudente</p>
                             <p className="mt-2 text-lg font-bold text-slate-900">Rientro graduale usando solo i prossimi PAC</p>
                           </div>
                           {automaticRebalance.feasible && <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700">circa {rebalanceMonthsNumber} {rebalanceMonthsNumber === 1 ? "mese" : "mesi"}</span>}
                         </div>
                         <p className="mt-3 text-sm leading-6 text-slate-700">
-                          Pro: evita vendite immediate, riduce il rischio di agire sull'emotività e usa il nuovo capitale per tornare verso il piano. La quota di rientro corregge l'asset sotto peso, mentre la quota di mantenimento continua a finanziare gli altri asset per non creare un nuovo squilibrio. Contro: se lo scostamento e grande puo richiedere piu tempo.
+                          Pro: evita vendite immediate, riduce il rischio di agire sull'emotività e usa il nuovo capitale per tornare verso il piano. La quota di rientro corregge l'asset sotto peso, mentre la quota di mantenimento continua a finanziare gli altri asset per non creare un nuovo squilibrio. Contro: se lo scostamento e grande può richiedere più tempo.
                         </p>
                       </div>
 
@@ -12100,16 +12496,16 @@ const [authReady, setAuthReady] = useState(false);
                             Puoi simulare la vendita delle categorie sopra peso e l'acquisto di quelle sotto peso. Importo indicativo da riallocare: <strong>{formatEuro(estimatedSaleAmount)}</strong>.
                           </p>
                           <p className="mt-3 rounded-xl bg-white p-3 text-xs leading-5 text-amber-900">
-                            Prima di vendere, valuta costi, tasse e conseguenze. In Italia l'aliquota ordinaria sulle plusvalenze finanziarie e generalmente il 26%, salvo casi particolari.
+                            Prima di vendere, valuta costi, tasse è conseguenze. In Italia l'aliquota ordinaria sulle plusvalenze finanziarie e generalmente il 26%, salvo casi particolari.
                           </p>
                         </div>
                         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-sm font-bold text-slate-900">Alternativa: PAC temporaneamente piu alto</p>
+                          <p className="text-sm font-bold text-slate-900">Alternativa: PAC temporaneamente più alto</p>
                           <p className="mt-2 text-sm leading-6 text-slate-600">
                             Se vuoi rientrare prima senza vendere, puoi aumentare temporaneamente il PAC a circa <strong>{formatEuro(acceleratedRebalancePac)}</strong> al mese per circa <strong>{acceleratedRebalanceMonths} {acceleratedRebalanceMonths === 1 ? "mese" : "mesi"}</strong>.
                           </p>
                           <p className="mt-3 text-xs leading-5 text-slate-500">
-                            Pro: accelera il rientro. Contro: richiede piu liquidita mensile per un periodo limitato.
+                            Pro: accelera il rientro. Contro: richiede più liquidita mensile per un periodo limitato.
                           </p>
                         </div>
                       </div>
@@ -12132,7 +12528,7 @@ const [authReady, setAuthReady] = useState(false);
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Funzione Pro</p>
                 <h2 className="mt-3 text-3xl font-bold tracking-tight">Strategie di uscita dal PAC</h2>
                 <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-                  Questa sezione e inclusa nel piano Pro da 59 EUR/anno. Serve quando il capitale e cresciuto e vuoi pianificare come ridurre il rischio, vendere gradualmente o trasformare il capitale in rendita.
+                  Questa sezione è inclusa nel piano Pro da 59 EUR/anno. Serve quando il capitale è cresciuto e vuoi pianificare come ridurre il rischio, vendere gradualmente o trasformare il capitale in rendita.
                 </p>
                 <button
                   onClick={requestProUpgrade}
@@ -12181,7 +12577,7 @@ const [authReady, setAuthReady] = useState(false);
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Sezione anti-panico</p>
                   <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Prima di vendere per paura, fermati un minuto</h3>
                   <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-700">
-                    Questa sezione serve a frenare le vendite impulsive. Se vuoi uscire solo perche il mercato e sceso, perche hai letto una notizia negativa o perche tutti sembrano preoccupati, potresti decidere nel momento peggiore. Prima chiediti: il mio obiettivo e cambiato? Mi servono davvero quei soldi ora? Ho un piano per cosa fare dopo la vendita?
+                    Questa sezione serve a frenare le vendite impulsive. Se vuoi uscire solo perché il mercato e sceso, perché hai letto una notizia negativa o perché tutti sembrano preoccupati, potresti decidere nel momento peggiore. Prima chiediti: il mio obiettivo e cambiato? Mi servono davvero quei soldi ora? Ho un piano per cosa fare dopo la vendita?
                   </p>
                   <div className="mt-4 grid gap-3 md:grid-cols-3">
                     <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700">
@@ -12194,7 +12590,7 @@ const [authReady, setAuthReady] = useState(false);
                     </div>
                     <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700">
                       <strong>Metodo</strong><br />
-                      Una vendita graduale e spesso piu gestibile di una decisione impulsiva.
+                      Una vendita graduale e spesso più gestibile di una decisione impulsiva.
                     </div>
                   </div>
                 </div>
@@ -12206,8 +12602,8 @@ const [authReady, setAuthReady] = useState(false);
                     <div className="mt-6 grid gap-4 sm:grid-cols-2">
                       <label className="block"><span className="text-sm font-medium text-slate-700">Capitale investito</span><input type="number" min="0" value={exitInvestedAmount} onChange={(e) => setExitInvestedAmount(e.target.value)} placeholder="Es. 100000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">Quanto hai versato nel tempo. Serve per stimare il guadagno e le eventuali tasse.</span></label>
                       <label className="block"><span className="text-sm font-medium text-slate-700">Valore attuale</span><input type="number" min="0" value={exitCurrentAmount} onChange={(e) => setExitCurrentAmount(e.target.value)} placeholder="Es. 130000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">Quanto vale oggi il capitale che stai valutando di usare o proteggere.</span></label>
-                      <label className="block"><span className="text-sm font-medium text-slate-700">Obiettivo finale</span><input type="number" min="0" value={exitGoalAmount} onChange={(e) => setExitGoalAmount(e.target.value)} placeholder="Es. 120000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">La cifra che ti serve davvero. Quando sei vicino, proteggere puo contare piu di inseguire altro rendimento.</span></label>
-                      <label className="block"><span className="text-sm font-medium text-slate-700">Durata uscita graduale</span><input type="number" min="1" value={exitMonths} onChange={(e) => setExitMonths(e.target.value)} placeholder="Es. 12" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">In quanti mesi vuoi trasformare il capitale in liquidita. Piu mesi = uscita piu morbida.</span></label>
+                      <label className="block"><span className="text-sm font-medium text-slate-700">Obiettivo finale</span><input type="number" min="0" value={exitGoalAmount} onChange={(e) => setExitGoalAmount(e.target.value)} placeholder="Es. 120000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">La cifra che ti serve davvero. Quando sei vicino, proteggere può contare più di inseguire altro rendimento.</span></label>
+                      <label className="block"><span className="text-sm font-medium text-slate-700">Durata uscita graduale</span><input type="number" min="1" value={exitMonths} onChange={(e) => setExitMonths(e.target.value)} placeholder="Es. 12" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">In quanti mesi vuoi trasformare il capitale in liquidita. Più mesi = uscita più morbida.</span></label>
                     </div>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       <MetricCard label="Plusvalenza stimata" value={formatEuro(exitProfit)} />
@@ -12249,7 +12645,7 @@ const [authReady, setAuthReady] = useState(false);
                       <h3 className="mt-2 text-3xl font-bold tracking-tight">{selectedExitDetails.title}</h3>
                       <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">{selectedExitDetails.plain}</p>
                       <p className="mt-3 max-w-4xl rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-                        Lettura semplice: prima capisci perche vuoi uscire, poi scegli il ritmo. Non devi prevedere il mercato: devi sapere quale bisogno stai proteggendo.
+                        Lettura semplice: prima capisci perché vuoi uscire, poi scegli il ritmo. Non devi prevedere il mercato: devi sapere quale bisogno stai proteggendo.
                       </p>
                     </div>
                     {savedExitAdvice && selectedExitStrategy !== savedExitAdvice && (
@@ -12278,7 +12674,7 @@ const [authReady, setAuthReady] = useState(false);
                       {selectedExitDetails.steps.map((item, index) => (<li key={item} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">{index + 1}</span><span>{item}</span></li>))}
                     </ol>
                     <div className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
-                      <strong>Regola pratica:</strong> se non hai un bisogno immediato, spesso e meglio uscire con calma. Se invece i soldi servono davvero, il primo obiettivo e proteggerli, non cercare l'ultimo punto di rendimento.
+                      <strong>Regola pratica:</strong> se non hai un bisogno immediato, spesso è meglio uscire con calma. Se invece i soldi servono davvero, il primo obiettivo è proteggerli, non cercare l'ultimo punto di rendimento.
                     </div>
                   </div>
                 </div>
@@ -12294,7 +12690,7 @@ const [authReady, setAuthReady] = useState(false);
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Attenzione</p>
             <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Vuoi rifare il questionario?</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-600">Rifare il questionario puo modificare la strategia consigliata in base alle nuove risposte. Il consiglio salvato verra aggiornato, ma potrai comunque scegliere liberamente qualsiasi strategia.</p>
+            <p className="mt-3 text-sm leading-6 text-slate-600">Rifare il questionario può modificare la strategia consigliata in base alle nuove risposte. Il consiglio salvato verra aggiornato, ma potrai comunque scegliere liberamente qualsiasi strategia.</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setShowExitQuestionnaireWarning(false)} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Non cambiare</button>
               <button type="button" onClick={() => { setShowExitQuestionnaireWarning(false); setExitQuestionnaireStep(0); setShowExitQuestionnaireModal(true); }} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">Prosegui</button>
@@ -12329,12 +12725,12 @@ const [authReady, setAuthReady] = useState(false);
               {exitQuestionnaireStep === 0 && (
                 <div>
                   <h4 className="text-xl font-bold text-slate-900">Quando ti serviranno i soldi?</h4>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">Serve a capire se ha senso ridurre il rischio rapidamente o mantenere piu capitale investito.</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Serve a capire se ha senso ridurre il rischio rapidamente o mantenere più capitale investito.</p>
                   <div className="mt-5 grid gap-3">
                     {[
                       { key: "entro1", label: "Entro 1 anno", hint: "Priorita alla protezione del capitale." },
                       { key: "unoTre", label: "Tra 1 e 3 anni", hint: "Equilibrio tra uscita graduale e rischio." },
-                      { key: "oltreTre", label: "Tra piu di 3 anni", hint: "Puo avere senso una strategia piu flessibile." },
+                      { key: "oltreTre", label: "Tra più di 3 anni", hint: "Può avere senso una strategia più flessibile." },
                     ].map((item) => (
                       <button key={item.key} type="button" onClick={() => { setExitHorizon(item.key as "entro1" | "unoTre" | "oltreTre"); setExitQuestionnaireStep(1); }} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-slate-300 hover:bg-white">
                         <span className="block font-bold text-slate-900">{item.label}</span>
@@ -12347,7 +12743,7 @@ const [authReady, setAuthReady] = useState(false);
 
               {exitQuestionnaireStep === 1 && (
                 <div>
-                  <h4 className="text-xl font-bold text-slate-900">Cosa ti preoccupa di piu?</h4>
+                  <h4 className="text-xl font-bold text-slate-900">Cosa ti preoccupa di più?</h4>
                   <p className="mt-2 text-sm leading-6 text-slate-600">La strategia cambia molto se vuoi ridurre lo stress, proteggere i guadagni o creare rendita.</p>
                   <div className="mt-5 grid gap-3">
                     {[
@@ -12367,8 +12763,8 @@ const [authReady, setAuthReady] = useState(false);
 
               {exitQuestionnaireStep === 2 && (
                 <div>
-                  <h4 className="text-xl font-bold text-slate-900">Qual e l'obiettivo principale?</h4>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">Collegare l'uscita a un obiettivo reale rende la scelta piu semplice.</p>
+                  <h4 className="text-xl font-bold text-slate-900">Qual è l'obiettivo principale?</h4>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Collegare l'uscita a un obiettivo reale rende la scelta più semplice.</p>
                   <div className="mt-5 grid gap-3">
                     {[
                       { key: "spesa", label: "Spesa precisa / casa / progetto", hint: "Conta arrivare a una cifra concreta." },
@@ -12394,7 +12790,7 @@ const [authReady, setAuthReady] = useState(false);
                       { key: "sicura", label: "Prelevo dalla parte sicura", hint: "Adatto a chi vuole evitare di vendere azioni in ribasso." },
                       { key: "graduale", label: "Continuo con vendite graduali", hint: "Adatto a chi vuole semplicita e disciplina." },
                       { key: "aspettare", label: "Aspetto senza vendere", hint: "Adatto a chi accetta oscillazioni." },
-                      { key: "regole", label: "Seguo regole gia decise", hint: "Adatto a chi vuole automatizzare le decisioni." },
+                      { key: "regole", label: "Seguo regole già decise", hint: "Adatto a chi vuole automatizzare le decisioni." },
                     ].map((item) => (
                       <button key={item.key} type="button" onClick={() => completeExitQuestionnaireWith(item.key as "sicura" | "graduale" | "aspettare" | "regole")} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-slate-300 hover:bg-white">
                         <span className="block font-bold text-slate-900">{item.label}</span>
