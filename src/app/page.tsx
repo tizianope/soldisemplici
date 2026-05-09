@@ -712,7 +712,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     title: "Crescita nel Lungo Periodo",
     shortTitle: "Modello Crescita",
     profileFamily: "crescita",
-    badge: "Alto potenziale, alta volatilita",
+    badge: "Alto potenziale, alta volatilità",
     intro:
       "Questo modello è pensato per chi vuole massimizzare la crescita nel lungo periodo e riesce a sopportare oscillazioni importanti.",
     whyItFits:
@@ -2353,6 +2353,12 @@ const [authReady, setAuthReady] = useState(false);
   const mortgageSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pacHistoryLoadKeyRef = useRef<string | null>(null);
   const pacHistoryRequestIdRef = useRef(0);
+  const holdingsLoadKeyRef = useRef<string | null>(null);
+  const holdingsLoadRequestIdRef = useRef(0);
+  const customInstrumentsLoadKeyRef = useRef<string | null>(null);
+  const customInstrumentsLoadRequestIdRef = useRef(0);
+  const shoppingItemsLoadKeyRef = useRef<string | null>(null);
+  const shoppingItemsLoadRequestIdRef = useRef(0);
   const profileLoadKeyRef = useRef<string | null>(null);
   const checklistLoadKeyRef = useRef<string | null>(null);
   const checklistLoadRequestIdRef = useRef(0);
@@ -6642,51 +6648,114 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   async function loadHoldingsFromDb(currentUser: User) {
-    const { data, error } = await supabase
-      .from("user_holdings")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .order("created_at", { ascending: true });
+    const loadKey = currentUser.id;
 
-    if (error) {
-      console.error("Errore caricamento holdings:", error.message);
-      return;
-    }
+    // In sviluppo React/Next può rieseguire gli effetti e far partire due fetch identici.
+    // Evitiamo richieste sovrapposte: Supabase può interromperne una con AbortError/lock broken.
+    if (holdingsLoadKeyRef.current === loadKey) return;
 
-    if (data && data.length > 0) {
-      const mapped: Holding[] = data.map((row: any) => ({
-        id: row.holding_key,
-        category: row.category,
-        strumentiName: row.asset_name || row.strumenti_name || getStrumentiNameFromHolding(row.category, row.isin),
-        isin: row.isin,
-        amount: Number(row.amount || 0),
-      }));
-      setHoldings(mapped);
+    holdingsLoadKeyRef.current = loadKey;
+    const requestId = holdingsLoadRequestIdRef.current + 1;
+    holdingsLoadRequestIdRef.current = requestId;
+
+    try {
+      const { data, error } = await supabase
+        .from("user_holdings")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: true });
+
+      if (requestId !== holdingsLoadRequestIdRef.current) return;
+
+      if (error) {
+        const message = getErrorMessage(error);
+        if (isSupabaseLockAbortError(error)) {
+          console.warn("Caricamento investimenti rimandato: richiesta Supabase sovrapposta.", message);
+        } else {
+          console.error("Errore caricamento holdings:", message);
+        }
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const mapped: Holding[] = data.map((row: any) => ({
+          id: row.holding_key,
+          category: row.category,
+          strumentiName: row.asset_name || row.strumenti_name || getStrumentiNameFromHolding(row.category, row.isin),
+          isin: row.isin,
+          amount: Number(row.amount || 0),
+        }));
+        setHoldings(mapped);
+      }
+    } catch (error) {
+      if (requestId !== holdingsLoadRequestIdRef.current) return;
+
+      const message = getErrorMessage(error);
+      if (isSupabaseLockAbortError(error)) {
+        console.warn("Caricamento investimenti rimandato: richiesta Supabase sovrapposta.", message);
+      } else {
+        console.error("Errore caricamento holdings:", message);
+      }
+    } finally {
+      if (holdingsLoadKeyRef.current === loadKey) {
+        holdingsLoadKeyRef.current = null;
+      }
     }
   }
 
   async function loadCustomInstrumentsFromDb(currentUser: User) {
-    const { data, error } = await supabase
-      .from("user_custom_instruments")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .order("created_at", { ascending: true });
+    const loadKey = currentUser.id;
 
-    if (error) {
-      console.error("Errore caricamento strumenti personali:", error.message);
-      setCustomInstrumentMessage("Non riesco a caricare gli strumenti personali. Controlla la tabella Supabase user_custom_instruments.");
-      return;
+    if (customInstrumentsLoadKeyRef.current === loadKey) return;
+
+    customInstrumentsLoadKeyRef.current = loadKey;
+    const requestId = customInstrumentsLoadRequestIdRef.current + 1;
+    customInstrumentsLoadRequestIdRef.current = requestId;
+
+    try {
+      const { data, error } = await supabase
+        .from("user_custom_instruments")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: true });
+
+      if (requestId !== customInstrumentsLoadRequestIdRef.current) return;
+
+      if (error) {
+        const message = getErrorMessage(error);
+        if (isSupabaseLockAbortError(error)) {
+          console.warn("Caricamento strumenti personali rimandato: richiesta Supabase sovrapposta.", message);
+        } else {
+          console.error("Errore caricamento strumenti personali:", message);
+          setCustomInstrumentMessage("Non riesco a caricare gli strumenti personali. Controlla la tabella Supabase user_custom_instruments.");
+        }
+        return;
+      }
+
+      const mapped: CustomInstrument[] = (data || []).map((row: any) => ({
+        id: String(row.id),
+        category: row.category as StrumentiCategory,
+        name: row.name || row.asset_name || "Strumento personale",
+        isin: row.isin || "",
+        note: row.note || "",
+      }));
+
+      setCustomInstruments(mapped);
+    } catch (error) {
+      if (requestId !== customInstrumentsLoadRequestIdRef.current) return;
+
+      const message = getErrorMessage(error);
+      if (isSupabaseLockAbortError(error)) {
+        console.warn("Caricamento strumenti personali rimandato: richiesta Supabase sovrapposta.", message);
+      } else {
+        console.error("Errore caricamento strumenti personali:", message);
+        setCustomInstrumentMessage("Non riesco a caricare gli strumenti personali. Controlla la tabella Supabase user_custom_instruments.");
+      }
+    } finally {
+      if (customInstrumentsLoadKeyRef.current === loadKey) {
+        customInstrumentsLoadKeyRef.current = null;
+      }
     }
-
-    const mapped: CustomInstrument[] = (data || []).map((row: any) => ({
-      id: String(row.id),
-      category: row.category as StrumentiCategory,
-      name: row.name || row.asset_name || "Strumento personale",
-      isin: row.isin || "",
-      note: row.note || "",
-    }));
-
-    setCustomInstruments(mapped);
   }
 
   async function addCustomInstrument() {
@@ -6784,19 +6853,50 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   async function loadShoppingItemsFromDb(currentUser: User) {
-    const { data, error } = await supabase
-      .from("user_shopping_items")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .order("created_at", { ascending: true });
+    const loadKey = currentUser.id;
 
-    if (error) {
-      console.error("Errore caricamento lista spesa:", error.message);
-      setShoppingMessage("Non riesco a caricare la lista spesa. Controlla la tabella Supabase user_shopping_items.");
-      return;
+    if (shoppingItemsLoadKeyRef.current === loadKey) return;
+
+    shoppingItemsLoadKeyRef.current = loadKey;
+    const requestId = shoppingItemsLoadRequestIdRef.current + 1;
+    shoppingItemsLoadRequestIdRef.current = requestId;
+
+    try {
+      const { data, error } = await supabase
+        .from("user_shopping_items")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: true });
+
+      if (requestId !== shoppingItemsLoadRequestIdRef.current) return;
+
+      if (error) {
+        const message = getErrorMessage(error);
+        if (isSupabaseLockAbortError(error)) {
+          console.warn("Caricamento lista spesa rimandato: richiesta Supabase sovrapposta.", message);
+        } else {
+          console.error("Errore caricamento lista spesa:", message);
+          setShoppingMessage("Non riesco a caricare la lista spesa. Controlla la tabella Supabase user_shopping_items.");
+        }
+        return;
+      }
+
+      setShoppingItems((data || []).map(mapShoppingRow));
+    } catch (error) {
+      if (requestId !== shoppingItemsLoadRequestIdRef.current) return;
+
+      const message = getErrorMessage(error);
+      if (isSupabaseLockAbortError(error)) {
+        console.warn("Caricamento lista spesa rimandato: richiesta Supabase sovrapposta.", message);
+      } else {
+        console.error("Errore caricamento lista spesa:", message);
+        setShoppingMessage("Non riesco a caricare la lista spesa. Controlla la tabella Supabase user_shopping_items.");
+      }
+    } finally {
+      if (shoppingItemsLoadKeyRef.current === loadKey) {
+        shoppingItemsLoadKeyRef.current = null;
+      }
     }
-
-    setShoppingItems((data || []).map(mapShoppingRow));
   }
 
   async function createShoppingItem(input: { name: string; category: ShoppingCategory; estimatedPrice?: number; isExtra?: boolean; isCustom?: boolean }) {
@@ -8495,9 +8595,6 @@ const [authReady, setAuthReady] = useState(false);
               <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
                 Soldi Semplici ti aiuta a costruire un piano, seguire una guida operativa e usare strumenti pratici per risparmio, investimenti, auto, mutuo, anti-truffe e strategia d’uscita.
               </p>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
-                L'app ha finalità educative e informative. Non sostituisce una consulenza finanziaria personalizzata e non promette rendimenti.
-              </p>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-700">
                 Non è solo teoria: è una guida pratica per evitare errori costosi e prendere decisioni più consapevoli.
               </p>
@@ -8618,9 +8715,6 @@ const [authReady, setAuthReady] = useState(false);
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Il risultato non serve a trovare il modello perfetto, ma a orientarti verso un metodo coerente con il tuo comportamento reale.
               </p>
-              <p className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-500">
-                {LEGAL_DISCLAIMER}
-              </p>
               <p className="mt-4 text-sm font-semibold text-slate-900">Domanda {currentQuestion + 1} di {questions.length}</p>
             </div>
 
@@ -8720,10 +8814,6 @@ const [authReady, setAuthReady] = useState(false);
                 <MetricCard label="Crescita" value={scoreResult.totals.crescita.toString()} />
               </div>
 
-              <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Nota importante</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{LEGAL_DISCLAIMER}</p>
-              </div>
 
               <div className="mt-8 flex justify-end">
                 <button
@@ -9547,7 +9637,7 @@ const [authReady, setAuthReady] = useState(false);
 
         {step === "awareness" && (
           <section className="space-y-6">
-            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-sm">
+            <div className={`${mobileAwarenessMode === "shopping" ? "hidden lg:block" : ""} rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-sm`}>
               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-700">Pacchetto Core</p>
               <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
@@ -11222,9 +11312,6 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             )}
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm leading-6 text-slate-600 shadow-sm">
-              <strong>Nota educativa:</strong> le stime sono semplificate e servono per capire ordini di grandezza, rischi e alternative. Non sono preventivi, consulenza finanziaria, consulenza creditizia o valutazioni legali.
-            </div>
           </section>
         )}
 
@@ -11532,12 +11619,6 @@ const [authReady, setAuthReady] = useState(false);
             </div>
             )}
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Nota educativa</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                La dashboard serve a monitorare abitudini, PAC e consapevolezza nel tempo. Non fornisce raccomandazioni personalizzate ne indicazioni di acquisto o vendita.
-              </p>
-            </div>
 
             <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
               <div className={`rounded-3xl border p-6 shadow-sm ${
@@ -13498,7 +13579,7 @@ const [authReady, setAuthReady] = useState(false);
                     {[
                       { key: "spesa", label: "Spesa precisa / casa / progetto", hint: "Conta arrivare a una cifra concreta." },
                       { key: "pensione", label: "Pensione o rendita", hint: "Conta trasformare capitale in entrate stabili." },
-                      { key: "protezione", label: "Proteggere capitale", hint: "Conta ridurre volatilita e stress." },
+                      { key: "protezione", label: "Proteggere capitale", hint: "Conta ridurre volatilità e stress." },
                       { key: "rendimento", label: "Massimizzare rendimento", hint: "Conta lasciare spazio alla crescita." },
                     ].map((item) => (
                       <button key={item.key} type="button" onClick={() => { setExitLifeGoal(item.key as "spesa" | "pensione" | "protezione" | "rendimento"); setExitQuestionnaireStep(3); }} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-slate-300 hover:bg-white">
@@ -13517,7 +13598,7 @@ const [authReady, setAuthReady] = useState(false);
                   <div className="mt-5 grid gap-3">
                     {[
                       { key: "sicura", label: "Prelevo dalla parte sicura", hint: "Adatto a chi vuole evitare di vendere azioni in ribasso." },
-                      { key: "graduale", label: "Continuo con vendite graduali", hint: "Adatto a chi vuole semplicita e disciplina." },
+                      { key: "graduale", label: "Continuo con vendite graduali", hint: "Adatto a chi vuole semplicità e disciplina." },
                       { key: "aspettare", label: "Aspetto senza vendere", hint: "Adatto a chi accetta oscillazioni." },
                       { key: "regole", label: "Seguo regole già decise", hint: "Adatto a chi vuole automatizzare le decisioni." },
                     ].map((item) => (
