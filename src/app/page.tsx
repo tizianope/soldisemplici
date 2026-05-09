@@ -18,7 +18,102 @@ type TrackingEventName =
   | "upgrade_pro"
   | "open_rebalance"
   | "open_rebalance_from_guide"
-  | "open_exit_strategy";
+  | "open_exit_strategy"
+  | "open_admin_dashboard"
+  | "admin_reset_test_data"
+  | "referral_visit"
+  | "discount_code_seen";
+
+
+type MarketingAttribution = {
+  referralCode?: string;
+  partnerCode?: string;
+  discountCode?: string;
+  utmSource?: string;
+  utmCampaign?: string;
+  capturedAt?: string;
+};
+
+const MARKETING_ATTRIBUTION_KEY = "soldi_semplici_marketing_attribution";
+
+function normalizeMarketingCode(value: string | null) {
+  return (value || "").trim().replace(/\s+/g, "-").slice(0, 80);
+}
+
+function firstUrlParam(params: URLSearchParams, names: string[]) {
+  for (const name of names) {
+    const value = normalizeMarketingCode(params.get(name));
+    if (value) return value;
+  }
+  return "";
+}
+
+function getStoredMarketingAttribution(): MarketingAttribution | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(MARKETING_ATTRIBUTION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as MarketingAttribution;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (error) {
+    console.warn("Attribuzione marketing locale non leggibile", error);
+    return null;
+  }
+}
+
+function saveMarketingAttribution(attribution: MarketingAttribution) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(MARKETING_ATTRIBUTION_KEY, JSON.stringify(attribution));
+  } catch (error) {
+    console.warn("Attribuzione marketing locale non salvata", error);
+  }
+}
+
+function captureMarketingAttributionFromUrl() {
+  if (typeof window === "undefined") return null;
+
+  const params = new URLSearchParams(window.location.search);
+  const referralCode = firstUrlParam(params, ["ref", "referral", "partner", "affiliate"]);
+  const partnerCode = firstUrlParam(params, ["partner"]);
+  const discountCode = firstUrlParam(params, ["promo", "coupon", "codice", "sconto", "discount"]);
+  const utmSource = firstUrlParam(params, ["utm_source"]);
+  const utmCampaign = firstUrlParam(params, ["utm_campaign"]);
+
+  if (!referralCode && !partnerCode && !discountCode && !utmSource && !utmCampaign) {
+    return getStoredMarketingAttribution();
+  }
+
+  const previous = getStoredMarketingAttribution() || {};
+  const attribution: MarketingAttribution = {
+    ...previous,
+    referralCode: referralCode || previous.referralCode,
+    partnerCode: partnerCode || previous.partnerCode,
+    discountCode: discountCode || previous.discountCode,
+    utmSource: utmSource || previous.utmSource,
+    utmCampaign: utmCampaign || previous.utmCampaign,
+    capturedAt: new Date().toISOString(),
+  };
+
+  saveMarketingAttribution(attribution);
+  return attribution;
+}
+
+function getMarketingAttributionPayload() {
+  const attribution = getStoredMarketingAttribution();
+  if (!attribution) return {};
+
+  return {
+    referral_code: attribution.referralCode || null,
+    partner_code: attribution.partnerCode || null,
+    discount_code: attribution.discountCode || null,
+    utm_source: attribution.utmSource || null,
+    utm_campaign: attribution.utmCampaign || null,
+    attribution_captured_at: attribution.capturedAt || null,
+  };
+}
 
 function getTrackingSessionId() {
   if (typeof window === "undefined") return null;
@@ -46,6 +141,7 @@ async function trackEvent(eventName: TrackingEventName, payload: Record<string, 
   window.localStorage.setItem("soldi_semplici_event_order", String(eventOrder));
 
   const enrichedPayload = {
+    ...getMarketingAttributionPayload(),
     ...payload,
     event_order: eventOrder,
   };
@@ -112,6 +208,71 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+
+
+async function recordMarketingVisit(attribution: MarketingAttribution | null) {
+  if (typeof window === "undefined" || !attribution) return;
+  if (!attribution.referralCode && !attribution.partnerCode && !attribution.discountCode) return;
+
+  try {
+    let userId: string | null = null;
+    try {
+      const { data } = await supabase.auth.getSession();
+      userId = data.session?.user?.id ?? null;
+    } catch {
+      userId = null;
+    }
+
+    const { error } = await supabase.rpc("track_marketing_attribution", {
+      p_user_id: userId,
+      p_session_id: getTrackingSessionId(),
+      p_referral_code: attribution.referralCode || attribution.partnerCode || null,
+      p_partner_code: attribution.partnerCode || null,
+      p_discount_code: attribution.discountCode || null,
+      p_utm_source: attribution.utmSource || null,
+      p_utm_campaign: attribution.utmCampaign || null,
+      p_page_url: window.location.href,
+    });
+
+    if (error) console.warn("Attribuzione marketing non salvata su Supabase", error.message);
+  } catch (error) {
+    console.warn("Attribuzione marketing Supabase non disponibile", error);
+  }
+}
+
+async function recordMarketingConversion(plan: PurchasePlan, amount: number, paymentType: PurchasePaymentType) {
+  if (typeof window === "undefined") return;
+  const attribution = getStoredMarketingAttribution();
+  if (!attribution?.referralCode && !attribution?.partnerCode && !attribution?.discountCode) return;
+
+  try {
+    let userId: string | null = null;
+    try {
+      const { data } = await supabase.auth.getSession();
+      userId = data.session?.user?.id ?? null;
+    } catch {
+      userId = null;
+    }
+
+    const { error } = await supabase.rpc("track_marketing_conversion", {
+      p_user_id: userId,
+      p_session_id: getTrackingSessionId(),
+      p_referral_code: attribution.referralCode || attribution.partnerCode || null,
+      p_partner_code: attribution.partnerCode || null,
+      p_discount_code: attribution.discountCode || null,
+      p_utm_source: attribution.utmSource || null,
+      p_utm_campaign: attribution.utmCampaign || null,
+      p_purchase_plan: plan,
+      p_payment_type: paymentType,
+      p_amount: amount,
+      p_page_url: window.location.href,
+    });
+
+    if (error) console.warn("Conversione marketing non salvata su Supabase", error.message);
+  } catch (error) {
+    console.warn("Conversione marketing Supabase non disponibile", error);
+  }
+}
 
 const SOLDI_SEMPLICI_REPORT_LOGO_SVG = `
 <svg class="report-logo-mark" viewBox="0 0 96 96" role="img" aria-label="Soldi Semplici">
@@ -266,9 +427,30 @@ type AppStep =
   | "strumentis"
   | "dashboard"
   | "rebalance"
-  | "exit";
+  | "exit"
+  | "admin";
 
 type DashboardTab = "monitor" | "guida" | "portafoglio" | "progressi";
+
+type AdminMetric = {
+  label: string;
+  value: number;
+  note?: string;
+};
+
+type AdminOverview = {
+  generated_at?: string;
+  totals?: Record<string, number>;
+  purchases?: Record<string, number>;
+  usage?: Record<string, number>;
+  mortgage?: Record<string, number>;
+  anomalies?: Array<{ label: string; value: number; severity?: "info" | "warning" | "danger" }>;
+  events?: Array<{ event_name: string; count: number }>;
+  marketing?: Record<string, number>;
+  referrals?: Array<{ code: string; partner_name?: string | null; visits: number; signups: number; purchases: number; core_purchases: number; pro_purchases: number; revenue: number }>;
+  discount_codes?: Array<{ code: string; description?: string | null; discount_type?: string | null; discount_value?: number | null; visits: number; purchases: number; core_purchases: number; pro_purchases: number; revenue: number }>;
+};
+
 
 type ChecklistItem = {
   id: string;
@@ -2289,7 +2471,18 @@ async function safeLocalSignOut() {
 export default function Home() {
   
   useEffect(() => {
+    const attribution = captureMarketingAttributionFromUrl();
+    void recordMarketingVisit(attribution);
     void trackEvent("open_app");
+    if (attribution?.referralCode || attribution?.partnerCode) {
+      void trackEvent("referral_visit", {
+        referral_code: attribution.referralCode || attribution.partnerCode || null,
+        partner_code: attribution.partnerCode || null,
+      });
+    }
+    if (attribution?.discountCode) {
+      void trackEvent("discount_code_seen", { discount_code: attribution.discountCode });
+    }
   }, []);
 const [authReady, setAuthReady] = useState(false);
   const [appBootLoading, setAppBootLoading] = useState(false);
@@ -2303,6 +2496,12 @@ const [authReady, setAuthReady] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [profileResetLoading, setProfileResetLoading] = useState(false);
   const [profileResetMessage, setProfileResetMessage] = useState("");
+  const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminMessage, setAdminMessage] = useState("");
+  const [adminResetLoading, setAdminResetLoading] = useState(false);
+  const [adminResetConfirm, setAdminResetConfirm] = useState("");
+
 
   const [goalTitle, setGoalTitle] = useState("Libertà finanziaria");
   const [goalTarget, setGoalTarget] = useState("100000");
@@ -2495,6 +2694,8 @@ const [authReady, setAuthReady] = useState(false);
   const isPurchaseUnlocked = !!purchase.unlocked;
   const isProPlan = isPurchaseUnlocked && purchase.plan === "pro";
   const isCorePlan = isPurchaseUnlocked && purchase.plan === "core";
+  const isAdminAccount = (user?.email || "").toLowerCase() === "tiziano.pesce50@gmail.com";
+
   const paidAmount = purchase.paidAmount ?? (purchase.plan === "core" ? 29 : purchase.plan === "pro" ? 59 : 0);
   const purchaseStatus = getPurchaseStatusCopy(purchase);
   const proPriceToPay = isCorePlan ? 30 : Math.max(59 - paidAmount, 0);
@@ -7849,12 +8050,14 @@ const [authReady, setAuthReady] = useState(false);
       quiz_answers: answers,
     });
 
+    const marketingAmount = plan === "core" ? 29 : isActiveCoreUpgrade ? 30 : 59;
     if (plan === "core") {
-      await trackEvent("buy_core", { amount: 29, validity_days: PLAN_VALIDITY_DAYS, portfolio: portfolioMap[finalPortfolio].title });
+      await trackEvent("buy_core", { amount: marketingAmount, validity_days: PLAN_VALIDITY_DAYS, portfolio: portfolioMap[finalPortfolio].title });
     } else {
       const eventName = isActiveCoreUpgrade ? "upgrade_pro" : "buy_pro";
-      await trackEvent(eventName, { amount: isActiveCoreUpgrade ? 30 : 59, validity_days: PLAN_VALIDITY_DAYS, portfolio: portfolioMap[finalPortfolio].title });
+      await trackEvent(eventName, { amount: marketingAmount, validity_days: PLAN_VALIDITY_DAYS, portfolio: portfolioMap[finalPortfolio].title });
     }
+    await recordMarketingConversion(plan, marketingAmount, paymentType);
 
     setShowProUpgradeModal(false);
     setStep(plan === "core" ? "onboarding" : "dashboard");
@@ -8068,6 +8271,60 @@ const [authReady, setAuthReady] = useState(false);
     setStep("home");
   }
 
+  async function loadAdminOverview() {
+    if (!user || !isAdminAccount) return;
+
+    setAdminLoading(true);
+    setAdminMessage("");
+
+    try {
+      const { data, error } = await supabase.rpc("admin_get_overview");
+      if (error) {
+        setAdminMessage("Impossibile caricare la plancia admin. Controlla di aver eseguito lo script SQL admin su Supabase.");
+        console.warn("Admin overview non disponibile:", error.message);
+        return;
+      }
+
+      setAdminOverview((data || null) as AdminOverview | null);
+    } catch (error) {
+      setAdminMessage("Errore nel caricamento della plancia admin. Riprova o controlla Supabase.");
+      console.warn("Admin overview errore:", error);
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function resetAdminTestData() {
+    if (!user || !isAdminAccount) return;
+
+    if (adminResetConfirm.trim().toUpperCase() !== "AZZERA") {
+      setAdminMessage("Per confermare il reset scrivi AZZERA nel campo di sicurezza.");
+      return;
+    }
+
+    setAdminResetLoading(true);
+    setAdminMessage("");
+
+    try {
+      const { data, error } = await supabase.rpc("admin_reset_test_data");
+      if (error) {
+        setAdminMessage("Reset non eseguito. Controlla policy/funzioni admin su Supabase.");
+        console.warn("Reset admin non riuscito:", error.message);
+        return;
+      }
+
+      setAdminMessage("Dati di test azzerati. Gli account auth non sono stati cancellati.");
+      setAdminResetConfirm("");
+      void trackEvent("admin_reset_test_data", { admin_email: user.email || "", result: data || null });
+      await loadAdminOverview();
+    } catch (error) {
+      setAdminMessage("Errore durante il reset admin. Riprova o controlla Supabase.");
+      console.warn("Reset admin errore:", error);
+    } finally {
+      setAdminResetLoading(false);
+    }
+  }
+
   async function resetAll() {
     if (!user) return;
 
@@ -8123,6 +8380,13 @@ const [authReady, setAuthReady] = useState(false);
 
     setProfileResetMessage("Profilo azzerato. Puoi rifare il test come nuovo utente.");
   }
+
+  useEffect(() => {
+    if (step === "admin" && isAdminAccount) {
+      void trackEvent("open_admin_dashboard", { admin_email: user?.email || "" });
+      void loadAdminOverview();
+    }
+  }, [step, isAdminAccount, user?.id]);
 
   useEffect(() => {
     if (step !== "dashboard") {
@@ -8537,6 +8801,8 @@ const [authReady, setAuthReady] = useState(false);
             void trackEvent("open_exit_strategy");
             setStep("exit");
           }}
+          isAdminAccount={isAdminAccount}
+          onGoAdmin={() => setStep("admin")}
           onLogout={handleLogout}
           onResetProfile={resetAll}
           resetLoading={profileResetLoading}
@@ -9637,7 +9903,7 @@ const [authReady, setAuthReady] = useState(false);
 
         {step === "awareness" && (
           <section className="space-y-6">
-            <div className={`${mobileAwarenessMode === "shopping" ? "hidden lg:block" : ""} rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-sm`}>
+            <div className="hidden rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-sm lg:block">
               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-700">Pacchetto Core</p>
               <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
@@ -13030,6 +13296,20 @@ const [authReady, setAuthReady] = useState(false);
           </div>
         )}
 
+        {step === "admin" && (
+          <AdminDashboard
+            overview={adminOverview}
+            loading={adminLoading}
+            message={adminMessage}
+            resetConfirm={adminResetConfirm}
+            resetLoading={adminResetLoading}
+            onResetConfirmChange={setAdminResetConfirm}
+            onRefresh={loadAdminOverview}
+            onReset={resetAdminTestData}
+            onExitAdmin={() => setStep("dashboard")}
+          />
+        )}
+
         {step === "rebalance" && (
           <section className="space-y-6">
             {!isProPlan ? (
@@ -13727,6 +14007,313 @@ function CelebrationOverlay({
   );
 }
 
+
+function AdminDashboard({
+  overview,
+  loading,
+  message,
+  resetConfirm,
+  resetLoading,
+  onResetConfirmChange,
+  onRefresh,
+  onReset,
+  onExitAdmin,
+}: {
+  overview: AdminOverview | null;
+  loading: boolean;
+  message: string;
+  resetConfirm: string;
+  resetLoading: boolean;
+  onResetConfirmChange: (value: string) => void;
+  onRefresh: () => void;
+  onReset: () => void;
+  onExitAdmin: () => void;
+}) {
+  const totals = overview?.totals || {};
+  const purchases = overview?.purchases || {};
+  const usage = overview?.usage || {};
+  const mortgage = overview?.mortgage || {};
+  const anomalies = overview?.anomalies || [];
+  const events = overview?.events || [];
+  const marketing = overview?.marketing || {};
+  const referrals = overview?.referrals || [];
+  const discountCodes = overview?.discount_codes || [];
+
+  const stat = (obj: Record<string, number>, key: string) => Number(obj[key] || 0);
+
+  return (
+    <section className="space-y-6">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="p-6 md:p-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Area riservata</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Plancia admin</h2>
+            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
+              Vista interna per leggere rapidamente dati, utilizzo, piani e anomalie. È protetta lato app e deve essere protetta anche lato Supabase con le funzioni admin dedicate.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={onRefresh}
+                disabled={loading}
+                className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Aggiorno..." : "Aggiorna dati"}
+              </button>
+              <button
+                type="button"
+                onClick={onExitAdmin}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                Usa app come utente
+              </button>
+            </div>
+          </div>
+          <div className="border-t border-slate-200 bg-slate-50 p-6 md:p-8 lg:border-l lg:border-t-0">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Ultimo aggiornamento</p>
+            <p className="mt-3 text-2xl font-black text-slate-950">
+              {overview?.generated_at ? new Date(overview.generated_at).toLocaleString("it-IT") : "Da caricare"}
+            </p>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Se vedi pochi dati o zeri inattesi, controlla che lo script SQL admin sia stato eseguito su Supabase.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {message && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
+          {message}
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <AdminStatCard icon="👥" title="Utenti registrati" value={stat(totals, "registered_users")} note={`${stat(totals, "confirmed_users")} email confermate`} />
+        <AdminStatCard icon="✅" title="Onboarding completati" value={stat(totals, "profiles_completed")} note="Profili con modello salvato" />
+        <AdminStatCard icon="💳" title="Piani attivi" value={stat(purchases, "active_total")} note={`${stat(purchases, "core_active")} Core · ${stat(purchases, "pro_active")} Pro`} />
+        <AdminStatCard icon="🏠" title="Verifiche mutuo" value={stat(mortgage, "saved_checks")} note={`${stat(mortgage, "pies_reports")} report/email tracciati`} />
+        <AdminStatCard icon="🔗" title="Referral / promo" value={stat(marketing, "referral_visits") + stat(marketing, "discount_code_views")} note={`${stat(marketing, "marketing_purchases")} acquisti attribuiti`} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Piani e acquisti</p>
+              <h3 className="mt-2 text-2xl font-black text-slate-950">Stato commerciale</h3>
+            </div>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">Supabase</span>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <AdminMiniRow label="Core attivi" value={stat(purchases, "core_active")} />
+            <AdminMiniRow label="Pro attivi" value={stat(purchases, "pro_active")} />
+            <AdminMiniRow label="Upgrade Core → Pro" value={stat(purchases, "upgrades")} />
+            <AdminMiniRow label="Piani scaduti" value={stat(purchases, "expired")} />
+            <AdminMiniRow label="Scadenza mancante" value={stat(purchases, "missing_expiry")} />
+            <AdminMiniRow label="Sbloccati senza piano" value={stat(purchases, "unlocked_without_plan")} />
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Utilizzo funzioni</p>
+          <h3 className="mt-2 text-2xl font-black text-slate-950">Segnali rapidi</h3>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <AdminMiniRow label="Investimenti registrati" value={stat(usage, "holdings")} />
+            <AdminMiniRow label="PAC segnati" value={stat(usage, "pac_completed")} />
+            <AdminMiniRow label="Azioni risparmio" value={stat(usage, "awareness_completed")} />
+            <AdminMiniRow label="Voci lista spesa" value={stat(usage, "shopping_items")} />
+            <AdminMiniRow label="Strumenti personalizzati" value={stat(usage, "custom_instruments")} />
+            <AdminMiniRow label="Eventi tracciati" value={stat(usage, "events")} />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Referral e codici sconto</p>
+            <h3 className="mt-2 text-2xl font-black text-slate-950">Lettura marketing privata</h3>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+              Qui vedrai quanto vengono usati i link partner e i codici promo: visite, registrazioni, acquisti Core/Pro e valore attribuito. I dati iniziano a popolarsi quando un link contiene parametri come <span className="font-bold text-slate-800">?ref=partner</span> o <span className="font-bold text-slate-800">?promo=LANCIO20</span>.
+            </p>
+          </div>
+          <div className="grid w-full gap-3 sm:grid-cols-3 lg:max-w-xl">
+            <AdminMiniRow label="Visite referral" value={stat(marketing, "referral_visits")} />
+            <AdminMiniRow label="Codici visti" value={stat(marketing, "discount_code_views")} />
+            <AdminMiniRow label="Acquisti attribuiti" value={stat(marketing, "marketing_purchases")} />
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Referral / partner</p>
+            <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200">
+              {referrals.length ? referrals.slice(0, 8).map((row) => (
+                <AdminMarketingRow
+                  key={row.code}
+                  title={row.partner_name || row.code}
+                  subtitle={row.partner_name ? row.code : "Link referral"}
+                  visits={row.visits}
+                  purchases={row.purchases}
+                  core={row.core_purchases}
+                  pro={row.pro_purchases}
+                  revenue={row.revenue}
+                  extra={`${row.signups} registrazioni`}
+                />
+              )) : (
+                <p className="bg-slate-50 p-4 text-sm leading-6 text-slate-600">Nessun referral tracciato. Esempio link futuro: <span className="font-bold text-slate-800">?ref=studio-rossi</span>.</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Codici sconto / promo</p>
+            <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200">
+              {discountCodes.length ? discountCodes.slice(0, 8).map((row) => (
+                <AdminMarketingRow
+                  key={row.code}
+                  title={row.code}
+                  subtitle={row.description || "Codice promo"}
+                  visits={row.visits}
+                  purchases={row.purchases}
+                  core={row.core_purchases}
+                  pro={row.pro_purchases}
+                  revenue={row.revenue}
+                  extra={row.discount_type ? `${row.discount_type}${row.discount_value ? ` · ${row.discount_value}` : ""}` : ""}
+                />
+              )) : (
+                <p className="bg-slate-50 p-4 text-sm leading-6 text-slate-600">Nessun codice promo tracciato. Esempio link futuro: <span className="font-bold text-slate-800">?promo=LANCIO20</span>.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Anomalie</p>
+          <h3 className="mt-2 text-2xl font-black text-slate-950">Controlli da guardare</h3>
+          <div className="mt-5 space-y-3">
+            {anomalies.length ? anomalies.map((row, index) => (
+              <div key={`${row.label}-${index}`} className={`rounded-2xl border p-4 ${row.severity === "danger" ? "border-red-200 bg-red-50 text-red-900" : row.severity === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-black">{row.label}</p>
+                  <p className="text-xl font-black">{row.value}</p>
+                </div>
+              </div>
+            )) : (
+              <p className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Nessuna anomalia rilevata o funzione admin non ancora configurata.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Eventi principali</p>
+          <h3 className="mt-2 text-2xl font-black text-slate-950">Ultimi dati tracking</h3>
+          <div className="mt-5 space-y-3">
+            {events.length ? events.slice(0, 10).map((event) => (
+              <div key={event.event_name} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-bold text-slate-700">{event.event_name}</p>
+                <p className="text-lg font-black text-slate-950">{event.count}</p>
+              </div>
+            )) : (
+              <p className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Nessun evento disponibile. Il tracking parte quando gli utenti usano l'app.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-red-200 bg-red-50 p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-700">Reset dati test</p>
+            <h3 className="mt-2 text-2xl font-black text-red-950">Azzera i dati applicativi</h3>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-red-900">
+              Usa questo comando solo durante i test. Cancella dati applicativi, acquisti, eventi, obiettivi, mutui, lista spesa, strumenti e checklist. Non cancella gli account Auth e non rimuove l'utente admin.
+            </p>
+          </div>
+          <div className="w-full max-w-sm shrink-0 space-y-3">
+            <input
+              value={resetConfirm}
+              onChange={(e) => onResetConfirmChange(e.target.value)}
+              placeholder="Scrivi AZZERA per confermare"
+              className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-950 outline-none focus:border-red-400"
+            />
+            <button
+              type="button"
+              onClick={onReset}
+              disabled={resetLoading || resetConfirm.trim().toUpperCase() !== "AZZERA"}
+              className="w-full rounded-xl bg-red-600 px-5 py-3 text-sm font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {resetLoading ? "Reset in corso..." : "Azzera dati di test"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+function AdminMarketingRow({
+  title,
+  subtitle,
+  visits,
+  purchases,
+  core,
+  pro,
+  revenue,
+  extra,
+}: {
+  title: string;
+  subtitle: string;
+  visits: number;
+  purchases: number;
+  core: number;
+  pro: number;
+  revenue: number;
+  extra?: string;
+}) {
+  return (
+    <div className="border-b border-slate-200 bg-white p-4 last:border-b-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black text-slate-950">{title}</p>
+          <p className="mt-1 truncate text-xs font-semibold text-slate-500">{subtitle}</p>
+          {extra && <p className="mt-1 text-xs text-slate-400">{extra}</p>}
+        </div>
+        <p className="text-sm font-black text-emerald-700">{revenue.toLocaleString("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })}</p>
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+        <div className="rounded-xl bg-slate-50 p-2"><p className="text-xs text-slate-500">Visite</p><p className="font-black text-slate-900">{visits}</p></div>
+        <div className="rounded-xl bg-slate-50 p-2"><p className="text-xs text-slate-500">Acquisti</p><p className="font-black text-slate-900">{purchases}</p></div>
+        <div className="rounded-xl bg-slate-50 p-2"><p className="text-xs text-slate-500">Core</p><p className="font-black text-slate-900">{core}</p></div>
+        <div className="rounded-xl bg-slate-50 p-2"><p className="text-xs text-slate-500">Pro</p><p className="font-black text-slate-900">{pro}</p></div>
+      </div>
+    </div>
+  );
+}
+
+function AdminStatCard({ icon, title, value, note }: { icon: string; title: string; value: number; note: string }) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-2xl ring-1 ring-emerald-100">{icon}</div>
+      <p className="mt-4 text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">{title}</p>
+      <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
+      <p className="mt-1 text-sm leading-6 text-slate-500">{note}</p>
+    </div>
+  );
+}
+
+function AdminMiniRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-sm font-semibold text-slate-600">{label}</p>
+      <p className="text-xl font-black text-slate-950">{value}</p>
+    </div>
+  );
+}
+
 function TopBar({
   step,
   unlocked,
@@ -13743,6 +14330,8 @@ function TopBar({
   onGoShoppingList,
   onGoRebalance,
   onGoExit,
+  isAdminAccount,
+  onGoAdmin,
   onLogout,
   onResetProfile,
   resetLoading,
@@ -13762,6 +14351,8 @@ function TopBar({
   onGoShoppingList: () => void;
   onGoRebalance: () => void;
   onGoExit: () => void;
+  isAdminAccount: boolean;
+  onGoAdmin: () => void;
   onLogout: () => void;
   onResetProfile: () => void;
   resetLoading: boolean;
@@ -13807,6 +14398,7 @@ function TopBar({
               <NavButton active={step === "awareness"} onClick={onGoAwareness}>Consapevolezza</NavButton>
               <NavButton active={step === "rebalance"} onClick={onGoRebalance}>Ribilanciamento</NavButton>
               <NavButton active={step === "exit"} onClick={onGoExit}>Strategia uscita</NavButton>
+              {isAdminAccount && <NavButton active={step === "admin"} onClick={onGoAdmin}>Admin</NavButton>}
             </>
           )}
           <button
@@ -13962,6 +14554,16 @@ function TopBar({
                     description="Gestisci le decisioni nei momenti delicati."
                     onClick={() => runMobileAction(onGoExit)}
                   />
+
+                  {isAdminAccount && (
+                    <MobileDrawerItem
+                      active={step === "admin"}
+                      icon="🛠️"
+                      label="Admin"
+                      description="Plancia interna riservata a Tiziano."
+                      onClick={() => runMobileAction(onGoAdmin)}
+                    />
+                  )}
                 </>
               )}
             </div>
