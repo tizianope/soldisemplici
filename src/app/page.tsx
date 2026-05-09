@@ -287,7 +287,7 @@ type Badge = {
   title: string;
   description: string;
   unlocked: boolean;
-  tier: "inizio" | "consapevolezza" | "costanza" | "capitale" | "identita";
+  tier: "inizio" | "consapevolezza" | "costanza" | "capitale" | "identità";
   icon: string;
   progress: number;
   target: number;
@@ -319,7 +319,7 @@ type CelebrationEvent = {
 type GoalChangeReason = "investimento" | "prelievo" | "mercato" | "stabile";
 
 const LEGAL_DISCLAIMER =
-  "Questa applicazione ha finalità esclusivamente educative e informative. Le informazioni fornite non costituiscono consulenza finanziaria personalizzata ne raccomandazioni di investimento. Qualsiasi decisione di investimento resta sotto la piena responsabilita dell'utente.";
+  "Questa applicazione ha finalità esclusivamente educative e informative. Le informazioni fornite non costituiscono consulenza finanziaria personalizzata né raccomandazioni di investimento. Qualsiasi decisione di investimento resta sotto la piena responsabilità dell'utente.";
 
 const questions: Question[] = [
   {
@@ -328,7 +328,7 @@ const questions: Question[] = [
     helper: "Non cercare la risposta perfetta. Scegli quella più vicina al tuo istinto.",
     options: [
       { label: "Venderei tutto", scores: { stabilita: 2, equilibrio: 0, crescita: 0 } },
-      { label: "Aspetterei con difficolta", scores: { stabilita: 1, equilibrio: 1, crescita: 0 } },
+      { label: "Aspetterei con difficoltà", scores: { stabilita: 1, equilibrio: 1, crescita: 0 } },
       { label: "Non farei nulla", scores: { stabilita: 0, equilibrio: 2, crescita: 1 } },
       { label: "Investirei di più", scores: { stabilita: 0, equilibrio: 0, crescita: 2 } },
     ],
@@ -390,7 +390,7 @@ const questions: Question[] = [
       { label: "Poco o niente", scores: { stabilita: 2, equilibrio: 0, crescita: 0 } },
       { label: "Una cifra piccola ma costante", scores: { stabilita: 1, equilibrio: 1, crescita: 0 } },
       { label: "Una cifra media costante", scores: { stabilita: 0, equilibrio: 2, crescita: 1 } },
-      { label: "Posso investire con regolarita senza problemi", scores: { stabilita: 0, equilibrio: 0, crescita: 2 } },
+      { label: "Posso investire con regolarità senza problemi", scores: { stabilita: 0, equilibrio: 0, crescita: 2 } },
     ],
   },
   {
@@ -472,7 +472,7 @@ function getStrumentiNameFromHolding(category: StrumentiCategory, isin: string) 
 const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
   stabilita_assoluta: {
     key: "stabilita_assoluta",
-    title: "Stabilita Assoluta",
+    title: "Stabilità Assoluta",
     shortTitle: "Permanent Portfolio",
     profileFamily: "stabilita",
     badge: "Prudenza massima",
@@ -520,7 +520,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
   },
   stabilita_dinamica: {
     key: "stabilita_dinamica",
-    title: "Stabilita Dinamica",
+    title: "Stabilità Dinamica",
     shortTitle: "Prudenza evoluta",
     profileFamily: "stabilita",
     badge: "Prudenza con primo passo verso la crescita",
@@ -676,7 +676,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
       { label: "Obbligazioni", percentage: 40, category: "Obbligazioni" },
       { label: "Oro", percentage: 20, category: "Oro" },
     ],
-    structureSummary: ["Buon compromesso tra crescita e stabilita", "Molto adatto a chi vuole salire di livello", "Facile da spiegare e mantenere"],
+    structureSummary: ["Buon compromesso tra crescita e stabilità", "Molto adatto a chi vuole salire di livello", "Facile da spiegare e mantenere"],
     historical: {
       average: "7% - 8%",
       bestYear: "+25%",
@@ -714,7 +714,7 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
     profileFamily: "crescita",
     badge: "Alto potenziale, alta volatilita",
     intro:
-      "Questo modello e pensato per chi vuole massimizzare la crescita nel lungo periodo e riesce a sopportare oscillazioni importanti.",
+      "Questo modello è pensato per chi vuole massimizzare la crescita nel lungo periodo e riesce a sopportare oscillazioni importanti.",
     whyItFits:
       "È adatto a chi ha orizzonte lungo, alta tolleranza emotiva e una forte disciplina nel mantenere la strategia.",
     composition: [
@@ -789,7 +789,7 @@ const checklistItems: ChecklistItem[] = [
     group: "inizio",
     title: "Attiva l'investimento automatico",
     description:
-      "Configura un piano di accumulo automatico sulla tua piattaforma. Imposta prima il bonifico automatico e poi il PAC, così riduci il rischio di saldo insufficiente. Su Trade Republic: vai in Piani di accumulo, scegli gli strumenti e attiva il PAC. Nota: Trade Republic consente l'acquisto automatico a inizio mese o a meta mese; il giorno effettivo può variare se ci sono festivita o la borsa e chiusa.",
+      "Configura un piano di accumulo automatico sulla tua piattaforma. Imposta prima il bonifico automatico e poi il PAC, così riduci il rischio di saldo insufficiente. Su Trade Republic: vai in Piani di accumulo, scegli gli strumenti e attiva il PAC. Nota: Trade Republic consente l'acquisto automatico a inizio mese o a metà mese; il giorno effettivo può variare se ci sono festività o la borsa è chiusa.",
   },
   {
     id: "pac_start",
@@ -938,7 +938,7 @@ const mortgagePiesSections: MortgagePiesSection[] = [
     where: "Cerca la sezione 'Obblighi supplementari' e gli allegati assicurativi o commerciali.",
     explanation: "Questa è una delle aree più delicate: bisogna distinguere obbligo reale, proposta commerciale e sconto condizionato.",
     fields: [
-      { id: "policiesObligation", label: "Polizze obbligatorie o facoltative", placeholder: "Seleziona la situazione indicata", penalty: 15, area: "polizze", issue: "Obbligatorietà delle polizze non chiara", why: "Una polizza collegata può incidere sul costo o sulle condizioni del tasso.", question: "Le polizze indicate sono obbligatorie o facoltative? Se non le sottoscrivo, il tasso o le condizioni cambiano?", selectOptions: ["Nessuna polizza indicata", "Solo polizze obbligatorie", "Solo polizze facoltative", "Polizze sia obbligatorie sia facoltative", "Polizze presenti ma obbligatorieta non chiara", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "policiesObligation", label: "Polizze obbligatorie o facoltative", placeholder: "Seleziona la situazione indicata", penalty: 15, area: "polizze", issue: "Obbligatorietà delle polizze non chiara", why: "Una polizza collegata può incidere sul costo o sulle condizioni del tasso.", question: "Le polizze indicate sono obbligatorie o facoltative? Se non le sottoscrivo, il tasso o le condizioni cambiano?", selectOptions: ["Nessuna polizza indicata", "Solo polizze obbligatorie", "Solo polizze facoltative", "Polizze sia obbligatorie sia facoltative", "Polizze presenti ma obbligatorietà non chiara", "Non trovato nel PIES", "Non chiaro"] },
       { id: "policyChoiceFreedom", label: "Libertà di scelta della polizza", placeholder: "Seleziona se puoi scegliere una compagnia esterna", penalty: 8, area: "polizze", issue: "Libertà di scelta della polizza non chiara", why: "Se la polizza è vincolata alla banca può incidere su costo e flessibilità. Se invece puoi sceglierla liberamente, il rischio documentale è più basso.", question: "Potete confermarmi se posso sottoscrivere la polizza anche presso una compagnia esterna senza modifiche al tasso o alle condizioni economiche?", selectOptions: ["Sì, scegliibile anche presso compagnia esterna", "No, proposta o vincolata dalla banca", "Non ci sono polizze", "Non indicato nel PIES", "Non chiaro"] },
       { id: "policyCost", label: "Costo polizze e inclusione nel TAEG", placeholder: "Seleziona come viene indicato il costo", penalty: 10, area: "polizze", issue: "Costo polizze o inclusione nel TAEG non chiari", why: "Il costo può essere rilevante, soprattutto se finanziato o collegato allo sconto. Se la polizza è obbligatoria ma scegliibile liberamente, il costo non indicato è soprattutto un dato da stimare per confrontare l'offerta, non per forza una criticità grave.", question: "Qual è il costo di ciascuna polizza? Il costo è incluso nel TAEG? Il premio viene finanziato?", selectOptions: ["Costo indicato e incluso nel TAEG", "Costo indicato, premio finanziato e incluso nel TAEG", "Costo indicato, premio finanziato ma inclusione nel TAEG non chiara", "Costo indicato ma non incluso nel TAEG", "Costo indicato ma inclusione nel TAEG non chiara", "Costo non indicato", "Non ci sono polizze", "Non trovato nel PIES", "Non chiaro"] },
       { id: "policyCostAmount", label: "Importo polizze (€)", placeholder: "Es. 6900", penalty: 6, area: "polizze", issue: "Importo delle polizze non indicato", why: "Se una polizza ha un costo rilevante, l'importo serve per capire quanto pesa sul costo complessivo e per confrontare offerte diverse.", question: "Potete indicarmi l'importo di ciascuna polizza, se il premio viene pagato subito o finanziato e se è incluso nel TAEG?" },
@@ -1020,21 +1020,21 @@ const scamScenarioPool: ScamScenario[] = [
   { id: "relative_calls_from_known_number", category: "Familiari", situation: "Tuo figlio ti chiama dal suo numero abituale e ti chiede di anticipare una spesa, spiegandoti con calma il motivo.", isRisky: false, redFlags: ["Numero conosciuto", "Tempo per verificare"], explanation: "Non è automaticamente rischioso, ma i pagamenti vanno sempre verificati, soprattutto se insoliti.", safeAction: "Richiama il numero conosciuto e controlla il beneficiario prima di pagare." },
   { id: "door_utility_contract", category: "Di persona", situation: "Un venditore porta a porta dice che devi firmare subito un nuovo contratto luce per evitare una penale.", isRisky: true, redFlags: ["Pressione", "Firma immediata", "Minaccia penale"], explanation: "Le vendite aggressive usano urgenza e paura. Un contratto serio può essere letto con calma.", safeAction: "Non firmare sul momento. Chiedi documenti e confronta l'offerta da casa." },
   { id: "fake_technician_home", category: "Di persona", situation: "Una persona si presenta come tecnico del gas senza appuntamento e chiede di entrare in casa per un controllo urgente.", isRisky: true, redFlags: ["Accesso a casa", "Nessun appuntamento", "Urgenza"], explanation: "I falsi tecnici possono puntare a furti, firme o dati personali. L'urgenza non verificata è un segnale forte.", safeAction: "Non far entrare. Chiama l'azienda dal numero ufficiale." },
-  { id: "planned_technician", category: "Di persona", situation: "Hai fissato tu un appuntamento con il tecnico, arriva nell'orario previsto e mostra tesserino e riferimento pratica.", isRisky: false, redFlags: ["Appuntamento atteso", "Identificazione"], explanation: "Un appuntamento atteso è verificabile e meno rischioso. Si può comunque controllare l'identita.", safeAction: "Verifica tesserino e, se hai dubbi, chiama l'azienda." },
+  { id: "planned_technician", category: "Di persona", situation: "Hai fissato tu un appuntamento con il tecnico, arriva nell'orario previsto e mostra tesserino e riferimento pratica.", isRisky: false, redFlags: ["Appuntamento atteso", "Identificazione"], explanation: "Un appuntamento atteso è verificabile e meno rischioso. Si può comunque controllare l'identità.", safeAction: "Verifica tesserino e, se hai dubbi, chiama l'azienda." },
   { id: "charity_no_docs", category: "Di persona", situation: "Fuori dal supermercato una persona chiede donazioni in contanti per una causa urgente ma non mostra documenti chiari.", isRisky: true, redFlags: ["Contanti", "Nessuna documentazione", "Pressione emotiva"], explanation: "La beneficenza vera e trasparente deve permetterti di verificare ente, finalità e ricevute.", safeAction: "Dona solo tramite canali ufficiali dell'ente." },
   { id: "charity_official_stand", category: "Di persona", situation: "Un'associazione riconosciuta ha uno stand ufficiale, materiale informativo e ti permette di donare dal sito ufficiale.", isRisky: false, redFlags: ["Verificabile", "Canale ufficiale"], explanation: "La presenza di informazioni verificabili e la possibilità di donare tramite canale ufficiale sono segnali positivi.", safeAction: "Controlla il sito dell'associazione e dona solo da li." },
-  { id: "rental_deposit_before_visit", category: "Affitti e casa", situation: "Un annuncio di affitto molto conveniente chiede caparra prima di vedere casa per 'bloccare l'occasione'.", isRisky: true, redFlags: ["Prezzo troppo basso", "Caparra anticipata", "Nessuna visita"], explanation: "Le truffe sugli affitti puntano su prezzo attraente e fretta. Pagare prima di vedere e verificare e pericoloso.", safeAction: "Visita l'immobile, verifica identità e contratto prima di pagare." },
+  { id: "rental_deposit_before_visit", category: "Affitti e casa", situation: "Un annuncio di affitto molto conveniente chiede caparra prima di vedere casa per 'bloccare l'occasione'.", isRisky: true, redFlags: ["Prezzo troppo basso", "Caparra anticipata", "Nessuna visita"], explanation: "Le truffe sugli affitti puntano su prezzo attraente e fretta. Pagare prima di vedere e verificare è pericoloso.", safeAction: "Visita l'immobile, verifica identità e contratto prima di pagare." },
   { id: "rental_agency_visit_contract", category: "Affitti e casa", situation: "Visiti la casa con agenzia, ricevi contratto e dati verificabili prima di versare importi.", isRisky: false, redFlags: ["Visita", "Contratto", "Tracciabilità"], explanation: "La tracciabilità riduce il rischio. Controlla comunque intestatari e condizioni.", safeAction: "Paga solo con metodi tracciabili dopo aver letto il contratto." },
   { id: "job_pay_for_training", category: "Lavoro", situation: "Un annuncio di lavoro ti chiede 180 euro per iniziare un corso obbligatorio prima dell'assunzione.", isRisky: true, redFlags: ["Pagamento anticipato", "Promessa lavoro", "Pressione"], explanation: "Molte truffe lavorative chiedono soldi prima di offrire un lavoro reale.", safeAction: "Verifica azienda, contratto e condizioni. Non pagare per essere assunto." },
-  { id: "job_normal_selection", category: "Lavoro", situation: "Un'azienda ti invita a colloquio, ti manda una email da dominio aziendale e non chiede soldi o documenti sensibili prima della selezione.", isRisky: false, redFlags: ["Nessun pagamento", "Dominio verificabile"], explanation: "Il processo e più normale. Resta prudente con dati personali e contratti.", safeAction: "Verifica sito aziendale e posizione, poi procedi." },
+  { id: "job_normal_selection", category: "Lavoro", situation: "Un'azienda ti invita a colloquio, ti manda una email da dominio aziendale e non chiede soldi o documenti sensibili prima della selezione.", isRisky: false, redFlags: ["Nessun pagamento", "Dominio verificabile"], explanation: "Il processo è più normale. Resta prudente con dati personali e contratti.", safeAction: "Verifica sito aziendale e posizione, poi procedi." },
   { id: "used_car_advance", category: "Auto usata", situation: "Un venditore propone un'auto a prezzo molto basso e chiede anticipo per spedirla, senza farla vedere.", isRisky: true, redFlags: ["Prezzo troppo basso", "Anticipo", "Nessuna visione"], explanation: "Auto inesistenti o non disponibili sono una truffa frequente. L'anticipo serve a farti perdere denaro.", safeAction: "Vedi l'auto, verifica documenti e paga con metodi tracciabili." },
   { id: "used_car_seen_docs", category: "Auto usata", situation: "Vedi l'auto di persona, controlli libretto, proprietàrio e fai una visura prima di pagare.", isRisky: false, redFlags: ["Verifica documenti", "Visione dal vivo"], explanation: "Questo è un comportamento prudente. Non elimina ogni rischio, ma riduce molto le truffe comuni.", safeAction: "Completa il passaggio con documenti e pagamenti tracciabili." },
-  { id: "fake_refund_trading", category: "Investimenti", situation: "Dopo aver perso soldi in trading, qualcuno ti contatta dicendo di poterli recuperare pagando una commissione iniziale.", isRisky: true, redFlags: ["Recupero soldi", "Commissione anticipata", "Vittima già colpita"], explanation: "È una truffa di recupero: colpisce persone già danneggiate promettendo recuperi improbabili.", safeAction: "Non pagare. Rivolgiti a canali legali o autorita competenti." },
-  { id: "invoice_iban_changed", category: "Banca e pagamenti", situation: "Ricevi una email da un fornitore: 'Abbiamo cambiato IBAN, paga la fattura su questo nuovo conto'.", isRisky: true, redFlags: ["Cambio IBAN", "Email", "Pagamento"], explanation: "La frode del cambio IBAN e comune. Una email può essere falsificata o l'account compromesso.", safeAction: "Verifica il cambio IBAN con una telefonata a un numero già conosciuto." },
+  { id: "fake_refund_trading", category: "Investimenti", situation: "Dopo aver perso soldi in trading, qualcuno ti contatta dicendo di poterli recuperare pagando una commissione iniziale.", isRisky: true, redFlags: ["Recupero soldi", "Commissione anticipata", "Vittima già colpita"], explanation: "È una truffa di recupero: colpisce persone già danneggiate promettendo recuperi improbabili.", safeAction: "Non pagare. Rivolgiti a canali legali o autorità competenti." },
+  { id: "invoice_iban_changed", category: "Banca e pagamenti", situation: "Ricevi una email da un fornitore: 'Abbiamo cambiato IBAN, paga la fattura su questo nuovo conto'.", isRisky: true, redFlags: ["Cambio IBAN", "Email", "Pagamento"], explanation: "La frode del cambio IBAN è comune. Una email può essere falsificata o l'account compromesso.", safeAction: "Verifica il cambio IBAN con una telefonata a un numero già conosciuto." },
   { id: "known_supplier_call", category: "Banca e pagamenti", situation: "Un fornitore ti comunica un cambio IBAN durante una chiamata che hai fatto tu al numero ufficiale e ti invia documenti coerenti.", isRisky: false, redFlags: ["Verifica attiva", "Numero ufficiale"], explanation: "La verifica da un canale noto rende la situazione più sicura, anche se va documentata.", safeAction: "Conserva conferma scritta e verifica intestatario del conto." },
   { id: "romance_investment", category: "Relazioni", situation: "Una persona conosciuta online crea confidenza e poi ti propone una piattaforma di investimento 'usata anche da lei'.", isRisky: true, redFlags: ["Fiducia emotiva", "Piattaforma sconosciuta", "Investimento"], explanation: "Le truffe romantiche spesso portano gradualmente a richieste di denaro o investimenti falsi.", safeAction: "Non inviare soldi. Verifica piattaforma e interrompi se aumenta la pressione." },
   { id: "qr_parking", category: "Pagamenti quotidiani", situation: "In un parcheggio trovi un QR code incollato sopra quello ufficiale per pagare la sosta.", isRisky: true, redFlags: ["QR non verificato", "Pagamento", "Possibile sostituzione"], explanation: "QR falsi possono portare a siti clone e rubare dati di pagamento.", safeAction: "Usa l'app ufficiale del parcheggio o il sito indicato sui cartelli ufficiali." },
-  { id: "qr_restaurant_menu", category: "Pagamenti quotidiani", situation: "Al ristorante il QR code è sul menu ufficiale e porta solo alla lista dei piatti, senza chiedere dati o pagamenti.", isRisky: false, redFlags: ["Nessun pagamento", "Contesto coerente"], explanation: "Un QR per consultare un menu e meno rischioso. Il rischio cresce quando chiede dati o pagamenti.", safeAction: "Aprilo con prudenza e non inserire dati se non serve." },
+  { id: "qr_restaurant_menu", category: "Pagamenti quotidiani", situation: "Al ristorante il QR code è sul menu ufficiale e porta solo alla lista dei piatti, senza chiedere dati o pagamenti.", isRisky: false, redFlags: ["Nessun pagamento", "Contesto coerente"], explanation: "Un QR per consultare un menu è meno rischioso. Il rischio cresce quando chiede dati o pagamenti.", safeAction: "Aprilo con prudenza e non inserire dati se non serve." },
   { id: "prize_fee", category: "Premi e concorsi", situation: "Ricevi un messaggio: 'Hai vinto uno smartphone, paga 2 euro di spedizione'.", isRisky: true, redFlags: ["Premio inatteso", "Pagamento piccolo", "Link"], explanation: "I falsi premi usano importi piccoli per rubare dati della carta.", safeAction: "Ignora il link. Verifica eventuali concorsi solo dal sito ufficiale." },
   { id: "official_lottery_ticket", category: "Premi e concorsi", situation: "Hai comprato un biglietto ufficiale e controlli la vincita sul sito ufficiale, senza ricevere link esterni.", isRisky: false, redFlags: ["Canale ufficiale"], explanation: "Il controllo da canale ufficiale è coerente. Non pagare commissioni per ricevere premi non verificati.", safeAction: "Segui solo le istruzioni ufficiali." },
   { id: "insurance_accident_call", category: "Telefonate", situation: "Un presunto avvocato chiama: 'Tuo figlio ha causato un incidente, servono contanti subito per evitar guai'.", isRisky: true, redFlags: ["Emergenza", "Contanti", "Paura"], explanation: "È una truffa che sfrutta panico e autorita falsa. Nessuna procedura seria funziona così.", safeAction: "Chiama direttamente tuo figlio o le forze dell'ordine da numeri ufficiali." },
@@ -1047,11 +1047,11 @@ const scamScenarioPool: ScamScenario[] = [
   { id: "atm_bank_staff_inside", category: "Di persona", situation: "Hai un problema al bancomat e chiedi aiuto allo sportello interno della filiale.", isRisky: false, redFlags: ["Filiale", "Personale verificabile"], explanation: "Chiedere aiuto al personale della filiale e più sicuro. Nessuno deve comunque vedere il PIN.", safeAction: "Non comunicare il PIN e segui procedure ufficiali." },
   { id: "subscription_trial", category: "Abbonamenti", situation: "Un sito offre prova gratuita ma chiede carta e scrive in piccolo che dopo 7 giorni partono 49 euro al mese.", isRisky: true, redFlags: ["Costo nascosto", "Termini piccoli", "Carta"], explanation: "Non sempre è una truffa illegale, ma può diventare una trappola di spesa se le condizioni sono poco chiare.", safeAction: "Leggi rinnovo, disdetta e imposta un promemoria prima di inserire la carta." },
   { id: "normal_subscription_clear", category: "Abbonamenti", situation: "Un servizio mostra chiaramente prezzo, rinnovo, data di addebito e pulsante di cancellazione.", isRisky: false, redFlags: ["Prezzo chiaro", "Disdetta visibile"], explanation: "La trasparenza riduce il rischio. Devi comunque valutare se ti serve davvero.", safeAction: "Salva la data di rinnovo e controlla l'utilizzo." },
-  { id: "loan_upfront_fee", category: "Prestiti", situation: "Una societa online promette prestito immediato ma chiede 250 euro di spese prima di erogarlo.", isRisky: true, redFlags: ["Commissione anticipata", "Prestito facile", "Urgenza"], explanation: "I prestiti con costi anticipati e promesse facili sono spesso rischiosi o fraudolenti.", safeAction: "Verifica autorizzazioni e condizioni. Non pagare anticipi a soggetti non verificati." },
+  { id: "loan_upfront_fee", category: "Prestiti", situation: "Una società online promette prestito immediato ma chiede 250 euro di spese prima di erogarlo.", isRisky: true, redFlags: ["Commissione anticipata", "Prestito facile", "Urgenza"], explanation: "I prestiti con costi anticipati e promesse facili sono spesso rischiosi o fraudolenti.", safeAction: "Verifica autorizzazioni e condizioni. Non pagare anticipi a soggetti non verificati." },
   { id: "bank_loan_branch", category: "Prestiti", situation: "La tua banca ti propone un prestito con documento informativo, TAEG e piano rate chiari prima della firma.", isRisky: false, redFlags: ["TAEG chiaro", "Documenti"], explanation: "La presenza di documenti e costi chiari è un buon segnale, anche se devi valutare sostenibilità e convenienza.", safeAction: "Confronta TAEG e rata con altre offerte prima di firmare." },
   { id: "social_fake_shop", category: "Acquisti", situation: "Vedi su social un negozio con sconti enormi, nessun indirizzo chiaro e pagamento solo bonifico.", isRisky: true, redFlags: ["Sconto enorme", "Dati societari assenti", "Bonifico"], explanation: "Negozi clone o falsi usano sconti estremi e metodi di pagamento poco reversibili.", safeAction: "Cerca recensioni indipendenti, partita IVA e paga solo con metodi protetti." },
   { id: "known_store_card", category: "Acquisti", situation: "Acquisti da un negozio conosciuto, URL corretto, pagamento con carta protetta e conferma ordine.", isRisky: false, redFlags: ["URL corretto", "Pagamento protetto"], explanation: "È una situazione più sicura. Controlla sempre URL e condizioni di reso.", safeAction: "Usa metodi tracciabili e salva la conferma ordine." },
-  { id: "document_photo_request", category: "Documenti", situation: "Uno sconosciuto in chat ti chiede foto di carta d'identita e codice fiscale per 'verificare il profilo'.", isRisky: true, redFlags: ["Documenti", "Chat", "Identita"], explanation: "I documenti possono essere usati per furti d'identita, SIM swap o contratti falsi.", safeAction: "Invia documenti solo a soggetti verificati e su canali ufficiali." },
+  { id: "document_photo_request", category: "Documenti", situation: "Uno sconosciuto in chat ti chiede foto di carta d'identità e codice fiscale per 'verificare il profilo'.", isRisky: true, redFlags: ["Documenti", "Chat", "Identita"], explanation: "I documenti possono essere usati per furti d'identità, SIM swap o contratti falsi.", safeAction: "Invia documenti solo a soggetti verificati e su canali ufficiali." },
   { id: "official_kyc", category: "Documenti", situation: "Una piattaforma finanziaria regolamentata chiede identificazione tramite procedura KYC nel sito ufficiale prima di aprire il conto.", isRisky: false, redFlags: ["Procedura ufficiale", "Soggetto verificabile"], explanation: "La verifica identità è normale in contesti regolamentati, se il soggetto è verificabile e il canale è ufficiale.", safeAction: "Controlla URL, autorizzazioni e privacy prima di caricare documenti." },
   { id: "sim_swap", category: "Telefonia", situation: "Un operatore telefonico ti chiama e chiede codice ricevuto via SMS per 'aggiornare la SIM'.", isRisky: true, redFlags: ["Codice SMS", "SIM", "Telefonata inattesa"], explanation: "Quel codice può autorizzare operazioni sulla tua SIM o sui tuoi account.", safeAction: "Non comunicare codici. Contatta l'operatore da canale ufficiale." },
   { id: "bank_card_pickup", category: "Banca e pagamenti", situation: "Un finto addetto dice che la tua carta e compromessa e manda un corriere a ritirarla a casa.", isRisky: true, redFlags: ["Carta fisica", "Corriere", "Paura"], explanation: "Banche è circuiti non mandano corrieri a ritirare carte per sicurezza.", safeAction: "Blocca la carta dall'app o dal numero ufficiale e non consegnarla." },
@@ -1059,7 +1059,7 @@ const scamScenarioPool: ScamScenario[] = [
   { id: "fake_survey", category: "Dati personali", situation: "Un sondaggio online promette buono spesa da 500 euro e chiede dati, carta e telefono.", isRisky: true, redFlags: ["Premio alto", "Dati sensibili", "Carta"], explanation: "Spesso questi sondaggi raccolgono dati o attivano abbonamenti indesiderati.", safeAction: "Non inserire dati sensibili per premi non verificati." },
   { id: "cash_change_trick", category: "Di persona", situation: "Un passante ti chiede di cambiare una banconota e cerca di confonderti con conti e resto.", isRisky: true, redFlags: ["Confusione", "Contanti", "Fretta"], explanation: "Le truffe del resto sfruttano confusione e rapidita per farti consegnare più soldi.", safeAction: "Non cambiare denaro a sconosciuti se non sei tranquillo." },
   { id: "parking_attendant_official", category: "Di persona", situation: "Un parcheggiatore autorizzato ha badge, tariffario esposto e ricevuta fiscale.", isRisky: false, redFlags: ["Ricevuta", "Tariffario"], explanation: "La presenza di tariffario e ricevuta riduce il rischio, pur richiedendo sempre attenzione.", safeAction: "Paga solo quanto indicato e conserva ricevuta." },
-  { id: "medical_quick_cure", category: "Salute e benessere", situation: "Una pubblicita promette integratore miracoloso che fa guadagnare energia e dimagrire senza prove, solo oggi sconto 80%.", isRisky: true, redFlags: ["Miracolo", "Sconto aggressivo", "Promesse eccessive"], explanation: "Promesse estreme e urgenza commerciale sono segnali di rischio economico e personale.", safeAction: "Non acquistare d'impulso. Verifica fonti affidabili e professionisti competenti." },
+  { id: "medical_quick_cure", category: "Salute e benessere", situation: "Una pubblicità promette integratore miracoloso che fa guadagnare energia e dimagrire senza prove, solo oggi sconto 80%.", isRisky: true, redFlags: ["Miracolo", "Sconto aggressivo", "Promesse eccessive"], explanation: "Promesse estreme e urgenza commerciale sono segnali di rischio economico e personale.", safeAction: "Non acquistare d'impulso. Verifica fonti affidabili e professionisti competenti." },
   { id: "official_notice_logged_in", category: "Account online", situation: "Accedi tu al sito ufficiale di un servizio e trovi una notifica interna che ti chiede di aggiornare un dato non sensibile.", isRisky: false, redFlags: ["Accesso iniziato da te", "Canale ufficiale"], explanation: "Quando sei tu ad accedere dal sito ufficiale, il rischio è più basso. Attenzione se vengono chiesti codici o pagamenti strani.", safeAction: "Aggiorna solo ciò che capisci e verifica eventuali richieste insolite." },
   { id: "investment_cash_only", category: "Investimenti", situation: "Una persona ti propone un investimento in contanti per evitare tasse e dice di non parlarne con nessuno.", isRisky: true, redFlags: ["Contanti", "Segretezza", "Evasione"], explanation: "Segretezza, contanti e promesse fiscali sono segnali molto forti di rischio e di possibile illegalità.", safeAction: "Non partecipare. Investi solo con intermediari autorizzati e tracciabilità." },
   { id: "fake_ticket", category: "Eventi", situation: "Una persona vende biglietti sold out a meta prezzo e chiede pagamento immediato con ricarica prepagata.", isRisky: true, redFlags: ["Prezzo troppo basso", "Ricarica", "Urgenza"], explanation: "Biglietti falsi o duplicati sono comuni. Le ricariche sono difficili da recuperare.", safeAction: "Usa piattaforme ufficiali o sistemi con protezione acquisto." },
@@ -1069,15 +1069,15 @@ const scamScenarioPool: ScamScenario[] = [
 
   { id: "deepfake_ceo_voice", category: "Lavoro", situation: "Ricevi una chiamata con voce molto simile al tuo capo: ti chiede di fare subito un bonifico urgente a un nuovo fornitore.", isRisky: true, difficulty: "difficile", redFlags: ["Voce imitata", "Bonifico urgente", "Nuovo beneficiario"], explanation: "Le imitazioni vocali e i deepfake possono sembrare credibili. La richiesta di pagamento urgente verso un nuovo beneficiario va sempre verificata con un secondo canale.", safeAction: "Richiama il capo al numero già conosciuto o usa una procedura interna prima di pagare." },
   { id: "invoice_changed_iban", category: "Lavoro", situation: "Un fornitore abituale invia una fattura quasi identica alle precedenti, ma con IBAN cambiato e una nota: 'aggiornamento bancario'.", isRisky: true, difficulty: "difficile", redFlags: ["IBAN cambiato", "Fornitore abituale", "Email possibile clone"], explanation: "Le truffe su fatture reali sono difficili perché usano rapporti esistenti. Il cambio IBAN deve sempre essere verificato fuori dalla email.", safeAction: "Chiama il referente del fornitore usando un numero già noto, non quello scritto nella nuova email." },
-  { id: "qr_parking_fake", category: "Pagamenti quotidiani", situation: "In un parcheggio trovi un QR code incollato sopra il cartello del pagamento. Il sito sembra simile a quello ufficiale.", isRisky: true, difficulty: "difficile", redFlags: ["QR sovrapposto", "Sito simile", "Pagamento carta"], explanation: "I QR falsi portano a pagine clone dove puoi pagare un truffatore o inserire dati carta. Il segnale e sottile: il QR può sembrare normale.", safeAction: "Usa l'app ufficiale del parcheggio o digita il sito ufficiale invece di fidarti del QR incollato." },
-  { id: "rental_owner_documents", category: "Affitti e casa", situation: "Un presunto proprietàrio ti manda documento, visura e contratto, ma non può farti vedere casa e chiede caparra per bloccarla.", isRisky: true, difficulty: "difficile", redFlags: ["Documenti non bastano", "Nessuna visita", "Caparra anticipata"], explanation: "Anche documenti apparentemente reali possono essere rubati o falsificati. Senza visita e verifica dell'immobile il rischio resta alto.", safeAction: "Non pagare prima di vedere casa e verificare identita, proprietà e contratto con canali affidabili." },
+  { id: "qr_parking_fake", category: "Pagamenti quotidiani", situation: "In un parcheggio trovi un QR code incollato sopra il cartello del pagamento. Il sito sembra simile a quello ufficiale.", isRisky: true, difficulty: "difficile", redFlags: ["QR sovrapposto", "Sito simile", "Pagamento carta"], explanation: "I QR falsi portano a pagine clone dove puoi pagare un truffatore o inserire dati carta. Il segnale è sottile: il QR può sembrare normale.", safeAction: "Usa l'app ufficiale del parcheggio o digita il sito ufficiale invece di fidarti del QR incollato." },
+  { id: "rental_owner_documents", category: "Affitti e casa", situation: "Un presunto proprietàrio ti manda documento, visura e contratto, ma non può farti vedere casa e chiede caparra per bloccarla.", isRisky: true, difficulty: "difficile", redFlags: ["Documenti non bastano", "Nessuna visita", "Caparra anticipata"], explanation: "Anche documenti apparentemente reali possono essere rubati o falsificati. Senza visita e verifica dell'immobile il rischio resta alto.", safeAction: "Non pagare prima di vedere casa e verificare identità, proprietà e contratto con canali affidabili." },
   { id: "used_car_plate_docs_partial", category: "Auto usata", situation: "Il venditore mostra targa e libretto, ma dice che l'auto è fuori regione e chiede un acconto per 'prenotare la visione'.", isRisky: true, difficulty: "difficile", redFlags: ["Documenti parziali", "Auto lontana", "Acconto"], explanation: "Documenti e targa possono rendere la proposta credibile, ma l'acconto prima della visione resta un segnale di rischio.", safeAction: "Vedi l'auto di persona, controlla proprietà e pagamenti tracciabili prima di versare denaro." },
   { id: "investment_platform_professional_site", category: "Investimenti", situation: "Una piattaforma di investimento ha sito curato, area clienti e recensioni positive, ma non trovi autorizzazioni ufficiali chiare.", isRisky: true, difficulty: "difficile", redFlags: ["Sito professionale", "Autorizzazioni assenti", "Recensioni manipolabili"], explanation: "Un sito bello non prova che l'intermediario sia autorizzato. Recensioni e grafiche possono essere costruite per sembrare affidabili.", safeAction: "Verifica l'autorizzazione su registri ufficiali prima di aprire conto o inviare denaro." },
   { id: "recovery_funds_law_firm", category: "Investimenti", situation: "Uno studio legale estero dice di poter recuperare soldi persi in trading. Chiede una piccola tassa iniziale per avviare la pratica.", isRisky: true, difficulty: "difficile", redFlags: ["Recupero fondi", "Tassa iniziale", "Vittima già colpita"], explanation: "Le truffe di recupero fondi sono particolarmente insidiose: promettono aiuto a chi ha già subito una perdita.", safeAction: "Non pagare anticipi. Verifica albo, sede, reputazione e rivolgiti a canali legali riconosciuti." },
   { id: "bank_operator_knows_data", category: "Telefonate", situation: "Un presunto operatore bancario conosce il tuo nome e le ultime cifre della carta, poi ti chiede di confermare un codice per bloccare un addebito.", isRisky: true, difficulty: "difficile", redFlags: ["Dati parziali veri", "Richiesta codice", "Falsa urgenza"], explanation: "Conoscere alcuni dati non rende la chiamata sicura. I truffatori possono avere informazioni parziali e usarle per sembrare credibili.", safeAction: "Non comunicare codici. Chiudi e chiama la banca dal numero ufficiale." },
   { id: "utility_agent_real_badge_pressure", category: "Contratti", situation: "Un incaricato luce/gas mostra badge e documenti, ma insiste per farti firmare subito dicendo che domani perderai lo sconto.", isRisky: true, difficulty: "difficile", redFlags: ["Pressione", "Firma immediata", "Offerta a tempo"], explanation: "Anche un venditore reale può usare pressione commerciale. Il rischio è firmare condizioni non capite o non convenienti.", safeAction: "Prendi il materiale, confronta l'offerta e non firmare finche non hai letto con calma." },
   { id: "marketplace_buyer_sends_courier", category: "Marketplace", situation: "Un acquirente dice che manda un corriere a ritirare l'oggetto e ti invia un modulo per ricevere il pagamento anticipato.", isRisky: true, difficulty: "difficile", redFlags: ["Corriere organizzato da altri", "Modulo pagamento", "Dati carta"], explanation: "La truffa e credibile perché sembra logistica normale, ma il modulo spesso serve a rubare dati o autorizzare pagamenti.", safeAction: "Usa pagamenti e spedizioni gestiti dalla piattaforma o pagamento verificato prima della consegna." },
-  { id: "job_remote_equipment_check", category: "Lavoro", situation: "Una societa ti assume da remoto e ti manda un assegno o bonifico per comprare attrezzatura da un fornitore indicato da loro.", isRisky: true, difficulty: "difficile", redFlags: ["Assegno/bonifico sospetto", "Fornitore imposto", "Lavoro remoto"], explanation: "Alcune truffe lavorative usano pagamenti che poi vengono stornati, mentre tu hai già speso soldi reali.", safeAction: "Verifica azienda, contratto e modalità. Non anticipare acquisti su fornitori imposti senza garanzie." },
+  { id: "job_remote_equipment_check", category: "Lavoro", situation: "Una società ti assume da remoto e ti manda un assegno o bonifico per comprare attrezzatura da un fornitore indicato da loro.", isRisky: true, difficulty: "difficile", redFlags: ["Assegno/bonifico sospetto", "Fornitore imposto", "Lavoro remoto"], explanation: "Alcune truffe lavorative usano pagamenti che poi vengono stornati, mentre tu hai già speso soldi reali.", safeAction: "Verifica azienda, contratto e modalità. Non anticipare acquisti su fornitori imposti senza garanzie." },
   { id: "romance_small_test_transfer", category: "Relazioni", situation: "Una persona conosciuta online non chiede subito grandi somme, ma prima piccoli trasferimenti per 'testare la fiducia'.", isRisky: true, difficulty: "difficile", redFlags: ["Fiducia emotiva", "Piccole somme", "Escalation"], explanation: "Le truffe affettive spesso iniziano con richieste piccole per creare abitudine e abbassare le difese.", safeAction: "Non inviare denaro a persone conosciute solo online. Parla con qualcuno di fiducia prima di agire." },
   { id: "crypto_withdrawal_tax", category: "Crypto / trading", situation: "Una piattaforma ti mostra profitti, ma per prelevare chiede di pagare prima una tassa o commissione esterna.", isRisky: true, difficulty: "difficile", redFlags: ["Prelievo bloccato", "Commissione anticipata", "Profitti non verificati"], explanation: "Nelle piattaforme fraudolente i profitti sono solo numeri sullo schermo. La richiesta di pagare per prelevare è un segnale forte.", safeAction: "Non versare altri soldi. Verifica la piattaforma e conserva prove delle comunicazioni." },
   { id: "condominium_fake_notice", category: "Casa", situation: "Trovi nella cassetta una comunicazione condominiale con QR per pagare una spesa urgente, ma l'amministratore non l'aveva annunciata.", isRisky: true, difficulty: "difficile", redFlags: ["QR pagamento", "Avviso inatteso", "Urgenza"], explanation: "Avvisi fisici possono sembrare credibili, ma possono essere falsi. Il QR rende facile deviare il pagamento.", safeAction: "Verifica con l'amministratore usando contatti già noti prima di pagare." },
@@ -1091,11 +1091,11 @@ const scamScenarioPool: ScamScenario[] = [
   { id: "official_tax_notice_spid", category: "Pubblica amministrazione", situation: "Ricevi un avviso generico via email, ma invece di cliccare accedi con SPID al portale ufficiale e trovi la stessa comunicazione.", isRisky: false, difficulty: "difficile", redFlags: ["Verifica autonoma", "Portale ufficiale"], explanation: "Il comportamento corretto è non fidarsi del link, ma controllare sul canale ufficiale. Se la comunicazione compare lì, è molto più affidabile.", safeAction: "Continua solo dal portale ufficiale, senza usare link ricevuti via email." },
   { id: "real_agent_no_pressure", category: "Contratti", situation: "Un consulente assicurativo ti invia preventivo completo, fascicolo informativo, costi e ti invita a leggere prima di firmare.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti completi", "Nessuna pressione"], explanation: "Trasparenza e assenza di fretta sono segnali positivi. Resta comunque importante capire costi, esclusioni e durata.", safeAction: "Leggi documenti, confronta alternative e chiedi chiarimenti prima di firmare." },
   { id: "marketplace_cash_public_place", category: "Marketplace", situation: "Vendi un oggetto di basso valore e l'acquirente propone incontro in luogo pubblico, pagamento in contanti e controllo dell'oggetto sul posto.", isRisky: false, difficulty: "difficile", redFlags: ["Luogo pubblico", "Pagamento immediato"], explanation: "Non tutto è una truffa: per oggetti semplici, incontro sicuro e pagamento contestuale possono essere ragionevoli.", safeAction: "Scegli un luogo sicuro, non andare da solo se non ti senti tranquillo e controlla il denaro." },
-  { id: "secure_bank_message_no_codes", category: "Banca e pagamenti", situation: "La banca invia una notifica nell'app ufficiale che invita a leggere un documento, senza chiedere codici o clic esterni.", isRisky: false, difficulty: "difficile", redFlags: ["App ufficiale", "Nessun codice"], explanation: "Una comunicazione interna all'app ufficiale, senza richieste di codici o pagamenti, e generalmente più sicura.", safeAction: "Leggi dall'app ufficiale e verifica se qualcosa ti sembra insolito." },
-  { id: "event_ticket_friend_known", category: "Eventi", situation: "Un amico che conosci di persona ti vende un biglietto a prezzo normale e ti permette di controllare nominativo e ricevuta prima del pagamento.", isRisky: false, difficulty: "difficile", redFlags: ["Persona nota", "Verifica biglietto"], explanation: "Il rischio è minore quando identita, prezzo e biglietto sono verificabili. Non è rischio zero, ma non è una classica truffa.", safeAction: "Controlla biglietto, nominativo e regole dell'evento prima di pagare." },
-  { id: "small_local_charity_receipt", category: "Di persona", situation: "Una piccola associazione locale chiede donazioni, mostra statuto, contatti verificabili e rilascia ricevuta tracciabile.", isRisky: false, difficulty: "difficile", redFlags: ["Ricevuta", "Contatti verificabili"], explanation: "Una realta piccola non è automaticamente sospetta. La chiave e poter verificare identita, finalità e pagamento.", safeAction: "Dona solo se riesci a verificare l'associazione e preferisci pagamenti tracciabili." },
+  { id: "secure_bank_message_no_codes", category: "Banca e pagamenti", situation: "La banca invia una notifica nell'app ufficiale che invita a leggere un documento, senza chiedere codici o clic esterni.", isRisky: false, difficulty: "difficile", redFlags: ["App ufficiale", "Nessun codice"], explanation: "Una comunicazione interna all'app ufficiale, senza richieste di codici o pagamenti, è generalmente più sicura.", safeAction: "Leggi dall'app ufficiale e verifica se qualcosa ti sembra insolito." },
+  { id: "event_ticket_friend_known", category: "Eventi", situation: "Un amico che conosci di persona ti vende un biglietto a prezzo normale e ti permette di controllare nominativo e ricevuta prima del pagamento.", isRisky: false, difficulty: "difficile", redFlags: ["Persona nota", "Verifica biglietto"], explanation: "Il rischio è minore quando identità, prezzo e biglietto sono verificabili. Non è rischio zero, ma non è una classica truffa.", safeAction: "Controlla biglietto, nominativo e regole dell'evento prima di pagare." },
+  { id: "small_local_charity_receipt", category: "Di persona", situation: "Una piccola associazione locale chiede donazioni, mostra statuto, contatti verificabili e rilascia ricevuta tracciabile.", isRisky: false, difficulty: "difficile", redFlags: ["Ricevuta", "Contatti verificabili"], explanation: "Una realta piccola non è automaticamente sospetta. La chiave e poter verificare identità, finalità e pagamento.", safeAction: "Dona solo se riesci a verificare l'associazione e preferisci pagamenti tracciabili." },
   { id: "bank_url_one_letter", category: "SMS / email", situation: "Ricevi una email della banca con grafica perfetta, ma il link porta a un dominio con una lettera diversa dal sito ufficiale.", isRisky: true, difficulty: "media", redFlags: ["Dominio simile", "Grafica perfetta", "Link"], explanation: "I siti clone possono essere quasi identici. Una lettera diversa nell'indirizzo e sufficiente per indicare rischio.", safeAction: "Non cliccare. Digita tu l'indirizzo ufficiale o usa l'app." },
-  { id: "fake_spid_help", category: "Pubblica amministrazione", situation: "Uno sconosciuto offre aiuto per attivare SPID e chiede foto documenti, tessera sanitaria e codice ricevuto via SMS.", isRisky: true, difficulty: "media", redFlags: ["Documenti", "Codice SMS", "Identita digitale"], explanation: "SPID e identita digitale sono molto sensibili. Codici e documenti possono permettere furti d'identita.", safeAction: "Usa solo provider ufficiali e non condividere codici con terzi." },
+  { id: "fake_spid_help", category: "Pubblica amministrazione", situation: "Uno sconosciuto offre aiuto per attivare SPID e chiede foto documenti, tessera sanitaria e codice ricevuto via SMS.", isRisky: true, difficulty: "media", redFlags: ["Documenti", "Codice SMS", "Identita digitale"], explanation: "SPID e identità digitale sono molto sensibili. Codici e documenti possono permettere furti d'identità.", safeAction: "Usa solo provider ufficiali e non condividere codici con terzi." },
   { id: "fake_landlord_video_only", category: "Affitti e casa", situation: "Per un affitto, il proprietàrio ti manda solo video dell'appartamento e dice che vive all'estero, chiedendo cauzione via bonifico.", isRisky: true, difficulty: "media", redFlags: ["Solo video", "Estero", "Cauzione anticipata"], explanation: "Video e foto possono essere copiati. Il pagamento prima di una verifica reale e rischioso.", safeAction: "Visita l'immobile o usa canali verificati prima di pagare." },
   { id: "atm_card_stuck_helper", category: "Di persona", situation: "La carta resta bloccata al bancomat e uno sconosciuto molto gentile ti suggerisce di reinserire il PIN mentre lui resta vicino.", isRisky: true, difficulty: "media", redFlags: ["Sconosciuto", "PIN", "Bancomat"], explanation: "Alcune truffe al bancomat usano distrazione e osservazione del PIN.", safeAction: "Copri il PIN, non accettare aiuto da sconosciuti e contatta la banca." },
   { id: "fake_delivery_address_fee", category: "SMS / email", situation: "Ricevi SMS: 'Indirizzo pacco incompleto, paga 0,89 euro per correggere la consegna'.", isRisky: true, difficulty: "media", redFlags: ["Importo piccolo", "Link", "Pacco"], explanation: "La piccola cifra serve a farti inserire la carta con poca attenzione.", safeAction: "Verifica tracking sul sito ufficiale del corriere." },
@@ -1109,65 +1109,65 @@ const scamScenarioPool: ScamScenario[] = [
   { id: "safe_document_to_notary", category: "Documenti", situation: "Il notaio incaricato per una compravendita ti chiede documenti tramite canale concordato e studio verificabile.", isRisky: false, difficulty: "media", redFlags: ["Studio verificabile", "Canale concordato"], explanation: "Inviare documenti può essere normale quando il soggetto è verificabile e il canale è concordato.", safeAction: "Verifica indirizzo email, studio e finalità prima di inviare." },
 
   { id: "romance_video_call_avoided", category: "Relazioni", situation: "Una persona conosciuta online ti scrive ogni giorno, dice di provare qualcosa per te ma evita sempre videochiamate e incontri. Dopo settimane chiede soldi per un'emergenza.", isRisky: true, difficulty: "difficile", redFlags: ["Legame emotivo", "Nessun incontro", "Emergenza"], explanation: "Le truffe sentimentali costruiscono fiducia prima di chiedere denaro. Evitare verifiche reali e chiedere soldi è un segnale forte.", safeAction: "Non inviare denaro. Proponi una videochiamata e parlane con una persona di fiducia prima di agire." },
-  { id: "romance_travel_ticket", category: "Relazioni", situation: "Una ragazza o un ragazzo conosciuto online dice di voler venire a trovarti, ma chiede di pagare biglietto, visto o assicurazione per poter partire.", isRisky: true, difficulty: "media", redFlags: ["Promessa incontro", "Soldi per viaggio", "Urgenza emotiva"], explanation: "La promessa di incontrarsi può essere usata per rendere la richiesta più credibile. Spesso dopo il primo pagamento arrivano nuovi problemi e nuove richieste.", safeAction: "Non pagare viaggi o documenti a persone mai incontrate. Verifica identita e coerenza della storia." },
+  { id: "romance_travel_ticket", category: "Relazioni", situation: "Una ragazza o un ragazzo conosciuto online dice di voler venire a trovarti, ma chiede di pagare biglietto, visto o assicurazione per poter partire.", isRisky: true, difficulty: "media", redFlags: ["Promessa incontro", "Soldi per viaggio", "Urgenza emotiva"], explanation: "La promessa di incontrarsi può essere usata per rendere la richiesta più credibile. Spesso dopo il primo pagamento arrivano nuovi problemi e nuove richieste.", safeAction: "Non pagare viaggi o documenti a persone mai incontrate. Verifica identità e coerenza della storia." },
   { id: "romance_medical_emergency", category: "Relazioni", situation: "Una persona con cui stai creando un rapporto online racconta di una malattia improvvisa in famiglia e chiede un prestito urgente, promettendo di restituire tutto.", isRisky: true, difficulty: "difficile", redFlags: ["Malattia", "Prestito urgente", "Rapporto recente"], explanation: "Le emergenze sanitarie vere toccano corde profonde. Proprio per questo vengono usate per far agire senza verificare.", safeAction: "Fermati. Non inviare denaro senza verifiche indipendenti e senza aver coinvolto qualcuno di fiducia." },
   { id: "romance_crypto_advice", category: "Relazioni", situation: "Dopo alcune settimane di chat, una persona molto affettuosa ti mostra i suoi guadagni e ti invita a investire su una piattaforma consigliata da lei.", isRisky: true, difficulty: "difficile", redFlags: ["Relazione + investimento", "Piattaforma consigliata", "Profitti mostrati"], explanation: "Nelle truffe sentimentali evolute, l'investimento arriva dopo aver creato fiducia. La piattaforma può mostrare profitti finti.", safeAction: "Non investire su piattaforme indicate da persone conosciute online. Verifica autorizzazioni da fonti ufficiali." },
   { id: "romance_gift_customs_fee", category: "Relazioni", situation: "Una persona conosciuta online dice di averti spedito un regalo costoso. Poco dopo arriva una richiesta di pagamento per dogana o sblocco pacco.", isRisky: true, difficulty: "media", redFlags: ["Regalo inatteso", "Dogana", "Pagamento anticipato"], explanation: "Il regalo crea gratitudine e pressione. Il pagamento per sbloccarlo e spesso il vero obiettivo della truffa.", safeAction: "Non pagare. Verifica tracking e corriere da canali ufficiali, senza usare link ricevuti." },
   { id: "romance_blackmail_photos", category: "Relazioni", situation: "Dopo una chat privata, una persona minaccia di diffondere foto o messaggi se non paghi subito.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto", "Minaccia", "Pagamento immediato"], explanation: "Il ricatto punta su vergogna e paura. Pagare non garantisce che la richiesta finisca, anzi può aumentare le pressioni.", safeAction: "Non pagare. Conserva prove, blocca il contatto e valuta di rivolgerti alle autorita." },
   { id: "romance_bank_account_problem", category: "Relazioni", situation: "Una persona con cui chatti da poco dice di avere il conto bloccato e chiede di ricevere un bonifico sul tuo conto per poi girarlo a terzi.", isRisky: true, difficulty: "difficile", redFlags: ["Conto bloccato", "Usare il tuo conto", "Giro denaro"], explanation: "Usare il tuo conto per soldi di altri può esporti a rischi seri. Potrebbe trattarsi di fondi rubati o riciclaggio.", safeAction: "Non ricevere o trasferire denaro per persone che non conosci davvero." },
-  { id: "romance_slow_friendship_no_money", category: "Relazioni", situation: "Una persona conosciuta online ti propone una videochiamata, non chiede soldi, non parla di investimenti e accetta tempi lenti per conoscersi.", isRisky: false, difficulty: "media", redFlags: ["Verifica identita", "Nessuna richiesta denaro"], explanation: "Non ogni conoscenza online è una truffa. L'assenza di richieste economiche è la disponibilita a verificarsi sono segnali più positivi.", safeAction: "Resta prudente, proteggi dati personali e incontra eventualmente in luoghi pubblici." },
+  { id: "romance_slow_friendship_no_money", category: "Relazioni", situation: "Una persona conosciuta online ti propone una videochiamata, non chiede soldi, non parla di investimenti e accetta tempi lenti per conoscersi.", isRisky: false, difficulty: "media", redFlags: ["Verifica identità", "Nessuna richiesta denaro"], explanation: "Non ogni conoscenza online è una truffa. L'assenza di richieste economiche è la disponibilità a verificarsi sono segnali più positivi.", safeAction: "Resta prudente, proteggi dati personali e incontra eventualmente in luoghi pubblici." },
   { id: "friend_investment_guaranteed_return", category: "Amici e parenti", situation: "Un amico ti propone un investimento 'garantito' che gli ha fatto guadagnare molto. Dice che se entri tramite lui hai un bonus e devi decidere entro oggi.", isRisky: true, difficulty: "difficile", redFlags: ["Amico", "Rendimento garantito", "Fretta"], explanation: "La fiducia personale non sostituisce le verifiche. Anche un amico può essere in buona fede ma coinvolto in una truffa o in uno schema rischioso.", safeAction: "Chiedi documenti, autorizzazioni e rischi. Non investire solo per fiducia o pressione." },
   { id: "relative_crypto_family_group", category: "Amici e parenti", situation: "Un parente condivide nel gruppo famiglia un link per comprare una crypto 'prima che esploda', dicendo che alcuni amici hanno già raddoppiato.", isRisky: true, difficulty: "media", redFlags: ["Passaparola", "Guadagni rapidi", "Link"], explanation: "Il passaparola familiare può abbassare le difese. Guadagni rapidi e link non verificati restano segnali di rischio.", safeAction: "Non investire tramite link in chat. Verifica progetto, rischi e autorizzazioni prima di qualsiasi versamento." },
   { id: "friend_loan_emotional_pressure", category: "Amici e parenti", situation: "Un amico ti chiede un prestito importante e dice: 'Se mi vuoi bene, non farmi domande'. Vuole contanti e promette di restituire a breve.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Contanti", "Nessuna chiarezza"], explanation: "Le richieste emotive possono rendere difficile fare domande. Un prestito senza chiarezza può danneggiare sia soldi sia rapporto.", safeAction: "Chiedi motivo, tempi e modalità scritte. Presta solo somme che puoi permetterti di perdere." },
   { id: "relative_urgent_transfer_new_number", category: "Amici e parenti", situation: "Ricevi un messaggio da un numero nuovo: 'Sono tuo figlio, ho perso il telefono. Devo pagare subito una bolletta, fai un bonifico?'.", isRisky: true, difficulty: "media", redFlags: ["Numero nuovo", "Urgenza", "Bonifico"], explanation: "La truffa del familiare in difficoltà usa affetto e urgenza. Il numero nuovo e la richiesta di soldi sono segnali importanti.", safeAction: "Chiama il familiare sul vecchio numero o verifica con altri parenti prima di pagare." },
-  { id: "friend_business_partnership_cash", category: "Amici e parenti", situation: "Un conoscente ti propone di entrare in una piccola attivita con denaro contante, senza contratto, dicendo che 'tra amici non servono carte'.", isRisky: true, difficulty: "difficile", redFlags: ["Niente contratto", "Contanti", "Fiducia personale"], explanation: "Quando ci sono soldi e attivita economiche, la fiducia non basta. Senza documenti e regole chiare il rischio è alto.", safeAction: "Pretendi accordi scritti, conti chiari e consulenza indipendente prima di versare denaro." },
+  { id: "friend_business_partnership_cash", category: "Amici e parenti", situation: "Un conoscente ti propone di entrare in una piccola attività con denaro contante, senza contratto, dicendo che 'tra amici non servono carte'.", isRisky: true, difficulty: "difficile", redFlags: ["Niente contratto", "Contanti", "Fiducia personale"], explanation: "Quando ci sono soldi e attività economiche, la fiducia non basta. Senza documenti e regole chiare il rischio è alto.", safeAction: "Pretendi accordi scritti, conti chiari e consulenza indipendente prima di versare denaro." },
   { id: "relative_medical_loan_verified", category: "Amici e parenti", situation: "Un familiare ti chiede aiuto economico per una spesa medica, ti mostra documenti verificabili e accetta un bonifico tracciabile con accordo scritto sui tempi.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti verificabili", "Bonifico tracciabile", "Accordo chiaro"], explanation: "Una richiesta emotiva non è automaticamente una truffa. Verifiche, trasparenza e tracciabilità riducono il rischio.", safeAction: "Aiuta solo se puoi permettertelo e metti per iscritto importo e tempi, senza sensi di colpa." },
-  { id: "friend_asks_card_for_emergency", category: "Amici e parenti", situation: "Un amico dice di avere la carta bloccata e ti chiede di prestargli la tua carta o i dati per fare un pagamento urgente.", isRisky: true, difficulty: "media", redFlags: ["Dati carta", "Urgenza", "Prestito mezzo pagamento"], explanation: "Anche se conosci la persona, condividere carta, PIN o codici e pericoloso e può creare problemi difficili da risolvere.", safeAction: "Non condividere dati di pagamento. Se vuoi aiutare, usa un bonifico tracciabile a suo nome." },
+  { id: "friend_asks_card_for_emergency", category: "Amici e parenti", situation: "Un amico dice di avere la carta bloccata e ti chiede di prestargli la tua carta o i dati per fare un pagamento urgente.", isRisky: true, difficulty: "media", redFlags: ["Dati carta", "Urgenza", "Prestito mezzo pagamento"], explanation: "Anche se conosci la persona, condividere carta, PIN o codici è pericoloso e può creare problemi difficili da risolvere.", safeAction: "Non condividere dati di pagamento. Se vuoi aiutare, usa un bonifico tracciabile a suo nome." },
   { id: "romance_investment_group_invite", category: "Relazioni", situation: "Una persona conosciuta su un'app di incontri ti invita in un gruppo esclusivo dove un 'mentor' insegna a fare trading con segnali sicuri.", isRisky: true, difficulty: "difficile", redFlags: ["Dating + trading", "Gruppo esclusivo", "Segnali sicuri"], explanation: "Il passaggio da relazione a gruppo di investimento è un modello frequente nelle truffe. Il gruppo crea pressione sociale e fiducia artificiale.", safeAction: "Esci dal gruppo e non versare denaro. Verifica sempre intermediari e autorizzazioni." },
-  { id: "romance_money_for_document", category: "Relazioni", situation: "Una persona dice di non poter incontrarti perché deve rinnovare un documento. Chiede soldi per completare la pratica e promette che poi verra da te.", isRisky: true, difficulty: "media", redFlags: ["Documento", "Promessa incontro", "Pagamento"], explanation: "La richiesta usa il desiderio di incontrarsi per rendere il pagamento accettabile. Spesso dopo emergono altri ostacoli.", safeAction: "Non pagare documenti a persone mai incontrate. Verifica identita e situazione con calma." },
-  { id: "friend_guarantee_loan", category: "Amici e parenti", situation: "Un amico ti chiede di fare da garante per un finanziamento. Dice che è solo una formalita e che non rischi nulla.", isRisky: true, difficulty: "difficile", redFlags: ["Garante", "Rischio minimizzato", "Pressione affettiva"], explanation: "Fare da garante non è una formalita: se l'altra persona non paga, il debito può ricadere su di te.", safeAction: "Leggi il contratto, valuta il rischio reale e chiedi consulenza prima di firmare." },
-  { id: "relative_investment_to_help_family", category: "Amici e parenti", situation: "Un parente ti propone di investire in un progetto 'per aiutare la famiglia' e dice che rifiutare sarebbe mancanza di fiducia.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Famiglia", "Investimento poco chiaro"], explanation: "Quando investimento e legame familiare si mischiano, è facile perdere lucidita. La pressione emotiva è un segnale da prendere sul serio.", safeAction: "Separare affetto e soldi: chiedi business plan, rischi e accordi scritti prima di decidere." },
-  { id: "friend_repay_old_debt_link", category: "Amici e parenti", situation: "Un vecchio amico ti scrive sui social dicendo di volerti restituire dei soldi, ma ti manda un link dove inserire carta e documento per riceverli.", isRisky: true, difficulty: "media", redFlags: ["Link pagamento", "Documento", "Profilo social"], explanation: "Potrebbe essere un profilo compromesso. Per ricevere soldi non serve inserire dati carta su link sospetti.", safeAction: "Verifica l'identita con una chiamata e usa metodi di pagamento noti e sicuri." },
-  { id: "romance_shared_future_pressure", category: "Relazioni", situation: "Una persona parla presto di convivenza, matrimonio o futuro insieme e poi chiede un aiuto economico per 'sistemare l'ultimo problema' prima di raggiungerti.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro accelerato", "Aiuto economico", "Problema finale"], explanation: "Le promesse di futuro possono creare attaccamento rapido. La richiesta economica dopo una forte spinta emotiva è un segnale di rischio.", safeAction: "Non inviare denaro. Dai tempo alla relazione e verifica fatti, identita e coerenza." },
+  { id: "romance_money_for_document", category: "Relazioni", situation: "Una persona dice di non poter incontrarti perché deve rinnovare un documento. Chiede soldi per completare la pratica e promette che poi verrà da te.", isRisky: true, difficulty: "media", redFlags: ["Documento", "Promessa incontro", "Pagamento"], explanation: "La richiesta usa il desiderio di incontrarsi per rendere il pagamento accettabile. Spesso dopo emergono altri ostacoli.", safeAction: "Non pagare documenti a persone mai incontrate. Verifica identità e situazione con calma." },
+  { id: "friend_guarantee_loan", category: "Amici e parenti", situation: "Un amico ti chiede di fare da garante per un finanziamento. Dice che è solo una formalità e che non rischi nulla.", isRisky: true, difficulty: "difficile", redFlags: ["Garante", "Rischio minimizzato", "Pressione affettiva"], explanation: "Fare da garante non è una formalità: se l'altra persona non paga, il debito può ricadere su di te.", safeAction: "Leggi il contratto, valuta il rischio reale e chiedi consulenza prima di firmare." },
+  { id: "relative_investment_to_help_family", category: "Amici e parenti", situation: "Un parente ti propone di investire in un progetto 'per aiutare la famiglia' e dice che rifiutare sarebbe mancanza di fiducia.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Famiglia", "Investimento poco chiaro"], explanation: "Quando investimento e legame familiare si mischiano, è facile perdere lucidità. La pressione emotiva è un segnale da prendere sul serio.", safeAction: "Separare affetto e soldi: chiedi business plan, rischi e accordi scritti prima di decidere." },
+  { id: "friend_repay_old_debt_link", category: "Amici e parenti", situation: "Un vecchio amico ti scrive sui social dicendo di volerti restituire dei soldi, ma ti manda un link dove inserire carta e documento per riceverli.", isRisky: true, difficulty: "media", redFlags: ["Link pagamento", "Documento", "Profilo social"], explanation: "Potrebbe essere un profilo compromesso. Per ricevere soldi non serve inserire dati carta su link sospetti.", safeAction: "Verifica l'identità con una chiamata e usa metodi di pagamento noti e sicuri." },
+  { id: "romance_shared_future_pressure", category: "Relazioni", situation: "Una persona parla presto di convivenza, matrimonio o futuro insieme e poi chiede un aiuto economico per 'sistemare l'ultimo problema' prima di raggiungerti.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro accelerato", "Aiuto economico", "Problema finale"], explanation: "Le promesse di futuro possono creare attaccamento rapido. La richiesta economica dopo una forte spinta emotiva è un segnale di rischio.", safeAction: "Non inviare denaro. Dai tempo alla relazione e verifica fatti, identità e coerenza." },
   { id: "romance_real_meeting_public_no_money", category: "Relazioni", situation: "Una persona conosciuta online propone un primo incontro in luogo pubblico, non chiede denaro e accetta che tu avvisi un amico dell'appuntamento.", isRisky: false, difficulty: "media", redFlags: ["Luogo pubblico", "Nessuna richiesta soldi", "Prudenza"], explanation: "Questo comportamento è più prudente e trasparente. Non elimina ogni rischio personale, ma non mostra i classici segnali economici della truffa affettiva.", safeAction: "Incontra in luogo pubblico, informa qualcuno e non condividere dati finanziari." },
   { id: "friend_investment_documents_verified", category: "Amici e parenti", situation: "Un amico ti parla di un investimento, ma ti dice chiaramente che ci sono rischi, ti invita a leggere documenti ufficiali e non ti spinge a decidere subito.", isRisky: false, difficulty: "difficile", redFlags: ["Rischi dichiarati", "Documenti ufficiali", "Nessuna fretta"], explanation: "La presenza di rischi spiegati, documenti verificabili e assenza di pressione sono segnali più sani. Resta comunque da valutare se sia adatto a te.", safeAction: "Leggi documenti, verifica autorizzazioni e valuta con calma prima di investire." },
   { id: "relative_loan_no_written_terms", category: "Amici e parenti", situation: "Un cugino ti chiede 3.000 euro in prestito e dice che non serve scrivere nulla perché 'siamo parenti'.", isRisky: true, difficulty: "media", redFlags: ["Prestito familiare", "Nessun accordo", "Importo rilevante"], explanation: "Prestiti tra parenti senza accordi chiari possono creare conflitti e perdite. La fiducia non sostituisce chiarezza su tempi e restituzione.", safeAction: "Se decidi di aiutare, metti importo, tempi e modalità per iscritto." },
-  { id: "friend_multilevel_recruit", category: "Amici e parenti", situation: "Un amico ti invita a un incontro per un'opportunita di guadagno. Il focus e far entrare altre persone più che vendere un prodotto reale.", isRisky: true, difficulty: "difficile", redFlags: ["Reclutamento", "Guadagni promessi", "Pressione gruppo"], explanation: "Quando il guadagno dipende soprattutto dal reclutare altri, il rischio di schema insostenibile aumenta molto.", safeAction: "Chiedi come si genera davvero il guadagno, costi iniziali e documenti. Non firmare sull'onda dell'entusiasmo." },
+  { id: "friend_multilevel_recruit", category: "Amici e parenti", situation: "Un amico ti invita a un incontro per un'opportunità di guadagno. Il focus è far entrare altre persone più che vendere un prodotto reale.", isRisky: true, difficulty: "difficile", redFlags: ["Reclutamento", "Guadagni promessi", "Pressione gruppo"], explanation: "Quando il guadagno dipende soprattutto dal reclutare altri, il rischio di schema insostenibile aumenta molto.", safeAction: "Chiedi come si genera davvero il guadagno, costi iniziali e documenti. Non firmare sull'onda dell'entusiasmo." },
   { id: "romance_soldier_oil_worker", category: "Relazioni", situation: "Una persona dice di essere militare, medico o lavoratore all'estero, non può videochiamare per sicurezza e chiede soldi per sbloccare documenti o bagagli.", isRisky: true, difficulty: "media", redFlags: ["All'estero", "No videochiamata", "Soldi per sblocco"], explanation: "Profili con lavori difficili da verificare e impossibilità di incontrarsi sono comuni nelle truffe sentimentali.", safeAction: "Non inviare denaro e non fidarti di documenti inviati in chat senza verifiche indipendenti." },
   { id: "friend_sudden_profit_screenshot", category: "Amici e parenti", situation: "Un amico ti manda screenshot di profitti elevati su una piattaforma e dice che anche tu puoi iniziare con poco, ma devi usare il suo link.", isRisky: true, difficulty: "media", redFlags: ["Screenshot profitti", "Link personale", "Guadagno facile"], explanation: "Screenshot e testimonianze possono essere falsi o non rappresentare il rischio reale. Il link personale può incentivare chi ti invita.", safeAction: "Non basarti su screenshot. Verifica piattaforma, rischi, autorizzazioni e costi." },
   { id: "relative_emergency_cash_courier", category: "Amici e parenti", situation: "Un presunto parente ti chiama in lacrime e dice che manderà un corriere a ritirare contanti o gioielli per risolvere un'emergenza.", isRisky: true, difficulty: "difficile", redFlags: ["Corriere", "Contanti/gioielli", "Panico"], explanation: "Le richieste di consegnare contanti o gioielli a intermediari sono un segnale molto forte di truffa emotiva.", safeAction: "Non consegnare nulla. Richiama il parente e contatta le forze dell'ordine se necessario." },
-  { id: "romance_wants_your_documents", category: "Relazioni", situation: "Una persona conosciuta da poco dice di voler prenotare un viaggio insieme e ti chiede foto di documento, codice fiscale e indirizzo.", isRisky: true, difficulty: "media", redFlags: ["Documenti", "Rapporto recente", "Viaggio"], explanation: "Documenti e dati personali possono essere usati per furto d'identita, contratti o profili falsi.", safeAction: "Non inviare documenti a persone non verificate. Prenota tu tramite canali ufficiali se necessario." },
+  { id: "romance_wants_your_documents", category: "Relazioni", situation: "Una persona conosciuta da poco dice di voler prenotare un viaggio insieme e ti chiede foto di documento, codice fiscale e indirizzo.", isRisky: true, difficulty: "media", redFlags: ["Documenti", "Rapporto recente", "Viaggio"], explanation: "Documenti e dati personali possono essere usati per furto d'identità, contratti o profili falsi.", safeAction: "Non inviare documenti a persone non verificate. Prenota tu tramite canali ufficiali se necessario." },
   { id: "friend_short_term_loan_written", category: "Amici e parenti", situation: "Un amico fidato chiede un piccolo prestito, spiega il motivo, propone bonifico tracciabile e una data precisa di restituzione scritta.", isRisky: false, difficulty: "media", redFlags: ["Trasparenza", "Accordo scritto", "Importo sostenibile"], explanation: "Non ogni prestito tra amici è una truffa. Chiarezza, tracciabilità e importo sostenibile rendono la situazione più gestibile.", safeAction: "Presta solo ciò che puoi permetterti e conserva accordo e pagamento tracciabile." },
   { id: "romance_video_call_investment", category: "Relazioni", situation: "Una persona conosciuta online accetta videochiamate brevi, ma dopo pochi giorni ti propone una piattaforma di investimento usata da un suo familiare esperto.", isRisky: true, difficulty: "difficile", redFlags: ["Relazione recente", "Investimento", "Fiducia costruita"], explanation: "La videochiamata può rendere la persona più credibile, ma il passaggio rapido verso investimenti resta un segnale di rischio.", safeAction: "Non investire tramite link ricevuti in chat. Verifica piattaforma e autorizzazioni da fonti indipendenti." },
-  { id: "romance_small_first_help", category: "Relazioni", situation: "Una persona con cui chatti da settimane chiede solo 25 euro per una ricarica, dicendo che è imbarazzata e te li restituira domani.", isRisky: true, difficulty: "media", redFlags: ["Richiesta piccola", "Imbarazzo", "Relazione online"], explanation: "Le richieste piccole servono spesso a testare disponibilita e fiducia. Possono diventare richieste sempre più grandi.", safeAction: "Non inviare denaro a persone mai incontrate. Mantieni confini chiari anche se l importo sembra basso." },
+  { id: "romance_small_first_help", category: "Relazioni", situation: "Una persona con cui chatti da settimane chiede solo 25 euro per una ricarica, dicendo che è imbarazzata e te li restituira domani.", isRisky: true, difficulty: "media", redFlags: ["Richiesta piccola", "Imbarazzo", "Relazione online"], explanation: "Le richieste piccole servono spesso a testare disponibilità e fiducia. Possono diventare richieste sempre più grandi.", safeAction: "Non inviare denaro a persone mai incontrate. Mantieni confini chiari anche se l importo sembra basso." },
   { id: "romance_public_no_money", category: "Relazioni", situation: "Una persona conosciuta online propone di vedervi in un bar pubblico, non chiede soldi e accetta di aspettare i tuoi tempi.", isRisky: false, difficulty: "media", redFlags: ["Luogo pubblico", "Nessuna richiesta denaro", "Tempo per decidere"], explanation: "Non è una truffa economica evidente. Resta comunque prudente sulla sicurezza personale e sui dati che condividi.", safeAction: "Incontra in luogo pubblico, informa qualcuno e non condividere dati finanziari o documenti." },
-  { id: "romance_crypto_together", category: "Relazioni", situation: "Una persona con cui stai creando confidenza dice che potreste costruire un futuro insieme iniziando a investire entrambi in crypto su una piattaforma privata.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro insieme", "Crypto", "Piattaforma privata"], explanation: "La promessa di un progetto comune può abbassare le difese. Le piattaforme private non verificate sono un rischio alto.", safeAction: "Non versare denaro. Verifica societa, autorizzazioni e possibilità di prelievo da fonti indipendenti." },
+  { id: "romance_crypto_together", category: "Relazioni", situation: "Una persona con cui stai creando confidenza dice che potreste costruire un futuro insieme iniziando a investire entrambi in crypto su una piattaforma privata.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro insieme", "Crypto", "Piattaforma privata"], explanation: "La promessa di un progetto comune può abbassare le difese. Le piattaforme private non verificate sono un rischio alto.", safeAction: "Non versare denaro. Verifica società, autorizzazioni e possibilità di prelievo da fonti indipendenti." },
   { id: "romance_medical_emergency_extra2", category: "Relazioni", situation: "Una persona conosciuta in chat dice che un familiare e in ospedale e chiede un aiuto urgente, promettendo di restituire tutto.", isRisky: true, difficulty: "difficile", redFlags: ["Emergenza medica", "Urgenza", "Pressione emotiva"], explanation: "Le emergenze mediche sono usate per creare senso di colpa e velocita. La storia può sembrare umana ma non è verificabile.", safeAction: "Non inviare denaro. Chiedi verifiche indipendenti e prenditi tempo prima di qualsiasi decisione." },
-  { id: "romance_ticket_to_visit", category: "Relazioni", situation: "Una persona dice di voler venire a trovarti ma chiede soldi per il biglietto aereo perché la carta non funziona.", isRisky: true, difficulty: "media", redFlags: ["Biglietto viaggio", "Carta non funziona", "Promessa incontro"], explanation: "Il desiderio di incontrarsi rende la richiesta più credibile. Spesso dopo il primo pagamento compaiono nuovi ostacoli.", safeAction: "Non pagare viaggi a persone che non conosci davvero. Verifica identita e prenotazioni da canali ufficiali." },
+  { id: "romance_ticket_to_visit", category: "Relazioni", situation: "Una persona dice di voler venire a trovarti ma chiede soldi per il biglietto aereo perché la carta non funziona.", isRisky: true, difficulty: "media", redFlags: ["Biglietto viaggio", "Carta non funziona", "Promessa incontro"], explanation: "Il desiderio di incontrarsi rende la richiesta più credibile. Spesso dopo il primo pagamento compaiono nuovi ostacoli.", safeAction: "Non pagare viaggi a persone che non conosci davvero. Verifica identità e prenotazioni da canali ufficiali." },
   { id: "romance_shared_bank_account", category: "Relazioni", situation: "Dopo poche settimane una persona dice che per fidarsi davvero dovreste aprire un conto o condividere dati bancari.", isRisky: true, difficulty: "difficile", redFlags: ["Dati bancari", "Relazione accelerata", "Fiducia richiesta"], explanation: "La richiesta di condividere dati o conti e sproporzionata rispetto a una relazione recente e può portare a furti o debiti.", safeAction: "Non condividere dati bancari, codici o documenti. Una relazione sana non richiede accesso ai tuoi soldi." },
   { id: "romance_photo_blackmail", category: "Relazioni", situation: "Dopo uno scambio intimo, una persona minaccia di inviare foto o chat ai tuoi contatti se non paghi.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto", "Vergogna", "Pagamento urgente"], explanation: "Il ricatto sfrutta paura e vergogna. Pagare non garantisce che la minaccia finisca.", safeAction: "Non pagare. Conserva prove, blocca il contatto e valuta denuncia o supporto specializzato." },
   { id: "romance_slow_boundaries", category: "Relazioni", situation: "La persona che stai conoscendo rispetta i tuoi confini, non chiede soldi e non propone investimenti o favori economici.", isRisky: false, difficulty: "facile", redFlags: ["Confini rispettati", "Nessuna pressione", "Nessuna richiesta soldi"], explanation: "Questo comportamento non mostra segnali economici di truffa. La prudenza resta utile, ma non ogni conoscenza online e pericolosa.", safeAction: "Continua con calma, proteggi dati personali e non anticipare fiducia economica." },
   { id: "romance_bank_account_transfer", category: "Relazioni", situation: "Una persona conosciuta online ti chiede di ricevere un bonifico sul tuo conto perché nel suo paese ci sono restrizioni.", isRisky: true, difficulty: "difficile", redFlags: ["Conto personale", "Estero", "Transito fondi"], explanation: "Usare il tuo conto per terzi può esporti a rischi legali e finanziari.", safeAction: "Rifiuta. Non fare transitare fondi per persone conosciute online." },
-  { id: "romance_document_money", category: "Relazioni", situation: "Una persona dice di non poter viaggiare per incontrarti finche non rinnova un documento e ti chiede soldi per la pratica.", isRisky: true, difficulty: "media", redFlags: ["Documento", "Promessa incontro", "Pagamento"], explanation: "La richiesta usa il desiderio di incontrarsi per rendere il pagamento accettabile. Spesso emergono altri ostacoli.", safeAction: "Non pagare documenti a persone mai incontrate. Verifica identita e situazione con calma." },
+  { id: "romance_document_money", category: "Relazioni", situation: "Una persona dice di non poter viaggiare per incontrarti finche non rinnova un documento e ti chiede soldi per la pratica.", isRisky: true, difficulty: "media", redFlags: ["Documento", "Promessa incontro", "Pagamento"], explanation: "La richiesta usa il desiderio di incontrarsi per rendere il pagamento accettabile. Spesso emergono altri ostacoli.", safeAction: "Non pagare documenti a persone mai incontrate. Verifica identità e situazione con calma." },
   { id: "romance_charity_project", category: "Relazioni", situation: "Una persona conosciuta online ti chiede di donare al suo progetto benefico personale, ma il sito non indica ente, bilanci o referenti.", isRisky: true, difficulty: "media", redFlags: ["Beneficenza personale", "Sito opaco", "Relazione online"], explanation: "Beneficenza e relazione possono creare pressione. Senza ente e trasparenza, il rischio è alto.", safeAction: "Dona solo a enti verificabili e canali ufficiali." },
   { id: "romance_family_blocked_card", category: "Relazioni", situation: "Una persona con cui parli ogni giorno dice che la carta è stata bloccata e chiede un prestito per pagare affitto e medicine.", isRisky: true, difficulty: "difficile", redFlags: ["Carta bloccata", "Bisogni essenziali", "Prestito"], explanation: "Bisogni essenziali e contatto quotidiano possono creare forte coinvolgimento emotivo. La verifica resta necessaria.", safeAction: "Non inviare denaro senza verifiche indipendenti. Se vuoi aiutare, cerca canali ufficiali e tracciabili." },
   { id: "romance_investment_mentor", category: "Relazioni", situation: "Una persona conosciuta su un app di incontri ti presenta un mentor che insegna trading con segnali sicuri.", isRisky: true, difficulty: "difficile", redFlags: ["Dating + trading", "Mentor", "Segnali sicuri"], explanation: "Il passaggio da relazione a investimento è un modello frequente nelle truffe. Il mentor crea autorita artificiale.", safeAction: "Non versare denaro. Esci dal gruppo e verifica intermediari su registri ufficiali." },
-  { id: "romance_future_pressure", category: "Relazioni", situation: "Una persona parla presto di convivenza e futuro insieme, poi chiede soldi per risolvere l ultimo problema prima di raggiungerti.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro accelerato", "Aiuto economico", "Problema finale"], explanation: "Le promesse di futuro possono creare attaccamento rapido. La richiesta economica dopo spinta emotiva è un segnale di rischio.", safeAction: "Non inviare denaro. Dai tempo alla relazione e verifica fatti, identita e coerenza." },
+  { id: "romance_future_pressure", category: "Relazioni", situation: "Una persona parla presto di convivenza e futuro insieme, poi chiede soldi per risolvere l ultimo problema prima di raggiungerti.", isRisky: true, difficulty: "difficile", redFlags: ["Futuro accelerato", "Aiuto economico", "Problema finale"], explanation: "Le promesse di futuro possono creare attaccamento rapido. La richiesta economica dopo spinta emotiva è un segnale di rischio.", safeAction: "Non inviare denaro. Dai tempo alla relazione e verifica fatti, identità e coerenza." },
   { id: "friend_loan_cash_no_trace", category: "Amici e parenti", situation: "Un amico ti chiede 1.500 euro in contanti per evitare problemi con la banca e dice di non fare bonifici.", isRisky: true, difficulty: "difficile", redFlags: ["Contanti", "Nessuna traccia", "Urgenza"], explanation: "La richiesta di contanti e assenza di traccia rende difficile dimostrare il prestito e recuperare il denaro.", safeAction: "Se decidi di aiutare, usa pagamento tracciabile e accordo scritto con tempi di restituzione." },
   { id: "friend_loan_clear_terms", category: "Amici e parenti", situation: "Un amico chiede un prestito limitato, propone bonifico, accordo scritto e restituzione a rate sostenibili.", isRisky: false, difficulty: "media", redFlags: ["Accordo scritto", "Tracciabilità", "Importo limitato"], explanation: "Non è automaticamente una truffa. Chiarezza e tracciabilità proteggono entrambi.", safeAction: "Presta solo ciò che puoi permetterti di perdere e conserva accordo e prove di pagamento." },
-  { id: "relative_business_no_docs", category: "Amici e parenti", situation: "Un parente ti chiede di investire nella sua attivita senza bilanci, dicendo che tra familiari non servono documenti.", isRisky: true, difficulty: "difficile", redFlags: ["Famiglia", "Nessun documento", "Investimento"], explanation: "Il legame familiare non elimina il rischio. Senza documenti non sai cosa stai finanziando e con quali diritti.", safeAction: "Chiedi numeri, contratto, rischi e tempi. Se non sono chiari, non investire." },
+  { id: "relative_business_no_docs", category: "Amici e parenti", situation: "Un parente ti chiede di investire nella sua attività senza bilanci, dicendo che tra familiari non servono documenti.", isRisky: true, difficulty: "difficile", redFlags: ["Famiglia", "Nessun documento", "Investimento"], explanation: "Il legame familiare non elimina il rischio. Senza documenti non sai cosa stai finanziando e con quali diritti.", safeAction: "Chiedi numeri, contratto, rischi e tempi. Se non sono chiari, non investire." },
   { id: "friend_account_blocked_transfer", category: "Amici e parenti", situation: "Un amico dice che il suo conto è bloccato e ti chiede di ricevere soldi sul tuo conto per poi girarglieli.", isRisky: true, difficulty: "difficile", redFlags: ["Conto terzi", "Transito denaro", "Spiegazione vaga"], explanation: "Fare transitare denaro per altri può esporti a problemi seri se i fondi hanno origine dubbia.", safeAction: "Non usare il tuo conto per movimenti di altri. Suggerisci canali ufficiali e tracciabili." },
   { id: "relative_voice_iban_new", category: "Amici e parenti", situation: "Ricevi un vocale che sembra di un familiare: dice di essere nei guai e chiede un bonifico immediato su un IBAN nuovo.", isRisky: true, difficulty: "difficile", redFlags: ["Vocale credibile", "IBAN nuovo", "Emergenza"], explanation: "Anche la voce può essere imitata o manipolata. Urgenza e IBAN nuovo restano segnali molto forti.", safeAction: "Richiama il familiare su numero conosciuto o verifica con altri parenti prima di inviare denaro." },
   { id: "friend_real_product_unsuitable", category: "Amici e parenti", situation: "Un amico ti segnala un prodotto finanziario reale e autorizzato, ma molto rischioso, dicendo che a lui sta andando bene.", isRisky: true, difficulty: "difficile", redFlags: ["Prodotto reale", "Rischio alto", "Esperienza altrui"], explanation: "Anche un prodotto vero può essere inadatto. Il fatto che funzioni per un amico non significa che sia adatto a te.", safeAction: "Leggi rischi e costi. Valuta obiettivi, orizzonte e tolleranza alle perdite prima di decidere." },
   { id: "family_gift_traceable", category: "Amici e parenti", situation: "Un familiare vuole regalarti una somma con bonifico tracciabile e causale chiara, senza chiedere nulla in cambio.", isRisky: false, difficulty: "facile", redFlags: ["Bonifico tracciabile", "Nessuna pressione", "Causale chiara"], explanation: "Non mostra segnali tipici di truffa. Resta utile chiarire motivazione e aspetti fiscali se l importo e rilevante.", safeAction: "Conserva traccia del bonifico e valuta eventuali implicazioni se la somma e alta." },
-  { id: "friend_card_data_request", category: "Amici e parenti", situation: "Un amico ti chiede di prestargli carta, PIN o codici per fare un pagamento urgente.", isRisky: true, difficulty: "media", redFlags: ["Dati carta", "Urgenza", "Prestito mezzo pagamento"], explanation: "Anche se conosci la persona, condividere carta, PIN o codici e pericoloso e può creare problemi difficili da risolvere.", safeAction: "Non condividere dati di pagamento. Se vuoi aiutare, usa un bonifico tracciabile." },
-  { id: "friend_guarantee_loan_extra2", category: "Amici e parenti", situation: "Un amico ti chiede di fare da garante per un finanziamento. Dice che è solo una formalita e che non rischi nulla.", isRisky: true, difficulty: "difficile", redFlags: ["Garante", "Rischio minimizzato", "Pressione affettiva"], explanation: "Fare da garante non è una formalita: se l altra persona non paga, il debito può ricadere su di te.", safeAction: "Leggi il contratto, valuta il rischio reale e chiedi consulenza prima di firmare." },
-  { id: "relative_family_guilt_investment", category: "Amici e parenti", situation: "Un parente ti propone di investire in un progetto per aiutare la famiglia e dice che rifiutare sarebbe mancanza di fiducia.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Famiglia", "Investimento poco chiaro"], explanation: "Quando investimento e legame familiare si mischiano, è facile perdere lucidita. La pressione emotiva è un segnale.", safeAction: "Separa affetto e soldi: chiedi business plan, rischi e accordi scritti prima di decidere." },
-  { id: "friend_repay_link", category: "Amici e parenti", situation: "Un vecchio amico ti scrive sui social dicendo di volerti restituire soldi, ma ti manda un link dove inserire carta e documento.", isRisky: true, difficulty: "media", redFlags: ["Link pagamento", "Documento", "Profilo social"], explanation: "Potrebbe essere un profilo compromesso. Per ricevere soldi non serve inserire dati carta su link sospetti.", safeAction: "Verifica l identita con una chiamata e usa metodi di pagamento noti e sicuri." },
+  { id: "friend_card_data_request", category: "Amici e parenti", situation: "Un amico ti chiede di prestargli carta, PIN o codici per fare un pagamento urgente.", isRisky: true, difficulty: "media", redFlags: ["Dati carta", "Urgenza", "Prestito mezzo pagamento"], explanation: "Anche se conosci la persona, condividere carta, PIN o codici è pericoloso e può creare problemi difficili da risolvere.", safeAction: "Non condividere dati di pagamento. Se vuoi aiutare, usa un bonifico tracciabile." },
+  { id: "friend_guarantee_loan_extra2", category: "Amici e parenti", situation: "Un amico ti chiede di fare da garante per un finanziamento. Dice che è solo una formalità e che non rischi nulla.", isRisky: true, difficulty: "difficile", redFlags: ["Garante", "Rischio minimizzato", "Pressione affettiva"], explanation: "Fare da garante non è una formalità: se l altra persona non paga, il debito può ricadere su di te.", safeAction: "Leggi il contratto, valuta il rischio reale e chiedi consulenza prima di firmare." },
+  { id: "relative_family_guilt_investment", category: "Amici e parenti", situation: "Un parente ti propone di investire in un progetto per aiutare la famiglia e dice che rifiutare sarebbe mancanza di fiducia.", isRisky: true, difficulty: "difficile", redFlags: ["Senso di colpa", "Famiglia", "Investimento poco chiaro"], explanation: "Quando investimento e legame familiare si mischiano, è facile perdere lucidità. La pressione emotiva è un segnale.", safeAction: "Separa affetto e soldi: chiedi business plan, rischi e accordi scritti prima di decidere." },
+  { id: "friend_repay_link", category: "Amici e parenti", situation: "Un vecchio amico ti scrive sui social dicendo di volerti restituire soldi, ma ti manda un link dove inserire carta e documento.", isRisky: true, difficulty: "media", redFlags: ["Link pagamento", "Documento", "Profilo social"], explanation: "Potrebbe essere un profilo compromesso. Per ricevere soldi non serve inserire dati carta su link sospetti.", safeAction: "Verifica l identità con una chiamata e usa metodi di pagamento noti e sicuri." },
   { id: "relative_loan_no_written_terms_extra2", category: "Amici e parenti", situation: "Un cugino ti chiede 3.000 euro in prestito e dice che non serve scrivere nulla perché siete parenti.", isRisky: true, difficulty: "media", redFlags: ["Prestito familiare", "Nessun accordo", "Importo rilevante"], explanation: "Prestiti tra parenti senza accordi chiari possono creare conflitti e perdite. La fiducia non sostituisce chiarezza.", safeAction: "Se decidi di aiutare, metti importo, tempi e modalità per iscritto." },
-  { id: "friend_multilevel_recruit_extra2", category: "Amici e parenti", situation: "Un amico ti invita a un incontro per un opportunita di guadagno dove il focus e far entrare altre persone.", isRisky: true, difficulty: "difficile", redFlags: ["Reclutamento", "Guadagni promessi", "Pressione gruppo"], explanation: "Quando il guadagno dipende soprattutto dal reclutare altri, il rischio di schema insostenibile aumenta molto.", safeAction: "Chiedi come si genera davvero il guadagno, costi iniziali e documenti. Non firmare sull entusiasmo." },
+  { id: "friend_multilevel_recruit_extra2", category: "Amici e parenti", situation: "Un amico ti invita a un incontro per un opportunità di guadagno dove il focus e far entrare altre persone.", isRisky: true, difficulty: "difficile", redFlags: ["Reclutamento", "Guadagni promessi", "Pressione gruppo"], explanation: "Quando il guadagno dipende soprattutto dal reclutare altri, il rischio di schema insostenibile aumenta molto.", safeAction: "Chiedi come si genera davvero il guadagno, costi iniziali e documenti. Non firmare sull entusiasmo." },
   { id: "friend_medical_direct_payment", category: "Amici e parenti", situation: "Un amico chiede aiuto per una spesa medica, mostra documenti verificabili e accetta pagamento diretto alla struttura.", isRisky: false, difficulty: "difficile", redFlags: ["Documenti verificabili", "Pagamento diretto", "Nessuna fretta"], explanation: "Non è necessariamente una truffa: la possibilità di pagare direttamente e verificare riduce il rischio.", safeAction: "Se vuoi aiutare, paga canali ufficiali e conserva ricevuta." },
-  { id: "emotional_blackmail_parent", category: "Amici e parenti", situation: "Un familiare ti dice che se non gli presti soldi rovinerai il rapporto e non ti parlera più.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto emotivo", "Famiglia", "Prestito"], explanation: "La pressione affettiva può portare a decisioni finanziarie non sostenibili. Aiutare non deve metterti in difficolta.", safeAction: "Prenditi tempo, definisci limiti e metti eventuali accordi per iscritto." },
+  { id: "emotional_blackmail_parent", category: "Amici e parenti", situation: "Un familiare ti dice che se non gli presti soldi rovinerai il rapporto e non ti parlerà più.", isRisky: true, difficulty: "difficile", redFlags: ["Ricatto emotivo", "Famiglia", "Prestito"], explanation: "La pressione affettiva può portare a decisioni finanziarie non sostenibili. Aiutare non deve metterti in difficoltà.", safeAction: "Prenditi tempo, definisci limiti e metti eventuali accordi per iscritto." },
   { id: "investment_friend_low_amount", category: "Amici e parenti", situation: "Un amico ti dice di iniziare con soli 50 euro su una piattaforma sconosciuta per vedere come va.", isRisky: true, difficulty: "difficile", redFlags: ["Importo piccolo", "Piattaforma sconosciuta", "Test fiducia"], explanation: "L importo basso serve a farti iniziare. Dopo il primo versamento possono aumentare richieste e pressione.", safeAction: "Non testare piattaforme non verificate. Cerca autorizzazioni e recensioni indipendenti." },
   { id: "door_charity_child_guilt", category: "Di persona", situation: "Una persona mostra foto di bambini malati e ti chiede contanti subito, dicendo che rifiutare significa non avere cuore.", isRisky: true, difficulty: "media", redFlags: ["Senso di colpa", "Contanti", "Nessuna verifica"], explanation: "La pressione emotiva può essere usata per impedire verifiche. Una raccolta seria accetta controlli e canali ufficiali.", safeAction: "Non donare in contanti sotto pressione. Cerca l ente e dona dal sito ufficiale." },
   { id: "door_utility_discount_now", category: "Di persona", situation: "Un incaricato dice che il tuo contratto luce e sbagliato e che solo firmando subito avrai diritto a uno sconto riservato.", isRisky: true, difficulty: "media", redFlags: ["Firma immediata", "Sconto riservato", "Confusione contratto"], explanation: "Le vendite aggressive puntano a farti firmare prima di leggere. Uno sconto vero può essere verificato con calma.", safeAction: "Non firmare subito. Chiedi copia dell offerta e confrontala da casa." },
@@ -1327,7 +1327,7 @@ const awarenessActions: AwarenessAction[] = [
   },
   {
     id: "remunerated_liquidity",
-    title: "Fai lavorare la liquidita ferma",
+    title: "Fai lavorare la liquidità ferma",
     category: "Risparmio",
     area: "Banca",
     estimatedSavingMonthly: 8,
@@ -1335,12 +1335,12 @@ const awarenessActions: AwarenessAction[] = [
     difficulty: 2,
     sacrifice: 1,
     minutes: 15,
-    why: "La liquidita che resta ferma sul conto può perdere valore nel tempo. Una parte della liquidita non investita, se non ti serve subito, può stare su un conto remunerato semplice e svincolato.",
+    why: "La liquidità che resta ferma sul conto può perdere valore nel tempo. Una parte della liquidità non investita, se non ti serve subito, può stare su un conto remunerato semplice e svincolato.",
     steps: [
-      "Individua quanta liquidita vuoi tenere disponibile per spese è imprevisti",
+      "Individua quanta liquidità vuoi tenere disponibile per spese è imprevisti",
       "Confronta conti remunerati o soluzioni simili, controllando tasso, costi, vincoli e sicurezza",
-      "Trade Republic è un esempio: al momento offre il 2% annuo lordo sulla liquidita con accredito mensile, ma verifica sempre le condizioni aggiornate",
-      "Non spostare tutta la liquidita: tieni sempre una parte facilmente accessibile per le spese quotidiane",
+      "Trade Republic è un esempio: al momento offre il 2% annuo lordo sulla liquidità con accredito mensile, ma verifica sempre le condizioni aggiornate",
+      "Non spostare tutta la liquidità: tieni sempre una parte facilmente accessibile per le spese quotidiane",
     ],
   },
   {
@@ -1527,6 +1527,18 @@ function isPurchaseDateValid(value?: string): boolean {
   if (!value) return false;
   const date = new Date(value);
   return !Number.isNaN(date.getTime()) && date.getTime() > Date.now();
+}
+
+function getPlanRank(plan?: PurchasePlan): number {
+  if (plan === "pro") return 2;
+  if (plan === "core") return 1;
+  return 0;
+}
+
+function getDateTime(value?: string): number {
+  if (!value) return 0;
+  const date = new Date(value).getTime();
+  return Number.isNaN(date) ? 0 : date;
 }
 
 function normalizePurchaseState(raw: Partial<PurchaseState> | null | undefined, fallbackEmail = ""): PurchaseState {
@@ -1819,7 +1831,7 @@ function buildBadges(params: {
       title: "Investitore disciplinato",
       description: "Dodici mesi consecutivi: il piano è diventato identità.",
       unlocked: streak >= 12,
-      tier: "identita",
+      tier: "identità",
       icon: "🏆",
       progress: clamp(streak, 12),
       target: 12,
@@ -1831,7 +1843,7 @@ function buildBadges(params: {
       title: "Ripartenza intelligente",
       description: "Hai ripreso dopo una pausa. La differenza la fa chi torna sul metodo.",
       unlocked: hasGapAndReturn,
-      tier: "identita",
+      tier: "identità",
       icon: "🔁",
       progress: hasGapAndReturn ? 1 : 0,
       target: 1,
@@ -1972,7 +1984,7 @@ function buildBadges(params: {
     },
     {
       id: "mortgage_checker",
-      title: "Casa con lucidita",
+      title: "Casa con lucidità",
       description: "Hai usato lo stress test mutuo: prima capisci il rischio, poi decidi.",
       unlocked: mortgageAnalysisUsed,
       tier: "consapevolezza",
@@ -2207,6 +2219,34 @@ function getErrorMessage(error: unknown) {
   return String(error ?? "");
 }
 
+
+function getItalianAuthErrorMessage(error: unknown) {
+  const raw = getErrorMessage(error);
+  const message = raw.toLowerCase();
+
+  if (message.includes("email rate limit") || message.includes("rate limit exceeded") || message.includes("too many") || message.includes("over email send rate limit")) {
+    return "Hai richiesto troppe email in poco tempo. Per motivi di sicurezza il servizio email consente pochi invii ravvicinati. Riprova tra circa 60 minuti.";
+  }
+
+  if (message.includes("invalid login credentials")) {
+    return "Email o password non corrette. Controlla i dati inseriti oppure usa Recupera password.";
+  }
+
+  if (message.includes("email not confirmed")) {
+    return "La tua email non risulta ancora confermata. Controlla la casella di posta e clicca sul link di conferma.";
+  }
+
+  if (message.includes("password should be at least") || message.includes("password is too short")) {
+    return "La password deve contenere almeno 8 caratteri.";
+  }
+
+  if (message.includes("otp expired") || message.includes("token has expired") || message.includes("link is invalid") || message.includes("invalid token")) {
+    return "Il link non è più valido o risulta scaduto. Richiedi un nuovo link e riprova.";
+  }
+
+  return raw || "Si è verificato un errore. Riprova tra poco.";
+}
+
 function isSupabaseLockAbortError(error: unknown) {
   const message = getErrorMessage(error).toLowerCase();
   return message.includes("aborterror") || message.includes("lock broken") || message.includes("steal");
@@ -2254,7 +2294,7 @@ export default function Home() {
 const [authReady, setAuthReady] = useState(false);
   const [appBootLoading, setAppBootLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authMode, setAuthMode] = useState<"login" | "register" | "reset" | "updatePassword">("login");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authConfirmPassword, setAuthConfirmPassword] = useState("");
@@ -2344,6 +2384,7 @@ const [authReady, setAuthReady] = useState(false);
   const [shoppingLoading, setShoppingLoading] = useState(false);
   const [showShoppingResetConfirm, setShowShoppingResetConfirm] = useState(false);
   const [isSmartShoppingOpen, setIsSmartShoppingOpen] = useState(false);
+  const [mobileAwarenessMode, setMobileAwarenessMode] = useState<"standard" | "shopping">("standard");
   const [vehiclePrice, setVehiclePrice] = useState("25000");
   const [vehicleDownPayment, setVehicleDownPayment] = useState("3000");
   const [vehicleMonthlyPayment, setVehicleMonthlyPayment] = useState("299");
@@ -2479,8 +2520,78 @@ const [authReady, setAuthReady] = useState(false);
   useEffect(() => {
     let mounted = true;
 
+    function cleanAuthCallbackUrl() {
+      if (typeof window === "undefined") return;
+      const pathname = window.location.pathname === "/auth/callback" ? "/" : window.location.pathname;
+      window.history.replaceState({}, document.title, `${window.location.origin}${pathname}`);
+    }
+
+    function readAuthCallbackFromUrl() {
+      if (typeof window === "undefined") {
+        return {
+          isRecovery: false,
+          code: null as string | null,
+          accessToken: null as string | null,
+          refreshToken: null as string | null,
+        };
+      }
+
+      const search = new URLSearchParams(window.location.search);
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const callbackType = search.get("type") || hash.get("type");
+
+      return {
+        isRecovery:
+          callbackType === "recovery" ||
+          window.location.pathname.includes("/auth/callback") && callbackType === "recovery",
+        code: search.get("code"),
+        accessToken: hash.get("access_token"),
+        refreshToken: hash.get("refresh_token"),
+      };
+    }
+
+    function showUpdatePasswordScreen() {
+      setAuthMode("updatePassword");
+      setAuthPassword("");
+      setAuthConfirmPassword("");
+      setAuthMessage("Inserisci una nuova password per completare il recupero.");
+      setAppBootLoading(false);
+      setAuthReady(true);
+    }
+
     async function initAuth() {
       try {
+        const authCallback = readAuthCallbackFromUrl();
+
+        if (authCallback.isRecovery) {
+          if (authCallback.code) {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(authCallback.code);
+            if (error) throw error;
+            if (!mounted) return;
+            setUser(data.session?.user ?? null);
+            showUpdatePasswordScreen();
+            cleanAuthCallbackUrl();
+            return;
+          }
+
+          if (authCallback.accessToken && authCallback.refreshToken) {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: authCallback.accessToken,
+              refresh_token: authCallback.refreshToken,
+            });
+            if (error) throw error;
+            if (!mounted) return;
+            setUser(data.session?.user ?? null);
+            showUpdatePasswordScreen();
+            cleanAuthCallbackUrl();
+            return;
+          }
+
+          if (!mounted) return;
+          showUpdatePasswordScreen();
+          return;
+        }
+
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -2498,6 +2609,18 @@ const [authReady, setAuthReady] = useState(false);
         setAuthReady(true);
       } catch (error) {
         console.warn("Errore inizializzazione auth:", error);
+        const authCallback = readAuthCallbackFromUrl();
+        if (authCallback.isRecovery) {
+          if (!mounted) return;
+          setUser(null);
+          setAppBootLoading(false);
+          setAuthMode("reset");
+          setAuthMessage("Il link di recupero non è valido o risulta scaduto. Richiedi un nuovo link di recupero password.");
+          setAuthReady(true);
+          cleanAuthCallbackUrl();
+          return;
+        }
+
         clearSupabaseAuthStorage();
         if (!mounted) return;
         setUser(null);
@@ -2508,9 +2631,17 @@ const [authReady, setAuthReady] = useState(false);
 
     initAuth();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       setAuthReady(true);
+
+      if (event === "PASSWORD_RECOVERY") {
+        setAuthMode("updatePassword");
+        setAuthPassword("");
+        setAuthConfirmPassword("");
+        setAppBootLoading(false);
+        setAuthMessage("Inserisci una nuova password per completare il recupero.");
+      }
     });
 
     return () => {
@@ -2571,8 +2702,6 @@ const [authReady, setAuthReady] = useState(false);
           ...prev,
           email: currentUser.email || prev.email || "",
         }));
-      } finally {
-        purchaseLoadedRef.current = true;
       }
 
       if (savedHoldings) setHoldings(JSON.parse(savedHoldings));
@@ -2583,6 +2712,7 @@ const [authReady, setAuthReady] = useState(false);
         // Li attendiamo prima di mostrare l'app per evitare passaggi rapidi
         // visibili tra home, paywall, onboarding e dashboard.
         await Promise.all([loadUserProfile(currentUser), loadPurchaseFromDb(currentUser)]);
+        purchaseLoadedRef.current = true;
       } finally {
         if (!cancelled) setAppBootLoading(false);
       }
@@ -2642,7 +2772,7 @@ const [authReady, setAuthReady] = useState(false);
   }, [purchase.expiresAt, step]);
 
   // Mantiene la schermata selezionata stabile anche dopo refresh sessione,
-  // inattivita o cambio scheda del browser. La navigazione cambia solo quando
+  // inattività o cambio scheda del browser. La navigazione cambia solo quando
   // l'utente clicca volontariamente un pulsante/menu oppure quando esce dal paywall.
   useEffect(() => {
     if (!user || !purchase.unlocked) return;
@@ -3142,14 +3272,14 @@ const [authReady, setAuthReady] = useState(false);
   const mortgageSustainabilityText = mortgageSustainabilityLevel === "buono"
     ? "Il mutuo sembra sostenibile rispetto ai dati inseriti. Mantieni comunque un fondo emergenza adeguato."
     : mortgageSustainabilityLevel === "medio"
-    ? "Il mutuo assorbe una parte importante del reddito. Prima di firmare, controlla bene margine mensile e liquidita residua."
+    ? "Il mutuo assorbe una parte importante del reddito. Prima di firmare, controlla bene margine mensile e liquidità residua."
     : "Il mutuo può diventare pesante: lascia poco spazio a imprevisti, spese familiari o cali di reddito.";
   const mortgageTrafficLight = mortgageSustainabilityLevel === "buono"
     ? {
         label: "Verde",
         title: "Sembra sostenibile",
         shortText: "La rata e il costo reale della casa sembrano gestibili rispetto al reddito inserito.",
-        advice: "Buon segnale: continua comunque a proteggere il fondo emergenza e non consumare tutta la liquidita per comprare casa.",
+        advice: "Buon segnale: continua comunque a proteggere il fondo emergenza e non consumare tutta la liquidità per comprare casa.",
         dotClass: "bg-emerald-500",
         badgeClass: "border-emerald-200 bg-emerald-100 text-emerald-800",
       }
@@ -3279,7 +3409,7 @@ const [authReady, setAuthReady] = useState(false);
     if (!value) return "unknown";
     if (value.includes("nessuna polizza")) return "none";
     if (value.includes("non trovato")) return "missing";
-    if (value.includes("non chiaro") || value.includes("obbligatorieta non chiara")) return "unclear";
+    if (value.includes("non chiaro") || value.includes("obbligatorietà non chiara")) return "unclear";
     return "present";
   };
 
@@ -4190,7 +4320,7 @@ const [authReady, setAuthReady] = useState(false);
           </div>
         </section>
       `).join("")
-      : `<div class="empty-state avoid-break"><strong>Nessuna criticita documentale rilevante.</strong><span>I dati principali controllati risultano segnati come trovati.</span></div>`;
+      : `<div class="empty-state avoid-break"><strong>Nessuna criticità documentale rilevante.</strong><span>I dati principali controllati risultano segnati come trovati.</span></div>`;
 
     const economicAttentionCards = mortgageEconomicAttentionFlags.length
       ? mortgageEconomicAttentionFlags.map((flag) => `
@@ -4632,7 +4762,7 @@ const [authReady, setAuthReady] = useState(false);
       ` : `
         <section class="next-card avoid-break">
           <h2>Nessuna email necessaria al momento</h2>
-          <p>I dati principali risultano presenti e non sono emerse criticita documentali o segnali economici rilevanti. Prima della firma verifica comunque che il PIES sia aggiornato alle condizioni definitive.</p>
+          <p>I dati principali risultano presenti e non sono emerse criticità documentali o segnali economici rilevanti. Prima della firma verifica comunque che il PIES sia aggiornato alle condizioni definitive.</p>
         </section>
       `}
 
@@ -4687,7 +4817,7 @@ const [authReady, setAuthReady] = useState(false);
       weight: 45,
       severity: "critico",
       minRisk: "alto",
-      why: "Codici, password, PIN, OTP e documenti possono dare accesso ai tuoi conti, alla tua identita o ai tuoi servizi digitali.",
+      why: "Codici, password, PIN, OTP e documenti possono dare accesso ai tuoi conti, alla tua identità o ai tuoi servizi digitali.",
       action: "Non inviare nulla. Chiudi la conversazione e contatta banca, ente o piattaforma solo da canali ufficiali.",
     },
     {
@@ -4740,7 +4870,7 @@ const [authReady, setAuthReady] = useState(false);
       text: "Ti chiedono di agire subito o ti mettono fretta?",
       weight: 18,
       severity: "forte",
-      why: "La fretta riduce la lucidita e ti spinge a saltare controlli importanti.",
+      why: "La fretta riduce la lucidità e ti spinge a saltare controlli importanti.",
       action: "Fermati almeno qualche minuto. Una richiesta seria può aspettare una verifica.",
     },
     {
@@ -5158,14 +5288,14 @@ const [authReady, setAuthReady] = useState(false);
     } else if (savedExitAdvice === "graduale") {
       reasons.push("vuoi ridurre il rischio di vendere tutto nel momento sbagliato");
       reasons.push("preferisci una procedura semplice e facile da seguire");
-      reasons.push("hai bisogno di trasformare il capitale in liquidita in modo ordinato");
+      reasons.push("hai bisogno di trasformare il capitale in liquidità in modo ordinato");
     } else if (savedExitAdvice === "regole") {
       reasons.push("vuoi evitare decisioni emotive quando il mercato si muove molto");
       reasons.push("sei disposto a seguire soglie già decise prima");
       reasons.push("può aiutare a proteggere parte dei guadagni senza uscire tutto insieme");
     } else if (savedExitAdvice === "obiettivo") {
       reasons.push("hai un traguardo concreto da raggiungere");
-      reasons.push("la priorita diventa proteggere il risultato quando sei vicino al target");
+      reasons.push("la priorità diventa proteggere il risultato quando sei vicino al target");
       reasons.push("e semplice da capire: il piano dipende dalla distanza dall'obiettivo");
     }
     return reasons;
@@ -5174,10 +5304,10 @@ const [authReady, setAuthReady] = useState(false);
   const exitRecommendedStrategy = useMemo(() => {
     const key = savedExitAdvice || selectedExitStrategy;
     const explanations: Record<ExitStrategyKey, string> = {
-      graduale: "Strategia semplice: trasformi il capitale in liquidita poco alla volta, riducendo il rischio di vendere tutto in una giornata sfavorevole.",
+      graduale: "Strategia semplice: trasformi il capitale in liquidità poco alla volta, riducendo il rischio di vendere tutto in una giornata sfavorevole.",
       regole: "Strategia disciplinata: decidi prima soglie e comportamenti, così il mercato non ti costringe a scegliere sotto stress.",
       obiettivo: "Strategia concreta: parti dal bisogno reale e riduci il rischio man mano che ti avvicini alla cifra che ti serve.",
-      bucket: "Strategia da rendita: separi una parte difensiva da cui prelevare è una parte investita che può continuare a lavorare.",
+      bucket: "Strategia da rendita: separi una parte difensiva da cui prelevare e una parte investita che può continuare a lavorare.",
     };
 
     return {
@@ -5208,7 +5338,7 @@ const [authReady, setAuthReady] = useState(false);
         `Scegli quale capitale vuoi rendere disponibile: nella simulazione stai usando ${formatEuro(exitCurrentNumber)}.`,
         `Decidi in quanti mesi uscire: ora hai impostato ${exitMonthsNumber} ${exitMonthsNumber === 1 ? "mese" : "mesi"}.`,
         `Vendi circa ${formatEuro(exitMonthlySale)} al mese, senza farti guidare dalle notizie del giorno.`,
-        "Dopo ogni vendita, sposta il denaro verso liquidita o strumenti più prudenti se quei soldi ti servono davvero.",
+        "Dopo ogni vendita, sposta il denaro verso liquidità o strumenti più prudenti se quei soldi ti servono davvero.",
         "Alla fine del periodo controlla: hai ancora bisogno di uscire oppure puoi lasciare investita una parte?",
       ],
       pros: [
@@ -5228,13 +5358,13 @@ const [authReady, setAuthReady] = useState(false);
       when: [
         "Hai già ottenuto un buon risultato e vuoi proteggerne una parte",
         "Vuoi una procedura scritta prima, non decisa nel momento di stress",
-        "Accetti una strategia un po più tecnica, ma ancora gestibile",
+        "Accetti una strategia un po' più tecnica, ma ancora gestibile",
       ],
       steps: [
         "Scrivi una regola semplice, per esempio: vendo una parte se il portafoglio scende troppo dal massimo raggiunto.",
         "Decidi quanto vendere se la regola scatta: una quota parziale e spesso più prudente di una vendita totale.",
         `Con i dati attuali, una vendita parziale del 25% vale circa ${formatEuro(exitRuleSaleAmount)}.`,
-        "Dopo la vendita, sposta la parte uscita verso liquidita o strumenti più prudenti.",
+        "Dopo la vendita, sposta la parte uscita verso liquidità o strumenti più prudenti.",
         "Controlla le regole una volta al mese: guardarle ogni giorno aumenta solo ansia e confusione.",
       ],
       pros: [
@@ -5250,7 +5380,7 @@ const [authReady, setAuthReady] = useState(false);
     },
     obiettivo: {
       title: "Uscita per obiettivo",
-      plain: "Parti dal motivo per cui stavi investendo. Se quei soldi servono per un obiettivo reale, la priorita diventa proteggerli, non cercare il massimo rendimento possibile.",
+      plain: "Parti dal motivo per cui stavi investendo. Se quei soldi servono per un obiettivo reale, la priorità diventa proteggerli, non cercare il massimo rendimento possibile.",
       when: [
         "Hai una spesa concreta: casa, famiglia, studio, progetto o sicurezza",
         "Vuoi proteggere una cifra precisa invece di inseguire sempre nuovi guadagni",
@@ -5260,7 +5390,7 @@ const [authReady, setAuthReady] = useState(false);
         `Scrivi la cifra obiettivo: ora hai impostato ${formatEuro(exitGoalNumber)}.`,
         `Confrontala con il valore attuale: sei circa al ${exitNearGoal}% dell'obiettivo.`,
         "Se sei lontano, continua il piano senza forzare l'uscita.",
-        "Se sei vicino, riduci progressivamente il rischio e prepara liquidita.",
+        "Se sei vicino, riduci progressivamente il rischio e prepara liquidità.",
         "Se hai raggiunto l'obiettivo, valuta uscita graduale o vendita finale solo per la parte che ti serve.",
       ],
       pros: [
@@ -5283,7 +5413,7 @@ const [authReady, setAuthReady] = useState(false);
         "Vuoi evitare di vendere azioni proprio nei momenti di mercato negativo",
       ],
       steps: [
-        `Separa una parte più prudente: esempio ${formatEuro(exitSafeBucket)} in liquidita/strumenti difensivi e ${formatEuro(exitInvestedBucket)} ancora investiti.`,
+        `Separa una parte più prudente: esempio ${formatEuro(exitSafeBucket)} in liquidità/strumenti difensivi e ${formatEuro(exitInvestedBucket)} ancora investiti.`,
         `Imposta un prelievo prudente: circa ${formatEuro(exitAnnualWithdrawal)} all'anno, pari al 3% del capitale simulato.`,
         "Quando la parte investita cresce molto, puoi vendere una quota e ricaricare il contenitore prudente.",
         "Quando il mercato scende, preleva dalla parte prudente e lascia respirare la parte investita.",
@@ -5348,7 +5478,7 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     if (goalDelta > 0) {
-      return "Il tuo capitale e aumentato. Continua a dare priorita alla costanza più che alla ricerca del momento perfetto.";
+      return "Il tuo capitale è aumentato. Continua a dare priorità alla costanza più che alla ricerca del momento perfetto.";
     }
 
     if (goalDelta < 0 && goalReason === "prelievo") {
@@ -5517,7 +5647,7 @@ const [authReady, setAuthReady] = useState(false);
   const chainMessage = !hasStartedPac
     ? "Il PAC è il Piano di Accumulo mensile: investi una cifra ricorrente, senza provare a prevedere il mercato."
     : currentMonthCompleted
-    ? "Hai chiuso il mese. Ora la priorita e proteggere questa continuita nel tempo."
+    ? "Hai chiuso il mese. Ora la priorità è proteggere questa continuita nel tempo."
     : "Hai già iniziato: completa anche questo mese per non interrompere la serie.";
   const chainNextStep = currentStreak >= 12
     ? "Hai raggiunto 12 mesi consecutivi. Ora devi solo mantenere il metodo."
@@ -6061,7 +6191,9 @@ const [authReady, setAuthReady] = useState(false);
     setAuthLoading(true);
     setAuthMessage("");
 
-    if (!authEmail || !authPassword) {
+    const normalizedEmail = authEmail.trim().toLowerCase();
+
+    if (!normalizedEmail || !authPassword) {
       setAuthMessage("Inserisci email e password.");
       setAuthLoading(false);
       return;
@@ -6070,32 +6202,118 @@ const [authReady, setAuthReady] = useState(false);
     if (authMode === "register") {
       if (authPassword !== authConfirmPassword) {
         setAuthMessage("Le password non coincidono.");
+        setAuthLoading(false);
         return;
       }
+
       const emailRedirectTo =
         typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
 
-      const { error } = await supabase.auth.signUp({
-        email: authEmail,
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
         password: authPassword,
         options: {
           emailRedirectTo,
         },
       });
 
-      if (error) setAuthMessage(error.message);
-      else {
-        setAuthMessage("Registrazione inviata. Controlla la tua email: dopo la conferma tornerai su una pagina dedicata di Soldi Semplici.");
-        setAuthMode("login");
+      if (error) {
+        const message = error.message.toLowerCase();
+        const alreadyRegistered =
+          message.includes("already") ||
+          message.includes("registered") ||
+          message.includes("exists") ||
+          message.includes("user already");
+
+        setAuthMessage(
+          alreadyRegistered
+            ? "Questa email risulta già collegata a un account. Accedi con la tua password oppure usa Recupera password."
+            : getItalianAuthErrorMessage(error)
+        );
+      } else {
+        const identities = data.user?.identities;
+        const emailAlreadyRegistered = Array.isArray(identities) && identities.length === 0;
+
+        if (emailAlreadyRegistered) {
+          setAuthMessage("Questa email risulta già collegata a un account. Accedi con la tua password oppure usa Recupera password.");
+          setAuthMode("login");
+        } else {
+          setAuthMessage("Registrazione inviata. Controlla la tua email: dopo la conferma tornerai su una pagina dedicata di Soldi Semplici.");
+          setAuthMode("login");
+        }
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({
-        email: authEmail,
+        email: normalizedEmail,
         password: authPassword,
       });
 
-      if (error) setAuthMessage(error.message);
+      if (error) setAuthMessage(getItalianAuthErrorMessage(error));
       else setAuthMessage("");
+    }
+
+    setAuthLoading(false);
+  }
+
+  async function handlePasswordResetRequest() {
+    setAuthLoading(true);
+    setAuthMessage("");
+
+    const normalizedEmail = authEmail.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setAuthMessage("Inserisci la tua email per ricevere il link di recupero password.");
+      setAuthLoading(false);
+      return;
+    }
+
+    const redirectTo =
+      typeof window !== "undefined" ? `${window.location.origin}/?type=recovery` : undefined;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo,
+    });
+
+    if (error) {
+      setAuthMessage(getItalianAuthErrorMessage(error));
+    } else {
+      setAuthMessage("Ti abbiamo inviato un'email con il link per impostare una nuova password. Controlla anche la cartella spam o promozioni.");
+    }
+
+    setAuthLoading(false);
+  }
+
+  async function handlePasswordUpdate() {
+    setAuthLoading(true);
+    setAuthMessage("");
+
+    if (!authPassword || !authConfirmPassword) {
+      setAuthMessage("Inserisci e conferma la nuova password.");
+      setAuthLoading(false);
+      return;
+    }
+
+    if (authPassword.length < 8) {
+      setAuthMessage("La nuova password deve contenere almeno 8 caratteri.");
+      setAuthLoading(false);
+      return;
+    }
+
+    if (authPassword !== authConfirmPassword) {
+      setAuthMessage("Le password non coincidono.");
+      setAuthLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: authPassword });
+
+    if (error) {
+      setAuthMessage(getItalianAuthErrorMessage(error));
+    } else {
+      setAuthMessage("Password aggiornata correttamente. Ora puoi continuare a usare Soldi Semplici.");
+      setAuthMode("login");
+      setAuthPassword("");
+      setAuthConfirmPassword("");
+      setStep("dashboard");
     }
 
     setAuthLoading(false);
@@ -7130,21 +7348,67 @@ const [authReady, setAuthReady] = useState(false);
         return;
       }
 
-      const plan = nextPurchase.plan || "core";
-      const paidAmount = nextPurchase.paidAmount ?? (plan === "core" ? 29 : plan === "pro" ? 59 : 0);
+      let purchaseToSave = nextPurchase;
+
+      const { data: existingData, error: existingReadError } = await supabase
+        .from("user_purchases")
+        .select("*")
+        .eq("user_id", authUserId)
+        .maybeSingle();
+
+      if (existingReadError && existingReadError.code !== "PGRST116") {
+        console.warn("Controllo piano esistente non riuscito, procedo con prudenza:", existingReadError.message);
+      }
+
+      if (existingData?.unlocked) {
+        const existingPlan = (existingData.plan === "pro" ? "pro" : "core") as PurchasePlan;
+        const existingPurchase = normalizePurchaseState(
+          {
+            unlocked: !!existingData.unlocked,
+            email: existingData.email || user.email || "",
+            selectedPortfolio: existingData.selected_portfolio || undefined,
+            plan: existingPlan,
+            paidAmount: Number(existingData.paid_amount ?? (existingPlan === "core" ? 29 : 59)),
+            purchasedAt: existingData.purchased_at || undefined,
+            upgradedAt: existingData.upgraded_at || undefined,
+            expiresAt: existingData.expires_at || undefined,
+            lastPaymentType: existingData.last_payment_type || undefined,
+          },
+          user.email || ""
+        );
+
+        const existingRank = getPlanRank(existingPurchase.plan);
+        const nextRank = getPlanRank(nextPurchase.plan);
+        const existingExpiry = getDateTime(existingPurchase.expiresAt);
+        const nextExpiry = getDateTime(nextPurchase.expiresAt);
+
+        // Protezione anti-downgrade: un piano Pro attivo salvato su Supabase non deve
+        // essere sovrascritto da uno stato locale Core rimasto vecchio su un altro percorso/dispositivo.
+        // A parità di piano, preserviamo anche la scadenza più lunga.
+        if (existingPurchase.unlocked && (existingRank > nextRank || (existingRank === nextRank && existingExpiry > nextExpiry))) {
+          purchaseToSave = {
+            ...existingPurchase,
+            email: nextPurchase.email || existingPurchase.email || user.email || "",
+            selectedPortfolio: nextPurchase.selectedPortfolio || existingPurchase.selectedPortfolio,
+          };
+        }
+      }
+
+      const plan = purchaseToSave.plan || "core";
+      const paidAmount = purchaseToSave.paidAmount ?? (plan === "core" ? 29 : plan === "pro" ? 59 : 0);
 
       const { error } = await supabase.from("user_purchases").upsert(
         {
           user_id: authUserId,
-          email: nextPurchase.email || user.email || "",
-          unlocked: !!nextPurchase.unlocked,
+          email: purchaseToSave.email || user.email || "",
+          unlocked: !!purchaseToSave.unlocked,
           plan,
           paid_amount: paidAmount,
-          selected_portfolio: nextPurchase.selectedPortfolio || null,
-          purchased_at: nextPurchase.purchasedAt || new Date().toISOString(),
-          upgraded_at: nextPurchase.upgradedAt || null,
-          expires_at: nextPurchase.expiresAt || addDaysIso(new Date(), PLAN_VALIDITY_DAYS),
-          last_payment_type: nextPurchase.lastPaymentType || null,
+          selected_portfolio: purchaseToSave.selectedPortfolio || null,
+          purchased_at: purchaseToSave.purchasedAt || new Date().toISOString(),
+          upgraded_at: purchaseToSave.upgradedAt || null,
+          expires_at: purchaseToSave.expiresAt || addDaysIso(new Date(), PLAN_VALIDITY_DAYS),
+          last_payment_type: purchaseToSave.lastPaymentType || null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id" }
@@ -7201,7 +7465,6 @@ const [authReady, setAuthReady] = useState(false);
       );
 
       localStorage.setItem(getPurchaseKey(currentUser.id), JSON.stringify(remotePurchase));
-      purchaseLoadedRef.current = true;
 
       setPurchase((prev) => ({
         ...remotePurchase,
@@ -7610,7 +7873,7 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   function goToDashboardSection(sectionId: string) {
-    const monitorSections = new Set(["azione-del-mese", "storico-pac", "validita-piano"]);
+    const monitorSections = new Set(["azione-del-mese", "storico-pac", "validità-piano"]);
     const guideSections = new Set(["prima-volta-qui"]);
     const tab: DashboardTab = guideSections.has(sectionId)
       ? "guida"
@@ -7774,9 +8037,9 @@ const [authReady, setAuthReady] = useState(false);
     setDashboardActiveTab(setupCompleted ? "monitor" : "guida");
   }, [step, setupCompleted, user?.id]);
 
-  if (!authReady || (user && appBootLoading)) {
+  if (!authReady || (user && appBootLoading && authMode !== "updatePassword")) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900">
         <div className="mx-auto flex min-h-screen max-w-xl items-center justify-center px-6">
           <div className="w-full rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <div className="mx-auto inline-flex rounded-3xl border border-emerald-100 bg-white/90 p-4 shadow-sm">
@@ -7799,10 +8062,77 @@ const [authReady, setAuthReady] = useState(false);
     );
   }
 
+  if (authMode === "updatePassword") {
+    return (
+      <main className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900">
+        <div className="mx-auto flex min-h-screen w-full max-w-xl items-center justify-center px-4 py-8 sm:px-6">
+          <div className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="inline-flex rounded-3xl border border-emerald-100 bg-white/85 p-4 shadow-sm backdrop-blur">
+              <SoldiSempliciLogo size="compact" showTagline={false} />
+            </div>
+            <p className="mt-7 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Recupero password</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Imposta una nuova password</h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Inserisci una nuova password per il tuo account Soldi Semplici. Dopo il salvataggio potrai continuare il percorso normalmente.
+            </p>
+
+            <div className="mt-6 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700">Nuova password</label>
+                <div className="mt-2 relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    placeholder="Almeno 8 caratteri"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-12 outline-none transition focus:border-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-700"
+                  >
+                    {showPassword ? "Nascondi" : "Mostra"}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700">Conferma nuova password</label>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={authConfirmPassword}
+                  onChange={(e) => setAuthConfirmPassword(e.target.value)}
+                  placeholder="Ripeti la nuova password"
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400"
+                />
+              </div>
+
+              {authMessage && (
+                <div className={`rounded-2xl border p-4 text-sm leading-6 ${authMessage.toLowerCase().includes("correttamente") || authMessage.toLowerCase().includes("inserisci") ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-red-200 bg-red-50 text-red-800"}`}>
+                  {authMessage}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handlePasswordUpdate}
+                disabled={authLoading}
+                className="w-full rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {authLoading ? "Salvataggio..." : "Salva nuova password"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (!user) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
-        <div className="mx-auto grid min-h-screen max-w-6xl gap-6 px-6 py-10 lg:grid-cols-[1.15fr_0.85fr]">
+      <main className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900">
+        <div className="mx-auto grid min-h-screen w-full max-w-6xl gap-6 overflow-x-hidden px-3 py-6 sm:px-6 sm:py-10 lg:grid-cols-[1.15fr_0.85fr]">
           <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 shadow-sm md:p-10">
             <div className="absolute right-[-90px] top-[-90px] h-64 w-64 rounded-full bg-emerald-100 blur-3xl" />
             <div className="absolute bottom-[-100px] left-[-100px] h-72 w-72 rounded-full bg-sky-100 blur-3xl" />
@@ -7843,22 +8173,24 @@ const [authReady, setAuthReady] = useState(false);
               </div>
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  {authMode === "login" ? "Bentornato" : "Crea il tuo piano"}
+                  {authMode === "login" ? "Bentornato" : authMode === "reset" ? "Recupera password" : "Crea il tuo piano"}
                 </p>
                 <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-                  {authMode === "login" ? "Accedi" : "Inizia gratis"}
+                  {authMode === "login" ? "Accedi" : authMode === "reset" ? "Recupera l'accesso" : "Inizia gratis"}
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   {authMode === "login"
                     ? "Rientra nel tuo percorso e continua da dove eri rimasto."
-                    : "Crea un account per salvare il tuo piano e arrivare al modello senza pagare."}
+                    : authMode === "reset"
+                      ? "Inserisci l'email del tuo account: ti invieremo un link per impostare una nuova password."
+                      : "Crea un account per salvare il tuo piano e arrivare al modello senza pagare."}
                 </p>
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
                 <button
                   type="button"
-                  onClick={() => setAuthMode("register")}
+                  onClick={() => { setAuthMode("register"); setAuthMessage(""); }}
                   className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
                     authMode === "register"
                       ? "bg-emerald-600 text-white shadow-sm"
@@ -7869,7 +8201,7 @@ const [authReady, setAuthReady] = useState(false);
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAuthMode("login")}
+                  onClick={() => { setAuthMode("login"); setAuthMessage(""); }}
                   className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
                     authMode === "login"
                       ? "bg-emerald-600 text-white shadow-sm"
@@ -7892,25 +8224,36 @@ const [authReady, setAuthReady] = useState(false);
                   />
                 </div>
 
-                <div>
-                  <label className="text-sm font-medium text-slate-700">Password</label>
-                  <div className="mt-2 relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={authPassword}
-                      onChange={(e) => setAuthPassword(e.target.value)}
-                      placeholder="Inserisci la password"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-12 outline-none transition focus:border-slate-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-700"
-                    >
-                      {showPassword ? "Nascondi" : "Mostra"}
-                    </button>
+                {authMode !== "reset" && (
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Password</label>
+                    <div className="mt-2 relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        placeholder="Inserisci la password"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-12 outline-none transition focus:border-slate-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-700"
+                      >
+                        {showPassword ? "Nascondi" : "Mostra"}
+                      </button>
+                    </div>
+                    {authMode === "login" && (
+                      <button
+                        type="button"
+                        onClick={() => { setAuthMode("reset"); setAuthMessage(""); setAuthPassword(""); setAuthConfirmPassword(""); }}
+                        className="mt-3 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+                      >
+                        Hai dimenticato la password?
+                      </button>
+                    )}
                   </div>
-                </div>
+                )}
 
                 {authMode === "register" && (
                   <div>
@@ -7927,16 +8270,26 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
                 )}
 
+                {authMode === "reset" && (
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMode("login"); setAuthMessage(""); }}
+                    className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+                  >
+                    Torna all'accesso
+                  </button>
+                )}
+
                 {authMessage && (
                   <div
                     className={`rounded-2xl border p-4 text-sm leading-6 ${
-                      authMessage.toLowerCase().includes("email") || authMessage.toLowerCase().includes("registrazione")
+                      authMessage.toLowerCase().includes("registrazione inviata") || authMessage.toLowerCase().includes("ti abbiamo inviato")
                         ? "border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm"
                         : "border-red-200 bg-red-50 text-red-800"
                     }`}
                   >
                     <p className="font-semibold">
-                      {authMessage.toLowerCase().includes("email") || authMessage.toLowerCase().includes("registrazione")
+                      {authMessage.toLowerCase().includes("registrazione inviata") || authMessage.toLowerCase().includes("ti abbiamo inviato")
                         ? "Controlla la tua email"
                         : "Attenzione"}
                     </p>
@@ -7946,11 +8299,11 @@ const [authReady, setAuthReady] = useState(false);
 
                 <button
                   type="button"
-                  onClick={handleAuthSubmit}
+                  onClick={authMode === "reset" ? handlePasswordResetRequest : handleAuthSubmit}
                   disabled={authLoading}
                   className="w-full rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {authLoading ? "Attendi..." : authMode === "login" ? "Accedi" : "Crea account e inizia gratis"}
+                  {authLoading ? "Attendi..." : authMode === "login" ? "Accedi" : authMode === "reset" ? "Invia link di recupero" : "Crea account e inizia gratis"}
                 </button>
 
                 <button
@@ -7973,7 +8326,63 @@ const [authReady, setAuthReady] = useState(false);
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900">
+      <style>{`
+        @media (max-width: 1023px) {
+          :root,
+          html,
+          body {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden !important;
+            overscroll-behavior-x: none;
+          }
+
+          body {
+            position: relative;
+            touch-action: pan-y;
+          }
+
+          body > *,
+          #__next,
+          main {
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: clip;
+          }
+
+          main,
+          section,
+          article,
+          aside,
+          header,
+          footer,
+          div {
+            min-width: 0;
+          }
+
+          input,
+          select,
+          textarea,
+          button,
+          img,
+          svg {
+            max-width: 100%;
+          }
+
+          .mobile-no-horizontal-pan {
+            max-width: 100vw;
+            overflow-x: hidden;
+          }
+
+          table {
+            display: block;
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+        }
+      `}</style>
       <CelebrationOverlay
         celebration={goalCelebration || celebration}
         onClose={() => {
@@ -7993,7 +8402,7 @@ const [authReady, setAuthReady] = useState(false);
           setCelebration(null);
         }}
       />
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
+      <div className="mobile-no-horizontal-pan mx-auto w-full max-w-full overflow-x-hidden px-3 py-5 sm:px-4 md:px-8 md:py-8 lg:max-w-7xl">
         <TopBar
           step={step}
           unlocked={purchase.unlocked}
@@ -8005,6 +8414,21 @@ const [authReady, setAuthReady] = useState(false);
           onGoAwareness={() => setStep("awareness")}
           onGoStrumentis={() => openDashboardTab("portafoglio")}
           onGoDashboard={() => setStep("dashboard")}
+          onGoDashboardTab={(tab) => openDashboardTab(tab)}
+          onGoAwarenessTab={(tab) => {
+            setMobileAwarenessMode("standard");
+            setAwarenessTab(tab);
+            setStep("awareness");
+          }}
+          onGoShoppingList={() => {
+            setMobileAwarenessMode("shopping");
+            setAwarenessTab("risparmio");
+            setIsSmartShoppingOpen(true);
+            setStep("awareness");
+            setTimeout(() => {
+              document.getElementById("spesa-intelligente")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 120);
+          }}
           onGoRebalance={() => {
             void trackEvent("open_rebalance");
             setStep("rebalance");
@@ -8026,7 +8450,7 @@ const [authReady, setAuthReady] = useState(false);
 
         {showProUpgradeModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
-            <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl">
+            <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-8">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Prima di passare al Pro</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">Il Pro è pensato per una fase più avanzata</h2>
               <p className="mt-4 text-sm leading-6 text-slate-600">
@@ -8138,7 +8562,7 @@ const [authReady, setAuthReady] = useState(false);
                     "Non fornisce consulenza finanziaria personalizzata",
                     "Non dice cosa comprare o vendere",
                     "Non promette rendimenti",
-                    "Non sostituisce studio, responsabilita e valutazione personale",
+                    "Non sostituisce studio, responsabilità e valutazione personale",
                   ]}
                 />
               </div>
@@ -8291,7 +8715,7 @@ const [authReady, setAuthReady] = useState(false);
               </div>
 
               <div className="mt-8 grid gap-4 md:grid-cols-3">
-                <MetricCard label="Stabilita" value={scoreResult.totals.stabilita.toString()} />
+                <MetricCard label="Stabilità" value={scoreResult.totals.stabilita.toString()} />
                 <MetricCard label="Equilibrio" value={scoreResult.totals.equilibrio.toString()} />
                 <MetricCard label="Crescita" value={scoreResult.totals.crescita.toString()} />
               </div>
@@ -8517,7 +8941,7 @@ const [authReady, setAuthReady] = useState(false);
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Uso educativo</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Il modello è le categorie mostrate hanno finalità informative. Gli eventuali strumenti indicati sono esempi e non costituiscono raccomandazioni operative.
+                  Il modello e le categorie mostrate hanno finalità informative. Gli eventuali strumenti indicati sono esempi e non costituiscono raccomandazioni operative.
                 </p>
               </div>
 
@@ -8607,12 +9031,10 @@ const [authReady, setAuthReady] = useState(false);
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
                   Hai visto il modello. Ora segui la guida operativa per capire cosa fare, in che ordine e quali strumenti usare.
                 </p>
-                <button
-                  onClick={() => openDashboardTab("guida")}
-                  className="mt-5 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                >
-                  Attiva il mio piano
-                </button>
+                <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  Piano attivo
+                </div>
               </div>
             )}
 
@@ -8634,19 +9056,22 @@ const [authReady, setAuthReady] = useState(false);
             </div>
 
             <div className="flex justify-end">
-              <button
-                onClick={async () => {
-                  if (purchase.unlocked) {
-                    openDashboardTab("guida");
-                  } else {
+              {purchase.unlocked ? (
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  Piano attivo
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
                     await trackEvent("click_paywall", { source: "portfolio_bottom_cta" });
                     goToPaywallTop();
-                  }
-                }}
-                className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
-              >
-                {purchase.unlocked ? "Attiva il mio piano" : "Accedi alle funzioni complete"}
-              </button>
+                  }}
+                  className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
+                >
+                  Accedi alle funzioni complete
+                </button>
+              )}
             </div>
           </section>
         )}
@@ -9139,7 +9564,7 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
-            <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="hidden rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm lg:block">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-700">Scegli una scheda</p>
@@ -9191,7 +9616,7 @@ const [authReady, setAuthReady] = useState(false);
 
             {awarenessTab === "risparmio" && (
               <div className="space-y-6">
-                <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-sm">
+                <div className={`${mobileAwarenessMode === "shopping" ? "hidden lg:block" : ""} rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-sm`}>
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Scheda risparmio</p>
@@ -9208,7 +9633,7 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className={`${mobileAwarenessMode === "shopping" ? "hidden lg:block" : ""} rounded-3xl border border-slate-200 bg-white p-5 shadow-sm`}>
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <p className="text-sm font-semibold text-slate-950">Da dove iniziare</p>
@@ -9223,7 +9648,7 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
                 </div>
 
-                <div className="rounded-[2rem] border border-emerald-200 bg-gradient-to-br from-white via-emerald-50/40 to-white p-5 shadow-sm">
+                <div id="spesa-intelligente" className={`${mobileAwarenessMode === "shopping" ? "block" : "hidden"} rounded-[2rem] border border-emerald-200 bg-gradient-to-br from-white via-emerald-50/40 to-white p-5 shadow-sm lg:block`}> 
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Spesa intelligente</p>
@@ -9249,7 +9674,7 @@ const [authReady, setAuthReady] = useState(false);
 
                   {isSmartShoppingOpen && (
                     <div className="mt-5">
-                    <div className="grid min-w-[260px] grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-2">
+                    <div className="grid w-full min-w-0 grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-2">
                       <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Acquistati</p>
                         <p className="mt-1 text-xl font-black text-slate-950">{shoppingCheckedCount}/{shoppingItems.length}</p>
@@ -9377,7 +9802,7 @@ const [authReady, setAuthReady] = useState(false);
 
                     {shoppingItems.length === 0 ? (
                       <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm leading-6 text-slate-600">
-                        La lista e vuota. Aggiungi qualche prodotto comune oppure crea un prodotto personale.
+                        La lista è vuota. Aggiungi qualche prodotto comune oppure crea un prodotto personale.
                       </div>
                     ) : (
                       <div className="mt-5 grid gap-3 lg:grid-cols-2">
@@ -9446,7 +9871,7 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
                 )}
 
-                <div className="grid gap-4 xl:grid-cols-2">
+                <div className={`${mobileAwarenessMode === "shopping" ? "hidden lg:grid" : "grid"} gap-4 xl:grid-cols-2`}>
                   {sortedAwarenessActions.map((action, index) => {
                     const done = !!completedAwarenessActions[action.id];
                     return (
@@ -9761,7 +10186,7 @@ const [authReady, setAuthReady] = useState(false);
                       )}
 
                       <div className="mt-5 rounded-2xl border border-orange-200 bg-white/80 p-4 text-sm leading-6 text-orange-950">
-                        <strong>Messaggio chiave:</strong> se non hai la liquidita per pagare la rata finale, la rata bassa iniziale potrebbe trasformarsi in un nuovo impegno mensile. Questa stima non sostituisce un preventivo ufficiale, ma ti aiuta a capire se la maxi rata finale e davvero sostenibile per te.
+                        <strong>Messaggio chiave:</strong> se non hai la liquidità per pagare la rata finale, la rata bassa iniziale potrebbe trasformarsi in un nuovo impegno mensile. Questa stima non sostituisce un preventivo ufficiale, ma ti aiuta a capire se la maxi rata finale e davvero sostenibile per te.
                       </div>
                     </div>
                   )}
@@ -9798,7 +10223,7 @@ const [authReady, setAuthReady] = useState(false);
                     <h4 className="text-xl font-bold">Scenari da valutare</h4>
                     <div className="mt-4 grid gap-3">
                       {[
-                        ["Paghi la maxi rata", "Diventi proprietàrio, ma devi avere liquidita finale."],
+                        ["Paghi la maxi rata", "Diventi proprietàrio, ma devi avere liquidità finale."],
                         ["Rifinanzi la maxi rata", "Paghi ancora interessi sulla stessa auto."],
                         ["Cambi auto", "Chiudi un contratto e ne riapri un altro: attenzione al ciclo di debito."],
                         ["Auto meno costosa", "Stessa mobilita con più capitale libero per emergenze e PAC."],
@@ -9871,7 +10296,7 @@ const [authReady, setAuthReady] = useState(false);
                         <div className="mt-6 grid gap-4 md:grid-cols-2">
                           {[
                             ["Prezzo casa", mortgageHomePrice, setMortgageHomePrice, "Prezzo richiesto per la casa. Oltre al prezzo ci sono anticipo, notaio, imposte e altre spese."],
-                            ["Anticipo", mortgageDownPayment, setMortgageDownPayment, "Soldi che metti subito. Non consumare tutta la liquidita solo per aumentare l'anticipo."],
+                            ["Anticipo", mortgageDownPayment, setMortgageDownPayment, "Soldi che metti subito. Non consumare tutta la liquidità solo per aumentare l'anticipo."],
                             ["Importo mutuo", mortgagePrincipal, setMortgagePrincipal, "Se hai già il preventivo della banca, inserisci l'importo esatto. Se lo lasci vuoto, lo stimiamo da prezzo casa meno anticipo."],
                             ["Durata mutuo (anni)", mortgageYears, setMortgageYears, "Durate più lunghe abbassano la rata, ma di solito aumentano gli interessi totali pagati nel tempo."],
                             ["Tasso / TAN (%)", mortgageRate, setMortgageRate, "Inserisci il tasso nominale indicato nel preventivo o nel PIES."],
@@ -9921,7 +10346,7 @@ const [authReady, setAuthReady] = useState(false);
 
                       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
                         <h4 className="text-xl font-bold text-slate-950">Costi iniziali, casa e fondo emergenza</h4>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">Per comprare casa non servono solo anticipo e mutuo. Notaio, imposte, agenzia, trasloco, arredamento e piccoli lavori possono assorbire molta liquidita.</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">Per comprare casa non servono solo anticipo e mutuo. Notaio, imposte, agenzia, trasloco, arredamento e piccoli lavori possono assorbire molta liquidità.</p>
                         <div className="mt-5 grid gap-4 md:grid-cols-2">
                           {[
                             ["Costi iniziali acquisto", mortgageInitialCosts, setMortgageInitialCosts, "Notaio, imposte, agenzia, perizia, istruttoria, trasloco, primi lavori o arredi."],
@@ -10003,7 +10428,7 @@ const [authReady, setAuthReady] = useState(false);
                       </div>
 
                       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <h4 className="text-xl font-bold text-slate-950">Costi iniziali e liquidita</h4>
+                        <h4 className="text-xl font-bold text-slate-950">Costi iniziali e liquidità</h4>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
                           <PremiumStatCard eyebrow="Soldi iniziali necessari" value={formatEuro(mortgageFrontCashNeeded)} note="Anticipo + costi iniziali" />
                           <PremiumStatCard eyebrow="Liquidita residua" value={formatEuro(mortgage.liquidAfterPurchase)} note="Dopo acquisto" />
@@ -10433,7 +10858,7 @@ const [authReady, setAuthReady] = useState(false);
                             <div className="mt-4 space-y-3">
                               {mortgagePiesIssues.length === 0 ? (
                                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
-                                  Nessuna criticita documentale rilevante tra i dati controllati. Verifica comunque che il PIES sia aggiornato alle condizioni definitive.
+                                  Nessuna criticità documentale rilevante tra i dati controllati. Verifica comunque che il PIES sia aggiornato alle condizioni definitive.
                                 </div>
                               ) : (
                                 mortgagePiesIssues.slice(0, 8).map((item) => (
@@ -10680,7 +11105,7 @@ const [authReady, setAuthReady] = useState(false);
                         <li>• Cambia password e attiva autenticazione a due fattori.</li>
                         <li>• Contatta banca, piattaforma o operatore dal sito ufficiale.</li>
                         <li>• Conserva messaggi, ricevute e screenshot.</li>
-                        <li>• Valuta denuncia o segnalazione alle autorita competenti.</li>
+                        <li>• Valuta denuncia o segnalazione alle autorità competenti.</li>
                       </ul>
                     </div>
                   </div>
@@ -10847,7 +11272,7 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="hidden gap-4 lg:grid lg:grid-cols-2 xl:grid-cols-4">
               {([
                 {
                   id: "monitor",
@@ -10931,7 +11356,13 @@ const [authReady, setAuthReady] = useState(false);
                   </p>
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                     <button
+                      type="button"
+                      disabled={currentMonthCompleted && setupCompleted && holdings.length > 0}
                       onClick={() => {
+                        if (currentMonthCompleted && setupCompleted && holdings.length > 0) {
+                          return;
+                        }
+
                         if (!setupCompleted) {
                           openDashboardTab("guida");
                           return;
@@ -10944,7 +11375,11 @@ const [authReady, setAuthReady] = useState(false);
 
                         goToDashboardSection("azione-del-mese");
                       }}
-                      className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                      className={`rounded-xl px-6 py-3 text-sm font-semibold shadow-sm transition ${
+                        currentMonthCompleted && setupCompleted && holdings.length > 0
+                          ? "cursor-not-allowed bg-emerald-600/35 text-white/80 shadow-none"
+                          : "bg-emerald-600 text-white hover:bg-emerald-700"
+                      }`}
                     >
                       {dashboardNextActionLabel}
                     </button>
@@ -11018,6 +11453,7 @@ const [authReady, setAuthReady] = useState(false);
               </button>
             </div>
 
+            {!setupCompleted && (
             <div id="prima-volta-qui" className="scroll-mt-6 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm md:p-6">
               {(() => {
                 const guidedSteps = [
@@ -11094,6 +11530,7 @@ const [authReady, setAuthReady] = useState(false);
                 );
               })()}
             </div>
+            )}
 
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Nota educativa</p>
@@ -12338,13 +12775,13 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
 
                   <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    {(["inizio", "consapevolezza", "costanza", "capitale", "identita"] as Badge["tier"][]).map((tier) => {
+                    {(["inizio", "consapevolezza", "costanza", "capitale", "identità"] as Badge["tier"][]).map((tier) => {
                       const tierLabels: Record<Badge["tier"], string> = {
                         inizio: "Attivazione",
                         consapevolezza: "Consapevolezza",
                         costanza: "Costanza",
                         capitale: "Capitale",
-                        identita: "Identità",
+                        identità: "Identità",
                       };
                       const tierBadges = orderedBadges.filter((badge) => badge.tier === tier);
                       const tierUnlocked = tierBadges.filter((badge) => badge.unlocked).length;
@@ -12539,7 +12976,7 @@ const [authReady, setAuthReady] = useState(false);
                         Il ribilanciamento non serve a prevedere il mercato. Serve a controllare se il portafoglio si sta allontanando dal tuo modello e a decidere, con calma, dove indirizzare i prossimi PAC.
                       </p>
                     </div>
-                    <div className="grid min-w-[260px] gap-2 rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
+                    <div className="grid w-full min-w-0 gap-2 rounded-2xl border border-white bg-white/80 p-4 shadow-sm">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-500">Patrimonio inserito</span>
                         <strong className="text-slate-900">{formatEuro(rebalanceTotalInvested)}</strong>
@@ -12797,7 +13234,7 @@ const [authReady, setAuthReady] = useState(false);
                             Se vuoi rientrare prima senza vendere, puoi aumentare temporaneamente il PAC a circa <strong>{formatEuro(acceleratedRebalancePac)}</strong> al mese per circa <strong>{acceleratedRebalanceMonths} {acceleratedRebalanceMonths === 1 ? "mese" : "mesi"}</strong>.
                           </p>
                           <p className="mt-3 text-xs leading-5 text-slate-500">
-                            Pro: accelera il rientro. Contro: richiede più liquidita mensile per un periodo limitato.
+                            Pro: accelera il rientro. Contro: richiede più liquidità mensile per un periodo limitato.
                           </p>
                         </div>
                       </div>
@@ -12805,7 +13242,7 @@ const [authReady, setAuthReady] = useState(false);
                   )}
 
                   <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600">
-                    <strong>Lettura pratica:</strong> se una categoria e molto sopra il modello, il calcolatore tende a non aumentarla nei PAC temporanei; orienta invece il nuovo capitale verso le categorie sotto peso. Quando il portafoglio torna vicino al modello, puoi riprendere il PAC ordinario e ricontrollare periodicamente.
+                    <strong>Lettura pratica:</strong> se una categoria è molto sopra il modello, il calcolatore tende a non aumentarla nei PAC temporanei; orienta invece il nuovo capitale verso le categorie sotto peso. Quando il portafoglio torna vicino al modello, puoi riprendere il PAC ordinario e ricontrollare periodicamente.
                   </div>
                 </div>
               </>
@@ -12895,7 +13332,7 @@ const [authReady, setAuthReady] = useState(false);
                       <label className="block"><span className="text-sm font-medium text-slate-700">Capitale investito</span><input type="number" min="0" value={exitInvestedAmount} onChange={(e) => setExitInvestedAmount(e.target.value)} placeholder="Es. 100000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">Quanto hai versato nel tempo. Serve per stimare il guadagno e le eventuali tasse.</span></label>
                       <label className="block"><span className="text-sm font-medium text-slate-700">Valore attuale</span><input type="number" min="0" value={exitCurrentAmount} onChange={(e) => setExitCurrentAmount(e.target.value)} placeholder="Es. 130000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">Quanto vale oggi il capitale che stai valutando di usare o proteggere.</span></label>
                       <label className="block"><span className="text-sm font-medium text-slate-700">Obiettivo finale</span><input type="number" min="0" value={exitGoalAmount} onChange={(e) => setExitGoalAmount(e.target.value)} placeholder="Es. 120000" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">La cifra che ti serve davvero. Quando sei vicino, proteggere può contare più di inseguire altro rendimento.</span></label>
-                      <label className="block"><span className="text-sm font-medium text-slate-700">Durata uscita graduale</span><input type="number" min="1" value={exitMonths} onChange={(e) => setExitMonths(e.target.value)} placeholder="Es. 12" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">In quanti mesi vuoi trasformare il capitale in liquidita. Più mesi = uscita più morbida.</span></label>
+                      <label className="block"><span className="text-sm font-medium text-slate-700">Durata uscita graduale</span><input type="number" min="1" value={exitMonths} onChange={(e) => setExitMonths(e.target.value)} placeholder="Es. 12" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-slate-400" /><span className="mt-2 block text-xs leading-5 text-slate-500">In quanti mesi vuoi trasformare il capitale in liquidità. Più mesi = uscita più morbida.</span></label>
                     </div>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       <MetricCard label="Plusvalenza stimata" value={formatEuro(exitProfit)} />
@@ -12982,7 +13419,7 @@ const [authReady, setAuthReady] = useState(false);
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Attenzione</p>
             <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Vuoi rifare il questionario?</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-600">Rifare il questionario può modificare la strategia consigliata in base alle nuove risposte. Il consiglio salvato verra aggiornato, ma potrai comunque scegliere liberamente qualsiasi strategia.</p>
+            <p className="mt-3 text-sm leading-6 text-slate-600">Rifare il questionario può modificare la strategia consigliata in base alle nuove risposte. Il consiglio salvato verrà aggiornato, ma potrai comunque scegliere liberamente qualsiasi strategia.</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setShowExitQuestionnaireWarning(false)} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Non cambiare</button>
               <button type="button" onClick={() => { setShowExitQuestionnaireWarning(false); setExitQuestionnaireStep(0); setShowExitQuestionnaireModal(true); }} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">Prosegui</button>
@@ -13076,7 +13513,7 @@ const [authReady, setAuthReady] = useState(false);
               {exitQuestionnaireStep === 3 && (
                 <div>
                   <h4 className="text-xl font-bold text-slate-900">Se il mercato scende del 10%, cosa preferisci?</h4>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">Questa risposta aiuta a scegliere una strategia che puoi seguire senza farti prendere dall'emotivita.</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Questa risposta aiuta a scegliere una strategia che puoi seguire senza farti prendere dall'emotività.</p>
                   <div className="mt-5 grid gap-3">
                     {[
                       { key: "sicura", label: "Prelevo dalla parte sicura", hint: "Adatto a chi vuole evitare di vendere azioni in ribasso." },
@@ -13220,6 +13657,9 @@ function TopBar({
   onGoAwareness,
   onGoStrumentis,
   onGoDashboard,
+  onGoDashboardTab,
+  onGoAwarenessTab,
+  onGoShoppingList,
   onGoRebalance,
   onGoExit,
   onLogout,
@@ -13236,45 +13676,333 @@ function TopBar({
   onGoAwareness: () => void;
   onGoStrumentis: () => void;
   onGoDashboard: () => void;
+  onGoDashboardTab: (tab: DashboardTab) => void;
+  onGoAwarenessTab: (tab: AwarenessTab) => void;
+  onGoShoppingList: () => void;
   onGoRebalance: () => void;
   onGoExit: () => void;
   onLogout: () => void;
   onResetProfile: () => void;
   resetLoading: boolean;
 }) {
-  return (
-    <header className="mb-6 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-      <div>
-        <p className="text-sm font-medium text-slate-500">Soldi Semplici</p>
-        <p className="text-sm text-slate-400">{userEmail}</p>
-      </div>
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileDashboardOpen, setMobileDashboardOpen] = useState(false);
+  const [mobileAwarenessOpen, setMobileAwarenessOpen] = useState(false);
 
-      <nav className="flex flex-wrap items-center gap-2">
-        {!unlocked && <NavButton active={step === "home"} onClick={onGoHome}>Home</NavButton>}
-        {unlocked && (
-          <>
-            <NavButton active={step === "portfolio"} onClick={onGoPortfolio}>Modello</NavButton>
-            <NavButton active={step === "dashboard"} onClick={onGoDashboard}>Dashboard</NavButton>
-            <NavButton active={step === "awareness"} onClick={onGoAwareness}>Consapevolezza</NavButton>
-            <NavButton active={step === "rebalance"} onClick={onGoRebalance}>Ribilanciamento</NavButton>
-            <NavButton active={step === "exit"} onClick={onGoExit}>Strategia uscita</NavButton>
-          </>
-        )}
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+  const runMobileAction = (action: () => void) => {
+    action();
+    closeMobileMenu();
+  };
+
+  const dashboardMobileItems: Array<{ id: DashboardTab; label: string; icon: string; description: string }> = [
+    { id: "monitor", label: "Monitor", icon: "📊", description: "Stato generale, piano e PAC." },
+    { id: "guida", label: "Guida", icon: "🧭", description: "Passi iniziali e azioni operative." },
+    { id: "portafoglio", label: "Portafoglio", icon: "💼", description: "Investimenti, ripartizione e strumenti." },
+    { id: "progressi", label: "Progressi", icon: "🏅", description: "Badge e avanzamento." },
+  ];
+
+  const awarenessMobileItems: Array<{ id: AwarenessTab; label: string; icon: string; description: string }> = [
+    { id: "risparmio", label: "Risparmio", icon: "💶", description: "Azioni pratiche e spesa intelligente." },
+    { id: "auto", label: "Auto", icon: "🚗", description: "Costo reale e finanziamento." },
+    { id: "mutuo", label: "Mutuo", icon: "🏠", description: "Sostenibilità e Verifica PIES." },
+    { id: "truffe", label: "Anti-truffe", icon: "🛡️", description: "Motore e mini gioco." },
+  ];
+
+  return (
+    <>
+      <header className="mb-5 flex w-full min-w-0 flex-row items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-500">Soldi Semplici</p>
+          <p className="truncate text-sm text-slate-400">{userEmail}</p>
+        </div>
+
+        <nav className="hidden flex-wrap items-center gap-2 lg:flex">
+          {!unlocked && <NavButton active={step === "home"} onClick={onGoHome}>Home</NavButton>}
+          {unlocked && (
+            <>
+              <NavButton active={step === "portfolio"} onClick={onGoPortfolio}>Modello</NavButton>
+              <NavButton active={step === "dashboard"} onClick={onGoDashboard}>Dashboard</NavButton>
+              <NavButton active={step === "awareness"} onClick={onGoAwareness}>Consapevolezza</NavButton>
+              <NavButton active={step === "rebalance"} onClick={onGoRebalance}>Ribilanciamento</NavButton>
+              <NavButton active={step === "exit"} onClick={onGoExit}>Strategia uscita</NavButton>
+            </>
+          )}
+          <button
+            onClick={onResetProfile}
+            disabled={resetLoading}
+            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+          >
+            {resetLoading ? "Reset..." : "Reset test"}
+          </button>
+          <button
+            onClick={onLogout}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Logout
+          </button>
+        </nav>
+
         <button
-          onClick={onResetProfile}
-          disabled={resetLoading}
-          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm transition hover:bg-slate-50 lg:hidden"
+          aria-label="Apri menu"
         >
-          {resetLoading ? "Reset..." : "Reset test"}
+          <span className="flex flex-col gap-1.5">
+            <span className="block h-0.5 w-5 rounded-full bg-slate-800" />
+            <span className="block h-0.5 w-5 rounded-full bg-slate-800" />
+            <span className="block h-0.5 w-5 rounded-full bg-slate-800" />
+          </span>
         </button>
-        <button
-          onClick={onLogout}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-        >
-          Logout
-        </button>
-      </nav>
-    </header>
+      </header>
+
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[70] lg:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/45"
+            aria-label="Chiudi menu"
+            onClick={closeMobileMenu}
+          />
+          <aside className="absolute right-0 top-0 flex h-full w-[min(92vw,390px)] flex-col overflow-y-auto bg-white shadow-2xl">
+            <div className="border-b border-slate-200 bg-gradient-to-br from-emerald-700 to-emerald-500 p-5 text-white">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl font-black text-emerald-700 shadow-sm">S</div>
+                  <p className="mt-3 text-lg font-black tracking-tight">Soldi Semplici</p>
+                  <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-100">La tua finanza. In modo semplice.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeMobileMenu}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 text-2xl font-light text-white transition hover:bg-white/25"
+                  aria-label="Chiudi menu"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="mt-4 rounded-2xl bg-white/12 p-3 ring-1 ring-white/15">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-100">Piano</p>
+                <p className="mt-1 text-sm font-bold">{unlocked ? `Piano ${isProPlan ? "Pro" : "Core"} attivo` : "Piano non ancora attivo"}</p>
+                <p className="mt-1 truncate text-xs text-emerald-50">{userEmail}</p>
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-3 p-4">
+              {!unlocked && (
+                <MobileDrawerItem
+                  active={step === "home"}
+                  icon="🏠"
+                  label="Home"
+                  description="Torna alla schermata iniziale."
+                  onClick={() => runMobileAction(onGoHome)}
+                />
+              )}
+
+              {unlocked && (
+                <>
+                  <MobileDrawerItem
+                    active={step === "portfolio"}
+                    icon="📐"
+                    label="Modello"
+                    description="Rivedi il modello scelto e il piano attivo."
+                    onClick={() => runMobileAction(onGoPortfolio)}
+                  />
+
+                  <MobileDrawerGroupButton
+                    active={step === "dashboard"}
+                    open={mobileDashboardOpen}
+                    icon="📊"
+                    label="Dashboard"
+                    description="Apri le card operative della Dashboard."
+                    onClick={() => {
+                      setMobileDashboardOpen((value) => !value);
+                      setMobileAwarenessOpen(false);
+                    }}
+                  />
+                  {mobileDashboardOpen && (
+                    <div className="space-y-2 pl-4">
+                      {dashboardMobileItems.map((item) => (
+                        <MobileDrawerSubItem
+                          key={item.id}
+                          icon={item.icon}
+                          label={item.label}
+                          description={item.description}
+                          onClick={() => runMobileAction(() => onGoDashboardTab(item.id))}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <MobileDrawerGroupButton
+                    active={step === "awareness"}
+                    open={mobileAwarenessOpen}
+                    icon="🧠"
+                    label="Consapevolezza"
+                    description="Scegli la scheda da aprire."
+                    onClick={() => {
+                      setMobileAwarenessOpen((value) => !value);
+                      setMobileDashboardOpen(false);
+                    }}
+                  />
+                  {mobileAwarenessOpen && (
+                    <div className="space-y-2 pl-4">
+                      {awarenessMobileItems.map((item) => (
+                        <MobileDrawerSubItem
+                          key={item.id}
+                          icon={item.icon}
+                          label={item.label}
+                          description={item.description}
+                          onClick={() => runMobileAction(() => onGoAwarenessTab(item.id))}
+                        />
+                      ))}
+                      <MobileDrawerSubItem
+                        icon="🛒"
+                        label="Lista spesa"
+                        description="Crea e spunta la lista mentre fai la spesa."
+                        onClick={() => runMobileAction(onGoShoppingList)}
+                      />
+                    </div>
+                  )}
+
+                  <MobileDrawerItem
+                    active={step === "rebalance"}
+                    icon="⚖️"
+                    label="Ribilanciamento"
+                    description="Valuta se il portafoglio si è allontanato dal modello."
+                    onClick={() => runMobileAction(onGoRebalance)}
+                  />
+
+                  <MobileDrawerItem
+                    active={step === "exit"}
+                    icon="🚪"
+                    label="Strategia uscita"
+                    description="Gestisci le decisioni nei momenti delicati."
+                    onClick={() => runMobileAction(onGoExit)}
+                  />
+                </>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200 p-4">
+              <button
+                type="button"
+                onClick={() => runMobileAction(onLogout)}
+                className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+              >
+                Logout
+              </button>
+              <button
+                type="button"
+                onClick={() => runMobileAction(onResetProfile)}
+                disabled={resetLoading}
+                className="mt-3 w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+              >
+                {resetLoading ? "Reset..." : "Reset test"}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+    </>
+  );
+}
+
+function MobileDrawerItem({
+  active,
+  icon,
+  label,
+  description,
+  onClick,
+}: {
+  active?: boolean;
+  icon: string;
+  label: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-2xl border p-4 text-left transition ${
+        active ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg ${active ? "bg-emerald-600 text-white" : "bg-slate-100"}`}>{icon}</span>
+        <span>
+          <span className="block text-sm font-black">{label}</span>
+          <span className="mt-1 block text-xs leading-5 text-slate-500">{description}</span>
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function MobileDrawerGroupButton({
+  active,
+  open,
+  icon,
+  label,
+  description,
+  onClick,
+}: {
+  active?: boolean;
+  open: boolean;
+  icon: string;
+  label: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-2xl border p-4 text-left transition ${
+        active || open ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg ${active || open ? "bg-emerald-600 text-white" : "bg-slate-100"}`}>{icon}</span>
+          <span>
+            <span className="block text-sm font-black">{label}</span>
+            <span className="mt-1 block text-xs leading-5 text-slate-500">{description}</span>
+          </span>
+        </div>
+        <span className={`mt-1 text-lg font-black transition ${open ? "rotate-90" : ""}`}>›</span>
+      </div>
+    </button>
+  );
+}
+
+function MobileDrawerSubItem({
+  icon,
+  label,
+  description,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50"
+    >
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-base shadow-sm">{icon}</span>
+        <span>
+          <span className="block text-sm font-black text-slate-900">{label}</span>
+          <span className="mt-0.5 block text-xs leading-5 text-slate-500">{description}</span>
+        </span>
+      </div>
+    </button>
   );
 }
 
@@ -13332,7 +14060,7 @@ function PortfolioPieChart({ composition }: { composition: PortfolioTemplate["co
         </div>
       </div>
       <p className="mt-5 text-xs leading-5 text-slate-500">
-        Colori: rosso azionario, blu obbligazioni, giallo oro, grigio materie prime, verde liquidita.
+        Colori: rosso azionario, blu obbligazioni, giallo oro, grigio materie prime, verde liquidità.
       </p>
     </div>
   );
@@ -13439,7 +14167,7 @@ function PlanValidityBox({
     <div className={`rounded-3xl border p-5 shadow-sm ${tone === "emerald" ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className={`text-xs font-bold uppercase tracking-[0.2em] ${tone === "emerald" ? "text-emerald-700" : "text-amber-700"}`}>Validita piano</p>
+          <p className={`text-xs font-bold uppercase tracking-[0.2em] ${tone === "emerald" ? "text-emerald-700" : "text-amber-700"}`}>Validità piano</p>
           <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950">{status.statusLabel}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-700">
             {status.isActive ? <>Valido fino al <strong>{status.expiresLabel}</strong>.</> : <>Scadenza: <strong>{status.expiresLabel}</strong>.</>}
@@ -13451,7 +14179,7 @@ function PlanValidityBox({
           )}
           {!compact && context === "pro" && purchase.plan === "core" && status.isActive && (
             <p className="mt-2 text-sm leading-6 text-slate-700">
-              Hai Core attivo: puoi passare a Pro pagando solo la differenza. Il Pro sara valido per 365 giorni dall'upgrade.
+              Hai Core attivo: puoi passare a Pro pagando solo la differenza. Il Pro sarà valido per 365 giorni dall'upgrade.
             </p>
           )}
         </div>
