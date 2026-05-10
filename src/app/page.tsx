@@ -9147,7 +9147,7 @@ const [authReady, setAuthReady] = useState(false);
                       <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Azioni account</p>
                       <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">Gestione profilo</h3>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        Il logout è qui per tenere la navigazione più pulita. Il reset del test resta disponibile, ma usalo solo se vuoi ricominciare davvero da zero.
+                        Da qui gestisci in modo semplice l'accesso, la sicurezza dell'account e le informazioni principali del tuo percorso.
                       </p>
                     </div>
                     <div className="flex flex-col gap-3 sm:min-w-48">
@@ -12292,31 +12292,23 @@ const [authReady, setAuthReady] = useState(false);
 
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Progresso nel tempo
+                  Capitale attuale
                 </p>
-                <h3 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
-                  Da {formatEuro(progressStartNumber || 0)} a {formatEuro(goalCurrentNumber || 0)}
+                <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+                  {formatEuro(goalCurrentNumber || 0)}
                 </h3>
-                <p className={`mt-3 text-3xl font-bold tracking-tight ${
-                  progressTone === "positivo"
-                    ? "text-emerald-700"
-                    : progressTone === "negativo"
-                    ? "text-amber-700"
-                    : "text-slate-900"
-                }`}>
-                  {progressDelta >= 0 ? "+" : ""}{formatEuro(progressDelta)}
-                </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Punto di partenza: {progressStartLabel}. Oggi: {currentMonthLabel}.
-                  {progressStartNumber > 0
-                    ? ` Variazione: ${progressDeltaPercent >= 0 ? "+" : ""}${progressDeltaPercent.toFixed(1)}%.`
-                    : " Aggiorna il capitale per rendere visibile la crescita nel tempo."}
+                  Questo è il valore che hai inserito in “Aggiorna obiettivo”. Serve come riferimento operativo per capire dove sei oggi rispetto al tuo obiettivo.
                 </p>
-                <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200">
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-slate-700">
+                  <span>Obiettivo: {formatEuro(goalTargetNumber || 0)}</span>
+                  <span>{goalProgressPercent.toFixed(1)}%</span>
+                </div>
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200">
                   <div
-                    className="h-full rounded-full bg-slate-900 transition-all duration-1000 ease-out"
+                    className="h-full rounded-full bg-emerald-600 transition-all duration-1000 ease-out"
                     style={{
-                      width: `${goalTargetNumber > 0 ? Math.min(100, (goalCurrentNumber / goalTargetNumber) * 100) : 0}%`,
+                      width: `${goalProgressPercent}%`,
                     }}
                   />
                 </div>
