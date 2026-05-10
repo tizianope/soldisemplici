@@ -1102,15 +1102,17 @@ const mortgagePiesSections: MortgagePiesSection[] = [
     where: "Cerca la sezione 'Obblighi supplementari' e gli allegati assicurativi o commerciali.",
     explanation: "Questa è una delle aree più delicate: bisogna distinguere obbligo reale, proposta commerciale e sconto condizionato.",
     fields: [
-      { id: "policiesObligation", label: "Polizze obbligatorie o facoltative", placeholder: "Seleziona la situazione indicata", penalty: 15, area: "polizze", issue: "Obbligatorietà delle polizze non chiara", why: "Una polizza collegata può incidere sul costo o sulle condizioni del tasso.", question: "Le polizze indicate sono obbligatorie o facoltative? Se non le sottoscrivo, il tasso o le condizioni cambiano?", selectOptions: ["Nessuna polizza indicata", "Solo polizze obbligatorie", "Solo polizze facoltative", "Polizze sia obbligatorie sia facoltative", "Polizze presenti ma obbligatorietà non chiara", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "policiesObligation", label: "Polizze obbligatorie o facoltative", placeholder: "Seleziona la situazione indicata", penalty: 15, area: "polizze", issue: "Obbligatorietà delle polizze non chiara", why: "Una polizza collegata può incidere sul costo o sulle condizioni del tasso.", question: "Le polizze indicate sono obbligatorie, facoltative o collegate a sconti/condizioni? Se non le sottoscrivo, il tasso o le condizioni cambiano?", selectOptions: ["Nessuna polizza indicata", "Solo polizza incendio/scoppio obbligatoria", "Solo polizze obbligatorie", "Solo polizze facoltative", "Polizze sia obbligatorie sia facoltative", "Polizza facoltativa collegata a sconto o condizioni", "Polizza obbligatoria + polizza facoltativa collegata a sconto o condizioni", "Polizze presenti ma obbligatorietà non chiara", "Non trovato nel PIES", "Non chiaro"] },
       { id: "policyChoiceFreedom", label: "Libertà di scelta della polizza", placeholder: "Seleziona se puoi scegliere una compagnia esterna", penalty: 8, area: "polizze", issue: "Libertà di scelta della polizza non chiara", why: "Se la polizza è vincolata alla banca può incidere su costo e flessibilità. Se invece puoi sceglierla liberamente, il rischio documentale è più basso.", question: "Potete confermarmi se posso sottoscrivere la polizza anche presso una compagnia esterna senza modifiche al tasso o alle condizioni economiche?", selectOptions: ["Sì, scegliibile anche presso compagnia esterna", "No, proposta o vincolata dalla banca", "Non ci sono polizze", "Non indicato nel PIES", "Non chiaro"] },
       { id: "policyCost", label: "Costo polizze e inclusione nel TAEG", placeholder: "Seleziona come viene indicato il costo", penalty: 10, area: "polizze", issue: "Costo polizze o inclusione nel TAEG non chiari", why: "Il costo può essere rilevante, soprattutto se finanziato o collegato allo sconto. Se la polizza è obbligatoria ma scegliibile liberamente, il costo non indicato è soprattutto un dato da stimare per confrontare l'offerta, non per forza una criticità grave.", question: "Qual è il costo di ciascuna polizza? Il costo è incluso nel TAEG? Il premio viene finanziato?", selectOptions: ["Costo indicato e incluso nel TAEG", "Costo indicato, premio finanziato e incluso nel TAEG", "Costo indicato, premio finanziato ma inclusione nel TAEG non chiara", "Costo indicato ma non incluso nel TAEG", "Costo indicato ma inclusione nel TAEG non chiara", "Costo non indicato", "Non ci sono polizze", "Non trovato nel PIES", "Non chiaro"] },
       { id: "policyCostAmount", label: "Importo polizze (€)", placeholder: "Es. 6900", penalty: 6, area: "polizze", issue: "Importo delle polizze non indicato", why: "Se una polizza ha un costo rilevante, l'importo serve per capire quanto pesa sul costo complessivo e per confrontare offerte diverse.", question: "Potete indicarmi l'importo di ciascuna polizza, se il premio viene pagato subito o finanziato e se è incluso nel TAEG?" },
-      { id: "linkedProducts", label: "Prodotti collegati", placeholder: "Seleziona se ci sono prodotti collegati", penalty: 8, area: "polizze", issue: "Prodotti collegati non quantificati", why: "Prodotti aggiuntivi possono creare costi o vincoli nel tempo.", question: "Quali prodotti collegati sono richiesti o proposti? Quali costi hanno e sono necessari per ottenere le condizioni indicate?", selectOptions: ["Nessun prodotto collegato indicato", "Prodotti collegati facoltativi", "Prodotti collegati necessari per ottenere il tasso", "Prodotti collegati presenti ma costi non chiari", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "linkedProducts", label: "Prodotti collegati", placeholder: "Seleziona se ci sono prodotti collegati", penalty: 8, area: "polizze", issue: "Prodotti collegati non quantificati", why: "Prodotti aggiuntivi possono creare costi o vincoli nel tempo.", question: "Quali prodotti collegati sono richiesti o proposti? Quali costi hanno e sono necessari per ottenere le condizioni indicate?", selectOptions: ["Nessun prodotto collegato indicato", "Prodotti collegati facoltativi", "Prodotti collegati necessari per ottenere il tasso", "Prodotti collegati necessari per mantenere lo sconto", "Prodotti collegati presenti ma costi non chiari", "Non trovato nel PIES", "Non chiaro"] },
       { id: "productsRequiredForRate", label: "Prodotti o condizioni necessari per mantenere il tasso", placeholder: "Seleziona cosa indica il PIES", penalty: 10, area: "polizze", issue: "Prodotti o requisiti per mantenere il tasso non chiari", why: "Se il tasso dipende da conto, accredito, carta, polizze o requisiti commerciali, l'utente deve sapere cosa mantenere e quali costi comporta.", question: "Potete confermarmi quali prodotti o requisiti commerciali sono necessari per ottenere e mantenere il tasso indicato?", selectOptions: ["Nessun prodotto richiesto", "Conto corrente richiesto", "Accredito stipendio richiesto", "Carta o pacchetto conto richiesto", "Polizze collegate al tasso", "Più prodotti/requisiti commerciali", "Non indicato", "Non chiaro"] },
+      { id: "linkedProductsRole", label: "Ruolo di prodotti e polizze", placeholder: "Seleziona se sono obbligatori o collegati allo sconto", penalty: 10, area: "polizze", issue: "Ruolo di prodotti o polizze non chiaro", why: "È importante distinguere ciò che è obbligatorio per ottenere il mutuo da ciò che è facoltativo ma necessario per mantenere uno sconto o una condizione economica.", question: "Potete confermarmi quali prodotti sono obbligatori per ottenere il mutuo, quali sono facoltativi ma necessari per mantenere il tasso/sconto e quali non incidono sulle condizioni economiche?", selectOptions: ["Obbligatori per ottenere il mutuo", "Facoltativi ma necessari per mantenere tasso/sconto", "Facoltativi senza impatto sul tasso", "Misto: obbligatori e facoltativi collegati a sconto", "Non indicato", "Non chiaro"] },
       { id: "linkedProductsDetails", label: "Dettaglio prodotti/requisiti", placeholder: "Es. conto corrente, accredito stipendio, polizza casa, carta, requisiti commerciali", penalty: 5, area: "polizze", issue: "Dettaglio prodotti o requisiti non indicato", why: "Il dettaglio serve a capire quali prodotti o condizioni sono davvero collegati al tasso e quali costi possono aggiungersi.", question: "Potete indicarmi l'elenco completo dei prodotti o requisiti collegati al tasso e il costo di ciascuno?" },
+      { id: "linkedProductsCosts", label: "Costi indicati dei prodotti collegati", placeholder: "Es. conto 9 €/mese; carta 36 €/anno; polizza casa 540 €/anno", penalty: 5, area: "polizze", issue: "Costi dei prodotti collegati non chiari", why: "Quando il tasso o lo sconto dipendono da prodotti collegati, i costi separati aiutano a confrontare davvero l'offerta con alternative esterne.", question: "Potete indicarmi il costo separato di ciascun prodotto collegato e specificare quali importi sono inclusi nel TAEG e quali restano esclusi?" },
       { id: "discountConditions", label: "Tipo di sconto o condizione promozionale", placeholder: "Seleziona se lo sconto dipende da condizioni", penalty: 15, area: "polizze", issue: "Condizioni dello sconto tasso non chiare", why: "Uno sconto non è davvero valutabile se non sai cosa succede quando chiudi o recedi dai prodotti collegati o se non rispetti i requisiti indicati.", question: "Da quali condizioni dipende lo sconto sul tasso? Cosa accade se non rispetto, chiudo o recedo dalle condizioni collegate?", selectOptions: ["Nessuno sconto indicato", "Sconto indicato senza condizioni", "Sconto collegato a prodotti bancari", "Sconto collegato a polizze", "Sconto Green / classe energetica immobile", "Sconto collegato a requisiti commerciali", "Sconto collegato ad altre condizioni", "Sconto indicato ma condizioni non chiare", "Non trovato nel PIES", "Non chiaro"] },
-      { id: "discountConsequence", label: "Cosa succede se il requisito non viene mantenuto?", placeholder: "Seleziona cosa indica il PIES", penalty: 8, area: "polizze", issue: "Conseguenze della perdita dello sconto non chiare", why: "Se lo sconto dipende da condizioni, è essenziale sapere se il tasso aumenta, lo sconto viene perso o cambiano altre condizioni economiche.", question: "Cosa accade al tasso o alle condizioni economiche se il requisito dello sconto non viene rispettato o mantenuto?", selectOptions: ["Il tasso aumenta", "Lo sconto viene perso", "Condizioni economiche cambiano", "Nessuna conseguenza indicata", "Non indicato", "Non chiaro"] },
+      { id: "discountConsequence", label: "Cosa succede se il requisito non viene mantenuto?", placeholder: "Seleziona cosa indica il PIES", penalty: 8, area: "polizze", issue: "Conseguenze della perdita dello sconto non chiare", why: "Se lo sconto dipende da condizioni, è essenziale sapere se il tasso aumenta, lo sconto viene perso o cambiano altre condizioni economiche.", question: "Cosa accade al tasso o alle condizioni economiche se il requisito dello sconto non viene rispettato o mantenuto?", selectOptions: ["Il tasso aumenta", "Il TAN aumenta di un valore indicato", "Lo sconto viene perso", "Condizioni economiche cambiano", "Nessuna conseguenza indicata", "Non indicato", "Non chiaro"] },
       { id: "greenDiscountRequirement", label: "Requisito sconto Green / classe energetica", placeholder: "Es. Classe A o B + documentazione energetica", penalty: 8, area: "polizze", issue: "Requisito dello sconto Green non chiaro", why: "Se lo sconto dipende dalla classe energetica, l'utente deve sapere quale documento serve, entro quando consegnarlo e cosa accade se il requisito non viene confermato.", question: "Quale classe energetica e quale documentazione sono necessarie per ottenere e mantenere lo sconto Green? Cosa accade al tasso se il requisito non viene confermato o mantenuto?" },
     ],
   },
@@ -3662,7 +3664,7 @@ const [authReady, setAuthReady] = useState(false);
     const freedomValue = (fields.policyChoiceFreedom?.value || "").toLowerCase();
     const costValue = (fields.policyCost?.value || "").toLowerCase();
     const hasNoPolicies = obligationValue.includes("nessuna polizza") || costValue.includes("non ci sono polizze");
-    const isOnlyMandatoryPolicy = obligationValue.includes("solo polizze obbligatorie");
+    const isOnlyMandatoryPolicy = obligationValue.includes("solo polizze obbligatorie") || obligationValue.includes("solo polizza incendio");
     const isFreelySelectable = freedomValue.includes("compagnia esterna");
     const costNotIndicated = costValue.includes("costo non indicato");
 
@@ -3740,7 +3742,7 @@ const [authReady, setAuthReady] = useState(false);
       return ["present", "unclear", "missing"].includes(policyCategory);
     }
 
-    if (["productsRequiredForRate", "linkedProductsDetails"].includes(fieldId)) {
+    if (["productsRequiredForRate", "linkedProductsRole", "linkedProductsDetails", "linkedProductsCosts"].includes(fieldId)) {
       const hasLinkedProducts = linkedProductsValue && !linkedProductsValue.includes("nessun prodotto");
       const hasProductsRequirement = productsRequirementValue && !productsRequirementValue.includes("nessun prodotto");
       return hasLinkedProducts || hasProductsRequirement || ["linkedProducts", "policy", "other", "unclear", "missing"].includes(discountCategory);
@@ -3784,6 +3786,21 @@ const [authReady, setAuthReady] = useState(false);
       }
     }
 
+    if (fieldId === "discountConsequence" && isGreenDiscountSelected(fields)) {
+      const consequenceValue = (fields.discountConsequence?.value || state.value || "").toLowerCase();
+      if (
+        !consequenceValue ||
+        consequenceValue.includes("nessuna conseguenza indicata") ||
+        consequenceValue.includes("conseguenza non indicata") ||
+        consequenceValue.includes("non indicata") ||
+        consequenceValue.includes("non indicato") ||
+        consequenceValue.includes("non trovato") ||
+        consequenceValue.includes("non chiaro")
+      ) {
+        return "unclear";
+      }
+    }
+
     if (["mixedChangeConditions", "mixedChangeAfterYears", "mixedChangeOutcome"].includes(fieldId)) {
       const rateTypeCategory = getMortgageRateTypeCategory(fields);
       if (rateTypeCategory !== "mixed") return "found";
@@ -3803,7 +3820,7 @@ const [authReady, setAuthReady] = useState(false);
       if (!["linkedProducts", "policy", "green", "other", "unclear", "missing"].includes(discountCategory)) return "found";
     }
 
-    if (fieldId === "productsRequiredForRate" || fieldId === "linkedProductsDetails") {
+    if (["productsRequiredForRate", "linkedProductsRole", "linkedProductsDetails", "linkedProductsCosts"].includes(fieldId)) {
       if (!isMortgagePiesFieldVisible(fieldId, fields)) return "found";
     }
 
@@ -3948,6 +3965,22 @@ const [authReady, setAuthReady] = useState(false);
   };
 
   const getMortgagePiesIssueCopy = (field: MortgagePiesFieldDefinition, status?: MortgagePiesStatus) => {
+    const policyObligationRaw = (mortgagePiesFields.policiesObligation?.value ?? "").toLowerCase();
+    const linkedProductsRaw = (mortgagePiesFields.linkedProducts?.value ?? "").toLowerCase();
+    const discountConditionsRaw = (mortgagePiesFields.discountConditions?.value ?? "").toLowerCase();
+    const hasOnlyStandardRequiredPolicy =
+      (policyObligationRaw.includes("solo polizze obbligatorie") || policyObligationRaw.includes("solo polizza incendio")) &&
+      (linkedProductsRaw.includes("nessun prodotto") || linkedProductsRaw.includes("non risultano prodotti collegati")) &&
+      !mortgageHasLinkedDiscountBundle;
+
+    if (["policyChoiceFreedom", "policyCost", "policyCostAmount"].includes(field.id) && hasOnlyStandardRequiredPolicy) {
+      return {
+        issue: "Polizza incendio e scoppio obbligatoria da confermare",
+        why: "Quando risulta solo la polizza obbligatoria incendio e scoppio, il punto utile non è trattarla come un pacchetto complesso, ma capire costo, libertà di scelta e impatto sulle condizioni economiche.",
+        question: "Potete confermarmi il costo della polizza incendio e scoppio, se posso sottoscriverla presso una compagnia esterna e se questa scelta modifica tasso o condizioni economiche?",
+      };
+    }
+
     if (field.id === "rateLocked") {
       const rateTypeCategory = getMortgageRateTypeCategory();
 
@@ -3981,6 +4014,14 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     if (field.id === "discountConsequence") {
+      if (isGreenDiscountSelected()) {
+        return {
+          issue: "Conseguenze dello sconto Green da confermare",
+          why: "Lo sconto Green può dipendere dalla classe energetica dell'immobile o da documentazione specifica. Il punto da chiarire non è il requisito già indicato, ma cosa succede se non viene confermato o mantenuto.",
+          question: "Cosa accade al tasso o alle condizioni economiche se il requisito energetico dello sconto Green non viene confermato o mantenuto?",
+        };
+      }
+
       return {
         issue: field.issue,
         why: field.why,
@@ -3988,7 +4029,7 @@ const [authReady, setAuthReady] = useState(false);
       };
     }
 
-    if (field.id === "productsRequiredForRate" || field.id === "linkedProductsDetails") {
+    if (["productsRequiredForRate", "linkedProductsRole", "linkedProductsDetails", "linkedProductsCosts"].includes(field.id)) {
       if (mortgageHasLinkedDiscountBundle) {
         return {
           issue: "Pacchetto prodotti / requisiti commerciali non chiaro",
@@ -4005,6 +4046,14 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     if (field.id === "policyCost" || field.id === "policyCostAmount") {
+      if (mortgageHasLinkedDiscountBundle) {
+        return {
+          issue: "Costi del pacchetto prodotti/polizze da confermare",
+          why: "Quando tasso o sconto dipendono da prodotti e polizze, non serve chiedere di nuovo quali siano se sono già indicati: serve capire costo separato, inclusione nel TAEG ed eventuali costi esclusi.",
+          question: "Potete confermarmi il costo separato dei prodotti e delle polizze collegati al TAN promozionale, specificando quali importi sono inclusi nel TAEG e quali restano esclusi?",
+        };
+      }
+
       return {
         issue: "Dettaglio polizze e modalità da confermare",
         why: "Se l'importo principale della polizza è indicato, resta comunque utile confermare il costo separato di ciascuna copertura, se il premio viene pagato subito o finanziato e se rientra nel TAEG.",
@@ -4066,7 +4115,11 @@ const [authReady, setAuthReady] = useState(false);
       };
     }
 
-    return { issue: field.issue, why: field.why, question: field.question };
+    return {
+      issue: "Simulazioni aumento rata assenti o non chiare",
+      why: "Per un mutuo variabile la rata può salire se aumenta il parametro di riferimento. Senza scenari numerici l'utente vede solo la rata iniziale e non riesce a valutare bene la sostenibilità in caso di rialzo dei tassi.",
+      question: "Potete inviarmi una simulazione della rata con aumento del parametro di riferimento di almeno +1%, +2% e +3%?",
+    };
   };
 
   const resetMortgagePiesCheck = () => {
@@ -4104,6 +4157,7 @@ const [authReady, setAuthReady] = useState(false);
     const discountConditionsValue = getMortgagePiesBundleValue("discountConditions", fields);
     const linkedProductsValue = getMortgagePiesBundleValue("linkedProducts", fields);
     const productsRequiredValue = getMortgagePiesBundleValue("productsRequiredForRate", fields);
+    const linkedProductsRoleValue = getMortgagePiesBundleValue("linkedProductsRole", fields);
     const policyFreedomValue = getMortgagePiesBundleValue("policyChoiceFreedom", fields);
 
     return (
@@ -4123,6 +4177,10 @@ const [authReady, setAuthReady] = useState(false);
       productsRequiredValue.includes("polizze") ||
       productsRequiredValue.includes("più prodotti") ||
       productsRequiredValue.includes("requisiti commerciali") ||
+      linkedProductsRoleValue.includes("necessari per mantenere") ||
+      linkedProductsRoleValue.includes("collegati a sconto") ||
+      linkedProductsRoleValue.includes("misto") ||
+      linkedProductsRoleValue.includes("non chiaro") ||
       policyFreedomValue.includes("vincolata dalla banca") ||
       policyFreedomValue.includes("non chiaro")
     );
@@ -4163,6 +4221,13 @@ const [authReady, setAuthReady] = useState(false);
       const sectionIndexB = mortgagePiesSections.findIndex((section) => section.fields.some((field) => field.id === b.field.id));
       if (sectionIndexA !== sectionIndexB) return sectionIndexA - sectionIndexB;
       return b.field.penalty - a.field.penalty;
+    })
+    .filter((item, index, array) => {
+      const itemCopy = getMortgagePiesIssueCopy(item.field, item.state.status);
+      return array.findIndex((candidate) => {
+        const candidateCopy = getMortgagePiesIssueCopy(candidate.field, candidate.state.status);
+        return candidateCopy.issue === itemCopy.issue && candidateCopy.question === itemCopy.question;
+      }) === index;
     });
   const mortgagePiesFound = visibleMortgagePiesFieldDefinitions
     .map((field) => {
@@ -4226,7 +4291,9 @@ const [authReady, setAuthReady] = useState(false);
   const mortgageLinkedProductsValue = mortgagePiesRawValue("linkedProducts").toLowerCase();
   const mortgageDiscountConditionsValue = mortgagePiesRawValue("discountConditions").toLowerCase();
   const mortgageProductsRequiredValue = mortgagePiesRawValue("productsRequiredForRate").toLowerCase();
+  const mortgageLinkedProductsRoleValue = mortgagePiesRawValue("linkedProductsRole").toLowerCase();
   const mortgageLinkedProductsDetailsValue = mortgagePiesRawValue("linkedProductsDetails");
+  const mortgageLinkedProductsCostsValue = mortgagePiesRawValue("linkedProductsCosts");
   const mortgageDiscountConsequenceValue = mortgagePiesRawValue("discountConsequence").toLowerCase();
   const mortgageRateTypeCategoryForAttention = getMortgageRateTypeCategory();
   const mortgageCapValueForAttention = mortgagePiesRawValue("capValue");
@@ -4235,9 +4302,18 @@ const [authReady, setAuthReady] = useState(false);
   const mortgageReferenceIndexValue = mortgagePiesRawValue("referenceIndex");
   const mortgageSpreadValue = mortgagePiesRawValue("spread");
   const mortgageGreenRequirementValue = mortgagePiesRawValue("greenDiscountRequirement");
+  const mortgageGreenRequirementStateForAttention = mortgagePiesFields.greenDiscountRequirement ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+  const mortgageGreenRequirementStatusForAttention = getMortgagePiesEffectiveStatus("greenDiscountRequirement", mortgageGreenRequirementStateForAttention);
+  const mortgageGreenRequirementIsPresent = mortgageGreenRequirementStatusForAttention === "found" && mortgageGreenRequirementValue.trim().length > 0;
   const mortgageHasGreenDiscount = isGreenDiscountSelected();
+  const mortgageDiscountConsequenceStateForAttention = mortgagePiesFields.discountConsequence ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+  const mortgageDiscountConsequenceStatusForAttention = getMortgagePiesEffectiveStatus("discountConsequence", mortgageDiscountConsequenceStateForAttention);
+  const mortgageGreenDiscountNeedsEmail = mortgageHasGreenDiscount && mortgageDiscountConsequenceStatusForAttention !== "found";
   const mortgageEarlyRepaymentValue = mortgagePiesRawValue("earlyRepayment").toLowerCase();
   const mortgageEarlyRepaymentHasRefund = mortgageEarlyRepaymentValue.includes("rimborso") && (mortgageEarlyRepaymentValue.includes("premio") || mortgageEarlyRepaymentValue.includes("polizza") || mortgageEarlyRepaymentValue.includes("non godut"));
+  const mortgageVariableSimulationStateForAttention = mortgagePiesFields.variableSimulation ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
+  const mortgageVariableSimulationStatusForAttention = getMortgagePiesEffectiveStatus("variableSimulation", mortgageVariableSimulationStateForAttention);
+  const mortgageVariableSimulationMissingForAttention = mortgageRateTypeCategoryForAttention === "variable" && mortgageVariableSimulationStatusForAttention !== "found";
 
   const mortgageEconomicAttentionFlags = [
     ...(mortgageRateTypeCategoryForAttention === "mixed" ? [{
@@ -4249,6 +4325,15 @@ const [authReady, setAuthReady] = useState(false);
       why: "Il tasso misto può cambiare dopo un periodo iniziale. È importante capire quando cambia, se il cambio è automatico o facoltativo e quali condizioni si applicano dopo il cambio.",
       question: "Potete confermarmi dopo quanto tempo può cambiare il tasso, se il cambio è automatico o facoltativo, quale tasso si applica dopo il cambio e quali simulazioni di rata sono disponibili?",
     }] : []),
+    ...(mortgageVariableSimulationMissingForAttention ? [{
+      id: "variable_missing_stress_test",
+      sectionId: "rate-costs",
+      area: "tasso" as const,
+      severity: "Media" as const,
+      title: "Mutuo variabile senza simulazioni di aumento rata",
+      why: "Non emergono costi accessori particolarmente rilevanti, ma il mutuo è a tasso variabile e il PIES non mostra simulazioni numeriche sull'aumento della rata. Prima di decidere, valuta bene la sostenibilità della rata in scenari peggiorativi.",
+      question: "Potete inviarmi una simulazione della rata con aumento del parametro di riferimento di almeno +1%, +2% e +3%?",
+    }] : []),
     ...(mortgageRateTypeCategoryForAttention === "cap" && mortgageCapValueForAttention && mortgageFloorValueForAttention ? [{
       id: "cap_floor_structure",
       sectionId: "rate-costs",
@@ -4257,8 +4342,8 @@ const [authReady, setAuthReady] = useState(false);
       title: "Variabile con cap e floor da comprendere",
       why: `Il cap limita il tasso massimo${mortgageCapValueForAttention ? ` (${mortgageCapValueForAttention})` : ""}, mentre il floor indica un tasso minimo${mortgageFloorValueForAttention ? ` (${mortgageFloorValueForAttention})` : ""}. Questa struttura può rendere il rischio più controllato in alto, ma limita il beneficio se i tassi scendono molto.${mortgageMaxInstallmentAtCapNumber > 0 ? ` La rata massima stimata inserita è circa ${formatEuro(mortgageMaxInstallmentAtCapNumber)}.` : ""}`,
       question: mortgageMaxInstallmentAtCapNumber > 0
-        ? `Potete confermarmi come vengono applicati cap e floor, se il floor limita il beneficio in caso di discesa dei tassi e se la rata massima stimata indicata, pari a circa ${formatEuro(mortgageMaxInstallmentAtCapNumber)}, è riferita allo scenario al cap?`
-        : "Potete confermarmi come vengono applicati cap e floor, se il floor limita il beneficio in caso di discesa dei tassi e qual è la rata massima stimata nello scenario al cap?",
+        ? "Il dato su cap, floor e rata massima è presente: usalo per valutare se il limite massimo della rata è sostenibile e ricordare che il floor può ridurre il beneficio se i tassi scendono molto."
+        : "Potete indicarmi la rata massima stimata nello scenario al cap e chiarire l'effetto pratico del floor in caso di discesa dei tassi?",
     }] : []),
     ...(mortgageHasGreenDiscount ? [{
       id: "green_discount_condition",
@@ -4266,17 +4351,21 @@ const [authReady, setAuthReady] = useState(false);
       area: "polizze" as const,
       severity: "Media" as const,
       title: "Sconto Green collegato alla classe energetica",
-      why: `Lo sconto sembra dipendere da un requisito energetico${mortgageGreenRequirementValue ? `: ${mortgageGreenRequirementValue}` : ""}. È utile verificare quale documentazione serve, entro quando va consegnata e cosa succede se il requisito non viene confermato o mantenuto.`,
-      question: "Quale documentazione energetica è necessaria per ottenere e mantenere lo sconto Green? Cosa accade al tasso o alle condizioni se il requisito non viene confermato o mantenuto?",
+      why: mortgageGreenRequirementIsPresent
+        ? `Il requisito energetico dello sconto Green è indicato${mortgageGreenRequirementValue ? `: ${mortgageGreenRequirementValue}` : ""}. Resta da chiarire cosa accade se il requisito non viene confermato, non viene documentato nei tempi richiesti o non viene mantenuto.`
+        : "Lo sconto Green sembra dipendere dalla classe energetica dell'immobile. Prima di valutare l'offerta, serve chiarire quale requisito energetico è richiesto e cosa accade se non viene confermato o mantenuto.",
+      question: mortgageGreenRequirementIsPresent
+        ? "Cosa accade al tasso o alle condizioni economiche se il requisito energetico dello sconto Green non viene confermato o mantenuto?"
+        : "Quale requisito energetico è necessario per ottenere e mantenere lo sconto Green? Cosa accade al tasso o alle condizioni se il requisito non viene confermato o mantenuto?",
     }] : []),
-    ...((mortgageProductsRequiredValue.includes("conto") || mortgageProductsRequiredValue.includes("accredito") || mortgageProductsRequiredValue.includes("carta") || mortgageProductsRequiredValue.includes("polizze") || mortgageProductsRequiredValue.includes("più prodotti") || mortgageProductsRequiredValue.includes("requisiti commerciali") || mortgageDiscountConditionsValue.includes("requisiti commerciali")) ? [{
+    ...((mortgageProductsRequiredValue.includes("conto") || mortgageProductsRequiredValue.includes("accredito") || mortgageProductsRequiredValue.includes("carta") || mortgageProductsRequiredValue.includes("polizze") || mortgageProductsRequiredValue.includes("più prodotti") || mortgageProductsRequiredValue.includes("requisiti commerciali") || mortgageLinkedProductsRoleValue.includes("necessari per mantenere") || mortgageLinkedProductsRoleValue.includes("collegati a sconto") || mortgageLinkedProductsRoleValue.includes("misto") || mortgageDiscountConditionsValue.includes("requisiti commerciali")) ? [{
       id: "commercial_requirements_condition",
       sectionId: "policies-products",
       area: "polizze" as const,
-      severity: (mortgageDiscountConditionsValue.includes("requisiti commerciali") || mortgageDiscountConditionsValue.includes("condizioni non chiare") || mortgageDiscountConditionsValue.includes("sconto collegato")) ? "Alta" as const : "Media" as const,
-      title: "Requisiti commerciali collegati al tasso",
-      why: `Il tasso o lo sconto sembrano dipendere da prodotti o requisiti commerciali${mortgageLinkedProductsDetailsValue ? `: ${mortgageLinkedProductsDetailsValue}` : ""}. È utile capire quali costi comportano e cosa succede se non vengono mantenuti.`,
-      question: "Potete confermarmi quali prodotti o requisiti commerciali sono necessari per ottenere o mantenere il tasso, il costo di ciascuno e cosa cambia se non li mantengo?",
+      severity: (mortgageDiscountConditionsValue.includes("requisiti commerciali") || mortgageDiscountConditionsValue.includes("condizioni non chiare") || mortgageDiscountConditionsValue.includes("sconto collegato") || mortgageLinkedProductsRoleValue.includes("necessari per mantenere") || mortgageLinkedProductsRoleValue.includes("collegati a sconto") || mortgageLinkedProductsRoleValue.includes("misto")) ? "Alta" as const : "Media" as const,
+      title: "Prodotti e requisiti collegati al TAN promozionale",
+      why: `Il TAN o lo sconto sembrano dipendere da prodotti o requisiti commerciali${mortgageLinkedProductsDetailsValue ? `: ${mortgageLinkedProductsDetailsValue}` : ""}. Anche se alcuni elementi non sono formalmente obbligatori per ottenere il mutuo, possono incidere sul costo reale e sulla libertà di scelta nel tempo.`,
+      question: "Potete confermarmi costo, inclusione nel TAEG e conseguenze pratiche dei prodotti o requisiti collegati al TAN promozionale?",
     }] : []),
     ...(mortgageTaegTanDifference > 0.8 ? [{
       id: "taeg_tan_high_gap",
@@ -4351,7 +4440,7 @@ const [authReady, setAuthReady] = useState(false);
       why: "Se la polizza è proposta o vincolata dalla banca, può incidere su costo, flessibilità e possibilità di confronto con compagnie esterne.",
       question: "Potete confermarmi se posso sottoscrivere una polizza equivalente presso una compagnia esterna senza modifiche al tasso o alle condizioni economiche?",
     }] : []),
-    ...(mortgageDiscountConditionsValue.includes("sconto collegato a polizze") || mortgageDiscountConditionsValue.includes("sconto collegato a conto") ? [{
+    ...(!mortgageHasLinkedDiscountBundle && (mortgageDiscountConditionsValue.includes("sconto collegato a polizze") || mortgageDiscountConditionsValue.includes("sconto collegato a conto")) ? [{
       id: "discount_linked_products",
       sectionId: "policies-products",
       area: "polizze" as const,
@@ -4368,7 +4457,7 @@ const [authReady, setAuthReady] = useState(false);
       why: "Quando uno sconto dipende da condizioni specifiche, conviene capire bene quali requisiti vanno rispettati e cosa cambia se vengono meno.",
       question: "Da quali condizioni dipende lo sconto sul tasso e cosa accade se tali condizioni non vengono rispettate o mantenute?",
     }] : []),
-    ...(mortgageLinkedProductsValue.includes("necessari per ottenere il tasso") || mortgageLinkedProductsValue.includes("costi non chiari") ? [{
+    ...(!mortgageHasLinkedDiscountBundle && (mortgageLinkedProductsValue.includes("necessari per ottenere il tasso") || mortgageLinkedProductsValue.includes("costi non chiari")) ? [{
       id: "linked_products_conditions",
       sectionId: "policies-products",
       area: "polizze" as const,
@@ -4385,16 +4474,19 @@ const [authReady, setAuthReady] = useState(false);
     : mortgageEconomicAttentionFlags.some((flag) => flag.severity === "Media")
     ? "Media"
     : "Bassa";
+  const mortgageHasVariableSimulationEconomicFlag = mortgageEconomicAttentionFlags.some((flag) => flag.id === "variable_missing_stress_test");
   const mortgageEconomicAttentionCopy = mortgageEconomicAttentionLevel === "Alta"
     ? {
         label: "Alta",
-        message: "Il documento è abbastanza completo, ma costi accessori, polizze o vincoli commerciali meritano una verifica scritta prima della firma.",
+        message: "Il documento è abbastanza completo, ma costi accessori, polizze o vincoli commerciali richiedono una valutazione attenta della proposta nel suo insieme. Chiedi conferme scritte e confronta bene costi, alternative e impatto nel tempo prima di decidere.",
         className: "border-orange-200 bg-orange-50 text-orange-900",
       }
     : mortgageEconomicAttentionLevel === "Media"
     ? {
         label: "Media",
-        message: "Sono presenti alcuni elementi economici da comprendere meglio prima di confrontare l'offerta con altre proposte.",
+        message: mortgageHasVariableSimulationEconomicFlag
+          ? "Non emergono costi accessori particolarmente rilevanti, ma il mutuo è a tasso variabile e mancano simulazioni numeriche sull'aumento della rata. Valuta bene se la rata resta sostenibile anche in scenari peggiorativi prima di decidere."
+          : "Sono presenti alcuni elementi economici da comprendere meglio prima di confrontare l'offerta con altre proposte.",
         className: "border-amber-200 bg-amber-50 text-amber-900",
       }
     : {
@@ -4415,6 +4507,22 @@ const [authReady, setAuthReady] = useState(false);
     }).length;
     const areaEconomicFlags = mortgageEconomicAttentionFlags.filter((flag) => flag.area === area);
     if (issueCount === 0 && areaEconomicFlags.length === 0) return { label: "Chiaro", className: "border-emerald-200 bg-emerald-50 text-emerald-800" };
+    if (area === "polizze") {
+      const policyIssueCopies = mortgagePiesIssues
+        .filter((item) => item.field.area === "polizze")
+        .map((item) => getMortgagePiesIssueCopy(item.field, item.state.status).issue);
+      const hasOnlySoftPolicyIssues =
+        policyIssueCopies.length > 0 &&
+        policyIssueCopies.every((issue) =>
+          issue === "Polizza incendio e scoppio obbligatoria da confermare" ||
+          issue === "Conseguenze dello sconto Green da confermare"
+        );
+      const hasHighEconomicFlag = areaEconomicFlags.some((flag) => flag.severity === "Alta");
+
+      if (hasOnlySoftPolicyIssues && !hasHighEconomicFlag) {
+        return { label: "Da controllare", className: "border-amber-200 bg-amber-50 text-amber-800" };
+      }
+    }
     if (issueCount === 0 && areaEconomicFlags.length > 0) {
       const hasHighEconomicFlag = areaEconomicFlags.some((flag) => flag.severity === "Alta");
       return hasHighEconomicFlag
@@ -4435,35 +4543,51 @@ const [authReady, setAuthReady] = useState(false);
 
   const mortgageEmailSections = mortgagePiesSections
     .map((section) => {
-      const issues = section.fields
-        .map((field) => {
-          const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
-          return { field, state: { ...state, status: getMortgagePiesEffectiveStatus(field.id, state) } };
-        })
-        .filter((item) => item.state.status !== "found");
+      const issues = mortgagePiesIssues.filter((item) =>
+        section.fields.some((field) => field.id === item.field.id)
+      );
 
       return { section, issues };
     })
     .filter((item) => item.issues.length > 0);
 
+  const mortgageLinkedDiscountProductsLabel = mortgageLinkedProductsDetailsValue.trim()
+    ? mortgageLinkedProductsDetailsValue.trim()
+    : "prodotti, requisiti o polizze collegati al TAN promozionale";
+  const mortgageLinkedDiscountCostsLabel = mortgageLinkedProductsCostsValue.trim();
+  const mortgageDiscountConsequenceIsSpecific =
+    mortgageDiscountConsequenceValue &&
+    !mortgageDiscountConsequenceValue.includes("nessuna conseguenza") &&
+    !mortgageDiscountConsequenceValue.includes("non indicato") &&
+    !mortgageDiscountConsequenceValue.includes("non chiaro");
+  const mortgageLinkedBundleHasPolicyQuestion =
+    mortgageLinkedProductsDetailsValue.toLowerCase().includes("polizza") ||
+    mortgageDiscountConditionsValue.includes("polizze") ||
+    mortgagePolicyFreedomValue.includes("vincolata") ||
+    mortgageLinkedProductsRoleValue.includes("poliz");
+
   const mortgageLinkedDiscountEmailQuestions = mortgageHasLinkedDiscountBundle
     ? [
         {
-          question: "Potete confermarmi quali prodotti o requisiti sono necessari per ottenere e mantenere il TAN indicato, inclusi conto corrente, polizze o altri servizi collegati?",
-          type: "Richiesta riepilogo condizioni promozionali",
-        },
-        {
-          question: "Potete indicarmi il costo separato di ciascun prodotto o polizza, specificando quali importi sono inclusi nel TAEG e quali restano esclusi?",
+          question: mortgageLinkedDiscountCostsLabel
+            ? `Nel PIES risultano collegati al TAN promozionale ${mortgageLinkedDiscountProductsLabel} e risultano costi indicati (${mortgageLinkedDiscountCostsLabel}). Potete confermarmi quali importi sono inclusi nel TAEG, quali restano esclusi e se ci sono altri costi collegati da considerare?`
+            : mortgageLinkedProductsDetailsValue.trim()
+            ? `Nel PIES risultano collegati al TAN promozionale ${mortgageLinkedDiscountProductsLabel}. Potete confermarmi il costo complessivo e separato di ciascun prodotto o polizza, indicando quali importi sono inclusi nel TAEG e quali restano esclusi?`
+            : "Potete indicarmi l'elenco completo dei prodotti, requisiti o polizze collegati al TAN promozionale, il costo separato di ciascuno e quali importi sono inclusi nel TAEG?",
           type: "Richiesta costi prodotti e polizze",
         },
         {
-          question: "Potete confermarmi cosa accade al TAN, allo sconto o alle altre condizioni economiche se non sottoscrivo, chiudo o recedo da uno di questi prodotti?",
+          question: mortgageDiscountConsequenceIsSpecific
+            ? `Potete confermarmi che la conseguenza indicata in caso di mancato mantenimento dei requisiti è: ${mortgagePiesRawValue("discountConsequence")}? Ci sono altri costi, variazioni o condizioni da considerare?`
+            : "Potete confermarmi cosa accade al TAN, allo sconto o alle altre condizioni economiche se non sottoscrivo, chiudo o recedo dai prodotti o requisiti collegati?",
           type: "Richiesta conseguenze sul tasso",
         },
-        {
-          question: "Per le polizze, potete confermarmi se posso sottoscrivere coperture equivalenti presso una compagnia esterna senza modifiche al tasso o alle condizioni economiche?",
-          type: "Richiesta libertà di scelta polizze",
-        },
+        ...(mortgageLinkedBundleHasPolicyQuestion
+          ? [{
+              question: "Per le polizze collegate alle condizioni, posso sottoscrivere coperture equivalenti presso una compagnia esterna senza perdere lo sconto o modificare le condizioni economiche?",
+              type: "Richiesta libertà di scelta polizze",
+            }]
+          : []),
       ]
     : [];
 
@@ -4473,10 +4597,16 @@ const [authReady, setAuthReady] = useState(false);
     switch (flag.id) {
       case "cap_floor_structure":
         return mortgageMaxInstallmentAtCapNumber <= 0;
+      case "variable_missing_stress_test":
+        // La richiesta di simulazione è già generata dal campo documentale "Rata e scenari".
+        // Manteniamo il segnale nel report, ma non lo ripetiamo nell'email.
+        return false;
       case "taeg_tan_medium_gap":
         return false;
       case "green_discount_condition":
-        return !mortgageGreenRequirementValue;
+        // Lo sconto Green resta come segnale nel report. Se manca la conseguenza,
+        // la domanda viene generata dal campo documentale dedicato, evitando doppioni.
+        return false;
       case "policy_cost_medium":
         return false;
       case "policy_cost_high":
@@ -4491,32 +4621,26 @@ const [authReady, setAuthReady] = useState(false);
     }
   });
 
+  const mortgageLinkedBundleCoveredFieldIds = new Set([
+    "policyChoiceFreedom",
+    "policyCost",
+    "policyCostAmount",
+    "productsRequiredForRate",
+    "linkedProductsRole",
+    "linkedProductsDetails",
+    "linkedProductsCosts",
+    "discountConsequence",
+  ]);
+
   const mortgageCombinedEmailSections = mortgagePiesSections
     .map((section) => {
-      const documentQuestions = section.fields
-        .map((field) => {
-          if (
-            mortgageHasLinkedDiscountBundle &&
-            section.id === "policies-products" &&
-            ["policyChoiceFreedom", "policyCost", "policyCostAmount", "linkedProducts", "productsRequiredForRate", "linkedProductsDetails", "discountConditions", "discountConsequence"].includes(field.id)
-          ) {
-            return null;
-          }
-
-          // Evita domande duplicate: se "costo polizze" è già mancante/non chiaro,
-          // non chiediamo anche l'importo polizze con una seconda domanda quasi identica.
-          if (field.id === "policyCostAmount") {
-            const policyCostState = mortgagePiesFields.policyCost ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
-            if (getMortgagePiesEffectiveStatus("policyCost", policyCostState) !== "found") return null;
-          }
-
-          const state = mortgagePiesFields[field.id] ?? { status: "missing" as MortgagePiesStatus, value: "", notes: "" };
-          const effectiveStatus = getMortgagePiesEffectiveStatus(field.id, state);
-          return effectiveStatus !== "found"
-            ? { question: getMortgagePiesIssueCopy(field, effectiveStatus).question, type: effectiveStatus === "unclear" ? "Dato non chiaro" : "Dato non trovato" }
-            : null;
-        })
-        .filter((item): item is { question: string; type: string } => Boolean(item));
+      const documentQuestions = mortgagePiesIssues
+        .filter((item) => section.fields.some((field) => field.id === item.field.id))
+        .filter((item) => !(mortgageHasLinkedDiscountBundle && section.id === "policies-products" && mortgageLinkedBundleCoveredFieldIds.has(item.field.id)))
+        .map((item) => ({
+          question: getMortgagePiesIssueCopy(item.field, item.state.status).question,
+          type: item.state.status === "unclear" ? "Dato non chiaro" : "Dato non trovato",
+        }));
       const economicQuestions = mortgageEconomicAttentionFlagsForEmail
         .filter((flag) => flag.sectionId === section.id)
         .map((flag) => ({ question: flag.question, type: `Segnale economico ${flag.severity.toLowerCase()}` }));
@@ -4528,12 +4652,21 @@ const [authReady, setAuthReady] = useState(false);
     })
     .filter((item) => item.questions.length > 0);
 
-  const mortgageHasQuestionsForBank = mortgageCombinedEmailSections.length > 0;
+  const mortgageDedupedCombinedEmailSections = mortgageCombinedEmailSections
+    .reduce<{ section: MortgagePiesSection; questions: { question: string; type: string }[] }[]>((acc, current) => {
+      const questions = current.questions.filter((item) =>
+        !acc.some((existingSection) => existingSection.questions.some((existingItem) => existingItem.question === item.question))
+      );
+      if (questions.length > 0) acc.push({ section: current.section, questions });
+      return acc;
+    }, []);
+
+  const mortgageHasQuestionsForBank = mortgageDedupedCombinedEmailSections.length > 0;
   const mortgageHasRelevantReportIssues = mortgageHasQuestionsForBank || mortgageEconomicAttentionFlags.length > 0;
 
   const mortgageGeneratedEmail = !mortgageHasQuestionsForBank
     ? "Oggetto: Conferma condizioni proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo. Al momento i dati principali risultano individuati.\n\nVi chiedo cortesemente di confermarmi che il PIES ricevuto e aggiornato alle condizioni definitive e che non ci sono ulteriori costi, polizze o prodotti obbligatori non indicati nella documentazione.\n\nGrazie.\nCordiali saluti"
-    : `Oggetto: Richiesta chiarimenti su proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo e avrei bisogno di chiarire alcuni punti prima di procedere.\n\nVi chiedo cortesemente di confermarmi per iscritto i seguenti chiarimenti, ordinati secondo le sezioni del PIES:\n\n${mortgageCombinedEmailSections.map(({ section, questions }, sectionIndex) => `${sectionIndex + 1}. ${section.title.replace(/^\d+\.\s*/, "")}\n${questions.map((item, issueIndex) => `   ${sectionIndex + 1}.${issueIndex + 1} ${item.question}`).join("\n")}`).join("\n\n")}\n\nLa richiesta è finalizzata esclusivamente a comprendere correttamente la proposta prima della firma.\n\nGrazie.\nCordiali saluti`;
+    : `Oggetto: Richiesta chiarimenti su proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo e avrei bisogno di chiarire alcuni punti prima di procedere.\n\nVi chiedo cortesemente di confermarmi per iscritto i seguenti chiarimenti, ordinati secondo le sezioni del PIES:\n\n${mortgageDedupedCombinedEmailSections.map(({ section, questions }, sectionIndex) => `${sectionIndex + 1}. ${section.title.replace(/^\d+\.\s*/, "")}\n${questions.map((item, issueIndex) => `   ${sectionIndex + 1}.${issueIndex + 1} ${item.question}`).join("\n")}`).join("\n\n")}\n\nLa richiesta è finalizzata esclusivamente a comprendere correttamente la proposta prima della firma.\n\nGrazie.\nCordiali saluti`;
 
   const mortgageRequestPiesEmail = "Oggetto: Richiesta PIES e documentazione mutuo\n\nBuongiorno,\nprima di procedere con la valutazione del mutuo, vi chiedo cortesemente di inviarmi il PIES aggiornato relativo alla proposta, insieme al piano di ammortamento e al prospetto completo delle condizioni economiche.\n\nVi chiedo inoltre di indicarmi eventuali polizze, prodotti collegati o condizioni necessarie per ottenere o mantenere il tasso proposto.\n\nGrazie.\nCordiali saluti";
 
