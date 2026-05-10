@@ -3012,15 +3012,42 @@ const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     if (!purchase.unlocked || step !== "paywall") return;
-    setStep(purchase.plan === "core" ? "onboarding" : "dashboard");
-  }, [purchase.unlocked, purchase.plan, step]);
+
+    let cancelled = false;
+
+    async function routeAfterPlanActivation() {
+      if (purchase.plan !== "core") {
+        if (!cancelled) setStep("dashboard");
+        return;
+      }
+
+      if (!user) return;
+
+      const setupAlreadyCompleted = await hasCompletedDashboardSetupForPortfolio(
+        user,
+        purchase.selectedPortfolio
+      );
+
+      if (!cancelled) {
+        setStep(setupAlreadyCompleted ? "dashboard" : "onboarding");
+      }
+    }
+
+    void routeAfterPlanActivation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [purchase.unlocked, purchase.plan, purchase.selectedPortfolio, step, user?.id]);
 
   useEffect(() => {
-    const paidSteps: AppStep[] = ["portfolio", "guide", "dashboard", "awareness", "strumentis", "rebalance", "exit"];
+    // Se il piano è scaduto, l'utente deve poter rivedere il Modello/Home e aprire il Profilo.
+    // Blocchiamo solo le sezioni operative riservate, senza tenerlo "prigioniero" nel paywall.
+    const restrictedStepsAfterExpiry: AppStep[] = ["guide", "dashboard", "awareness", "strumentis", "rebalance", "exit"];
     const hasExpiredPlan = !!purchase.expiresAt && !isPurchaseDateValid(purchase.expiresAt);
 
     if (!hasExpiredPlan) return;
-    if (paidSteps.includes(step) || step === "onboarding") {
+    if (restrictedStepsAfterExpiry.includes(step) || step === "onboarding") {
       setStep("paywall");
     }
   }, [purchase.expiresAt, step]);
@@ -7900,6 +7927,31 @@ const [authReady, setAuthReady] = useState(false);
     }
   }
 
+
+  async function hasCompletedDashboardSetupForPortfolio(currentUser: User, portfolioKey?: FinalPortfolioKey | string | null) {
+    if (!portfolioKey || !(portfolioKey in portfolioMap)) return false;
+    const safePortfolioKey = portfolioKey as FinalPortfolioKey;
+
+    const localGoal = localStorage.getItem(getGoalStorageKey(currentUser.id, safePortfolioKey));
+    if (localGoal) {
+      try {
+        const parsed = JSON.parse(localGoal);
+        const hasGoalData =
+          parsed.goalTitle ||
+          parsed.goalTarget ||
+          parsed.goalCurrentValue ||
+          parsed.goalEndYear ||
+          parsed.portMonthly;
+
+        if (hasGoalData) return true;
+      } catch {
+        return true;
+      }
+    }
+
+    return await hasSavedGoalForPortfolio(currentUser, portfolioKey);
+  }
+
   async function loadPurchaseFromDb(currentUser: User) {
     try {
       const { data, error } = await supabase
@@ -8195,6 +8247,10 @@ const [authReady, setAuthReady] = useState(false);
     const now = new Date();
     const isActiveCoreUpgrade = plan === "pro" && purchase.unlocked && purchase.plan === "core" && isPurchaseDateValid(purchase.expiresAt);
     const isRenewal = !purchase.unlocked && !!purchase.expiresAt;
+    const dashboardSetupAlreadyCompleted = user
+      ? await hasCompletedDashboardSetupForPortfolio(user, finalPortfolio)
+      : false;
+    const shouldRunDashboardSetup = plan === "core" && !dashboardSetupAlreadyCompleted;
     const nextPaidAmount = plan === "pro" ? 59 : Math.max(currentPaid, 29);
     const paymentType: PurchasePaymentType = isActiveCoreUpgrade
       ? "upgrade_core_to_pro"
@@ -8219,7 +8275,7 @@ const [authReady, setAuthReady] = useState(false);
       await savePurchaseToDb(updatedPurchase);
     }
 
-    if (plan === "core") {
+    if (shouldRunDashboardSetup) {
       setGoalTitle("Libertà finanziaria");
       setGoalTarget("100000");
       setGoalCurrentValue("0");
@@ -8246,7 +8302,7 @@ const [authReady, setAuthReady] = useState(false);
     await recordMarketingConversion(plan, marketingAmount, paymentType);
 
     setShowProUpgradeModal(false);
-    setStep(plan === "core" ? "onboarding" : "dashboard");
+    setStep(shouldRunDashboardSetup ? "onboarding" : "dashboard");
   }
 
   function requestProUpgrade() {
