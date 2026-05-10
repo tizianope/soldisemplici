@@ -1066,7 +1066,7 @@ const mortgagePiesSections: MortgagePiesSection[] = [
       { id: "rateType", label: "Tipo di tasso", placeholder: "Seleziona il tipo indicato nel PIES", penalty: 8, area: "tasso", issue: "Tipo di tasso non chiaro", why: "Il rischio cambia molto tra fisso, variabile e variabile con cap.", question: "Potete confermarmi se il mutuo è a tasso fisso, variabile, misto o variabile con cap?", selectOptions: ["Tasso fisso", "Tasso variabile", "Tasso variabile con cap", "Tasso misto", "Non trovato nel PIES", "Non chiaro"] },
       { id: "tan", label: "TAN", placeholder: "Es. 3,20%", penalty: 8, area: "tasso", issue: "TAN non trovato o non chiaro", why: "Serve per capire il tasso nominale applicato al capitale.", question: "Potete confermarmi il TAN applicato alla proposta?" },
       { id: "taeg", label: "TAEG", placeholder: "Es. 3,74%", penalty: 15, area: "costo", issue: "TAEG non trovato o non chiaro", why: "Il TAEG è fondamentale per confrontare offerte e capire i costi accessori inclusi.", question: "Potete confermarmi il TAEG e quali costi sono inclusi o esclusi dal calcolo?" },
-      { id: "rateLocked", label: "Tasso bloccato fino alla stipula", placeholder: "Seleziona la risposta indicata nel PIES", penalty: 8, area: "tasso", issue: "Blocco tasso fino al rogito non chiaro", why: "Per un tasso fisso è importante capire se le condizioni restano valide fino alla firma. Per i mutui variabili questo controllo di solito non è applicabile: contano parametro, spread e simulazioni.", question: "Il tasso fisso indicato è bloccato fino alla stipula? Fino a quale data?", selectOptions: ["Si, fino alla stipula", "Si, fino a una data indicata", "No", "Non applicabile: tasso variabile", "Non trovato nel PIES", "Non chiaro"] },
+      { id: "rateLocked", label: "Validità condizioni economiche", placeholder: "Seleziona cosa indica il PIES sulla validità di tasso e condizioni", penalty: 8, area: "tasso", issue: "Validità delle condizioni economiche non chiara", why: "Per un tasso fisso è importante capire fino a quando restano validi tasso, costi e condizioni indicate. Per i mutui variabili questo controllo di solito non riguarda il blocco del tasso, ma la validità complessiva della proposta.", question: "Potete confermarmi fino a quale data restano valide le condizioni economiche indicate nel PIES e cosa può cambiare dopo tale data?", selectOptions: ["Si, fino alla stipula", "Si, fino a una data indicata", "No", "Non applicabile: tasso variabile", "Non trovato nel PIES", "Non chiaro"] },
       { id: "referenceIndex", label: "Parametro di riferimento", placeholder: "Es. Euribor 1 mese", penalty: 6, area: "tasso", issue: "Parametro di riferimento non chiaro", why: "Nei mutui variabili e nei variabili con cap serve sapere a quale indice è collegato il tasso, per esempio Euribor 1 mese o Euribor 3 mesi.", question: "Potete confermarmi il parametro di riferimento usato per il tasso variabile e la periodicità di aggiornamento?" },
       { id: "spread", label: "Spread", placeholder: "Es. 1,10%", penalty: 6, area: "tasso", issue: "Spread non chiaro", why: "Lo spread è la maggiorazione applicata dalla banca al parametro di riferimento. Incide direttamente sul tasso finale.", question: "Potete confermarmi lo spread applicato e se resta invariato per tutta la durata del mutuo?" },
       { id: "mixedChangeConditions", label: "Condizioni di cambio tasso", placeholder: "Seleziona cosa indica il PIES", penalty: 10, area: "tasso", issue: "Condizioni di cambio tasso non dettagliate", why: "Nel tasso misto è fondamentale capire quando può cambiare il tasso, se il cambio è automatico o facoltativo e quali condizioni si applicano dopo il cambio.", question: "Potete confermarmi dopo quanto tempo può cambiare il tasso, se il cambio è automatico o facoltativo e quali condizioni si applicano dopo il cambio?", selectOptions: ["Cambio dopo un periodo indicato", "Cambio automatico", "Cambio facoltativo", "Condizioni di cambio non dettagliate", "Non trovato nel PIES", "Non chiaro"] },
@@ -3907,7 +3907,7 @@ const [authReady, setAuthReady] = useState(false);
     const rateTypeCategory = getMortgageRateTypeCategory();
 
     if (rateTypeCategory === "fixed") {
-      return "Per un mutuo a tasso fisso questo controllo è importante: verifica se tasso e condizioni restano validi fino alla stipula o fino a una data precisa.";
+      return "Per un mutuo a tasso fisso questo controllo è importante: verifica fino a quando restano validi tasso, costi e condizioni economiche indicate nel PIES.";
     }
 
     if (rateTypeCategory === "variable") {
@@ -3929,7 +3929,7 @@ const [authReady, setAuthReady] = useState(false);
     const rateTypeCategory = getMortgageRateTypeCategory();
 
     if (rateTypeCategory === "fixed") {
-      return "Per un mutuo a tasso fisso la simulazione di aumento rata non è essenziale: il controllo importante è verificare che tasso e condizioni siano bloccati fino alla stipula.";
+      return "Per un mutuo a tasso fisso la simulazione di aumento rata non è essenziale: il controllo importante è verificare fino a quando restano validi tasso, costi e condizioni economiche.";
     }
 
     if (rateTypeCategory === "variable") {
@@ -4006,9 +4006,9 @@ const [authReady, setAuthReady] = useState(false);
 
     if (field.id === "policyCost" || field.id === "policyCostAmount") {
       return {
-        issue: "Costi delle polizze non chiari",
-        why: "Il costo delle polizze serve per capire quanto pesa sul costo complessivo, se il premio viene pagato subito o finanziato e se rientra nel TAEG.",
-        question: "Qual è il costo di ciascuna polizza? Il premio viene pagato subito o finanziato? Il costo è incluso nel TAEG?",
+        issue: "Dettaglio polizze e modalità da confermare",
+        why: "Se l'importo principale della polizza è indicato, resta comunque utile confermare il costo separato di ciascuna copertura, se il premio viene pagato subito o finanziato e se rientra nel TAEG.",
+        question: "Potete indicarmi il costo separato di ciascuna polizza, specificando se il premio viene pagato subito o finanziato e quali importi sono inclusi nel TAEG?",
       };
     }
 
@@ -4053,8 +4053,8 @@ const [authReady, setAuthReady] = useState(false);
     if (rateTypeCategory === "fixed") {
       return {
         issue: "Simulazioni non essenziali per tasso fisso",
-        why: "Per un mutuo a tasso fisso la rata non varia per effetto dei tassi. Conta soprattutto verificare che le condizioni siano bloccate fino alla stipula.",
-        question: "Potete confermarmi che il tasso fisso e le condizioni indicate restano valide fino alla stipula?",
+        why: "Per un mutuo a tasso fisso la rata non varia per effetto dei tassi. Conta soprattutto verificare fino a quando restano validi tasso, costi e condizioni economiche.",
+        question: "Potete confermarmi fino a quale data restano validi il tasso fisso, i costi e le condizioni economiche indicate?",
       };
     }
 
@@ -4380,6 +4380,29 @@ const [authReady, setAuthReady] = useState(false);
   ];
 
 
+  const mortgageEconomicAttentionLevel = mortgageEconomicAttentionFlags.some((flag) => flag.severity === "Alta")
+    ? "Alta"
+    : mortgageEconomicAttentionFlags.some((flag) => flag.severity === "Media")
+    ? "Media"
+    : "Bassa";
+  const mortgageEconomicAttentionCopy = mortgageEconomicAttentionLevel === "Alta"
+    ? {
+        label: "Alta",
+        message: "Il documento è abbastanza completo, ma costi accessori, polizze o vincoli commerciali meritano una verifica scritta prima della firma.",
+        className: "border-orange-200 bg-orange-50 text-orange-900",
+      }
+    : mortgageEconomicAttentionLevel === "Media"
+    ? {
+        label: "Media",
+        message: "Sono presenti alcuni elementi economici da comprendere meglio prima di confrontare l'offerta con altre proposte.",
+        className: "border-amber-200 bg-amber-50 text-amber-900",
+      }
+    : {
+        label: "Bassa",
+        message: "Non emergono segnali economici rilevanti dai dati inseriti. Verifica comunque le condizioni definitive prima della firma.",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+      };
+
   const getMortgageAreaStatus = (area: MortgagePiesFieldDefinition["area"]) => {
     const areaItems = visibleMortgagePiesFieldDefinitions.filter((field) => field.area === area);
     const issueCount = areaItems.filter((field) => {
@@ -4426,16 +4449,20 @@ const [authReady, setAuthReady] = useState(false);
   const mortgageLinkedDiscountEmailQuestions = mortgageHasLinkedDiscountBundle
     ? [
         {
-          question: "Potete confermarmi quali prodotti, polizze o requisiti commerciali sono necessari per ottenere e mantenere il TAN promozionale, inclusi eventuali conto corrente, accredito stipendio, carte o altri prodotti collegati?",
+          question: "Potete confermarmi quali prodotti o requisiti sono necessari per ottenere e mantenere il TAN indicato, inclusi conto corrente, polizze o altri servizi collegati?",
           type: "Richiesta riepilogo condizioni promozionali",
         },
         {
-          question: "Potete confermarmi quali di questi elementi sono obbligatori, quali sono facoltativi, quali costi ricorrenti hanno e se tali costi sono inclusi nel TAEG?",
-          type: "Richiesta costi prodotti collegati",
+          question: "Potete indicarmi il costo separato di ciascun prodotto o polizza, specificando quali importi sono inclusi nel TAEG e quali restano esclusi?",
+          type: "Richiesta costi prodotti e polizze",
         },
         {
-          question: "Se non sottoscrivo, chiudo o recedo da uno di questi prodotti o requisiti, cosa accade al TAN, allo sconto o alle altre condizioni economiche? Se sono previste polizze collegate, posso sottoscrivere una copertura equivalente presso una compagnia esterna senza perdere lo sconto?",
-          type: "Richiesta conseguenze e libertà di scelta",
+          question: "Potete confermarmi cosa accade al TAN, allo sconto o alle altre condizioni economiche se non sottoscrivo, chiudo o recedo da uno di questi prodotti?",
+          type: "Richiesta conseguenze sul tasso",
+        },
+        {
+          question: "Per le polizze, potete confermarmi se posso sottoscrivere coperture equivalenti presso una compagnia esterna senza modifiche al tasso o alle condizioni economiche?",
+          type: "Richiesta libertà di scelta polizze",
         },
       ]
     : [];
@@ -4452,6 +4479,8 @@ const [authReady, setAuthReady] = useState(false);
         return !mortgageGreenRequirementValue;
       case "policy_cost_medium":
         return false;
+      case "policy_cost_high":
+        return !mortgageHasLinkedDiscountBundle;
       case "policy_bank_bound":
       case "discount_linked_products":
       case "linked_products_conditions":
@@ -4809,6 +4838,34 @@ const [authReady, setAuthReady] = useState(false);
     .score-card.risk .score-fill { background: var(--risk); }
     .score-title { display: block; font-size: 17px; margin-bottom: 6px; }
     .score-card p, .summary-card p { margin: 0; color: var(--muted); font-size: 13px; }
+    .attention-panel {
+      margin-top: 14px;
+      padding: 13px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: var(--soft);
+    }
+    .attention-panel span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .attention-panel strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+    .attention-panel p { margin-top: 5px; font-size: 12px; }
+    .attention-panel.attention-high { background: var(--warning-bg); border-color: #fdba74; }
+    .attention-panel.attention-high strong { color: var(--warning); }
+    .attention-panel.attention-medium { background: var(--medium-bg); border-color: #fde68a; }
+    .attention-panel.attention-medium strong { color: var(--medium); }
+    .attention-panel.attention-low { background: var(--good-bg); border-color: #bbf7d0; }
+    .attention-panel.attention-low strong { color: var(--good); }
     .summary-card { padding: 22px; }
     .summary-card h2, .report-section h2, .email-card h2, .next-card h2 {
       margin: 0 0 14px;
@@ -4991,18 +5048,23 @@ const [authReady, setAuthReady] = useState(false);
         <div class="date-pill">${escapeReportHtml(reportDate)}</div>
       </div>
       <h1>Report verifica mutuo:<span class="report-offer-title">${escapeReportHtml(reportOfferName)}</span></h1>
-      <p>Una sintesi leggibile dei dati PIES, dei punti chiari e delle domande da inviare alla banca prima della firma.</p>
+      <p>Una sintesi leggibile dei dati PIES, della chiarezza documentale e dell'attenzione economica da valutare prima della firma.</p>
     </header>
 
     <div class="content">
       <section class="summary-grid avoid-break">
         <article class="score-card ${scoreTone}">
-          <div class="score-label">Indice di chiarezza documentale</div>
+          <div class="score-label">Chiarezza documentale</div>
           <div class="score-value"><strong>${mortgageClarityScore}</strong><span>/100</span></div>
           <div class="score-bar"><div class="score-fill"></div></div>
           <strong class="score-title">${escapeReportHtml(mortgageClarityCopy.label)}</strong>
           <p>${escapeReportHtml(mortgageClarityCopy.message)}</p>
           <p style="margin-top:10px;">Dati trovati: <strong>${mortgagePiesFound.length}/${visibleMortgagePiesFieldDefinitions.length}</strong></p>
+          <div class="attention-panel ${mortgageEconomicAttentionLevel === "Alta" ? "attention-high" : mortgageEconomicAttentionLevel === "Media" ? "attention-medium" : "attention-low"}">
+            <span>Attenzione economica</span>
+            <strong>${escapeReportHtml(mortgageEconomicAttentionCopy.label)}</strong>
+            <p>${escapeReportHtml(mortgageEconomicAttentionCopy.message)}</p>
+          </div>
         </article>
 
         <article class="summary-card">
@@ -11326,7 +11388,7 @@ const [authReady, setAuthReady] = useState(false);
                         </div>
 
                         <div className={`rounded-3xl border p-6 shadow-sm ${mortgageClarityCopy.className}`}>
-                          <p className="text-sm font-semibold uppercase tracking-[0.2em] opacity-80">Indice di chiarezza</p>
+                          <p className="text-sm font-semibold uppercase tracking-[0.2em] opacity-80">Chiarezza documentale</p>
                           <div className="mt-3 flex items-end gap-3">
                             <p className="text-5xl font-black tracking-tight">{mortgageClarityScore}</p>
                             <p className="pb-2 text-lg font-bold">/100</p>
@@ -11343,6 +11405,11 @@ const [authReady, setAuthReady] = useState(false);
                               <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-70">Da chiarire</p>
                               <p className="mt-1 text-2xl font-bold">{mortgagePiesIssues.length}</p>
                             </div>
+                          </div>
+                          <div className={`mt-4 rounded-2xl border bg-white/80 p-4 ${mortgageEconomicAttentionCopy.className}`}>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-70">Attenzione economica</p>
+                            <p className="mt-1 text-2xl font-black">{mortgageEconomicAttentionCopy.label}</p>
+                            <p className="mt-2 text-sm leading-6">{mortgageEconomicAttentionCopy.message}</p>
                           </div>
                         </div>
 
@@ -11601,10 +11668,10 @@ const [authReady, setAuthReady] = useState(false);
                       </div>
 
                       <div className="mt-6 grid gap-4 md:grid-cols-4">
-                        <PremiumStatCard eyebrow="Indice chiarezza" value={`${mortgageClarityScore}/100`} note={mortgageClarityCopy.label} />
+                        <PremiumStatCard eyebrow="Chiarezza documentale" value={`${mortgageClarityScore}/100`} note={mortgageClarityCopy.label} />
                         <PremiumStatCard eyebrow="Dati trovati" value={`${mortgagePiesFound.length}`} note="Campi confermati" />
                         <PremiumStatCard eyebrow="Punti da chiarire" value={`${mortgagePiesIssues.length}`} note="Domande documentali" />
-                        <PremiumStatCard eyebrow="Segnali economici" value={`${mortgageEconomicAttentionFlags.length}`} note="Costi o vincoli da verificare" />
+                        <PremiumStatCard eyebrow="Attenzione economica" value={mortgageEconomicAttentionCopy.label} note={`${mortgageEconomicAttentionFlags.length} segnali da valutare`} />
                       </div>
 
                       <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
