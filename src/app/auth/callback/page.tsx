@@ -74,7 +74,7 @@ export default function AuthCallbackPage() {
               Soldi Semplici
             </p>
 
-            <div className="mt-8 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-2xl">
+            <div className="mt-8 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-2xl text-emerald-700">
               {isLoading ? "…" : isError ? "!" : "✓"}
             </div>
 
@@ -96,7 +96,7 @@ export default function AuthCallbackPage() {
                 onClick={() => {
                   window.location.href = "/";
                 }}
-                className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isLoading}
               >
                 Entra nell'app

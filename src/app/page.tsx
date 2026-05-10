@@ -173,18 +173,8 @@ async function trackEvent(eventName: TrackingEventName, payload: Record<string, 
   try {
     let userId: string | null = null;
 
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.warn("Sessione tracking non valida:", error.message);
-        clearSupabaseAuthStorage();
-      } else {
-        userId = data.session?.user?.id ?? null;
-      }
-    } catch (sessionError) {
-      console.warn("Sessione tracking non leggibile:", sessionError);
-      clearSupabaseAuthStorage();
-    }
+    const session = await safeGetSupabaseSession("tracking eventi");
+    userId = session?.user?.id ?? null;
 
     const { error } = await supabase.from("app_events").insert({
       user_id: userId,
@@ -216,12 +206,8 @@ async function recordMarketingVisit(attribution: MarketingAttribution | null) {
 
   try {
     let userId: string | null = null;
-    try {
-      const { data } = await supabase.auth.getSession();
-      userId = data.session?.user?.id ?? null;
-    } catch {
-      userId = null;
-    }
+    const session = await safeGetSupabaseSession("attribuzione marketing");
+    userId = session?.user?.id ?? null;
 
     const { error } = await supabase.rpc("track_marketing_attribution", {
       p_user_id: userId,
@@ -247,12 +233,8 @@ async function recordMarketingConversion(plan: PurchasePlan, amount: number, pay
 
   try {
     let userId: string | null = null;
-    try {
-      const { data } = await supabase.auth.getSession();
-      userId = data.session?.user?.id ?? null;
-    } catch {
-      userId = null;
-    }
+    const session = await safeGetSupabaseSession("attribuzione marketing");
+    userId = session?.user?.id ?? null;
 
     const { error } = await supabase.rpc("track_marketing_conversion", {
       p_user_id: userId,
@@ -2459,6 +2441,69 @@ function clearSupabaseAuthStorage() {
   });
 }
 
+function hasSupabaseAuthStorage() {
+  if (typeof window === "undefined") return false;
+
+  return [...Object.keys(localStorage), ...Object.keys(sessionStorage)].some(
+    (key) => key.startsWith("sb-") || key.includes("supabase.auth.token")
+  );
+}
+
+function isInvalidSupabaseRefreshTokenError(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    message.includes("invalid refresh token") ||
+    message.includes("refresh token not found") ||
+    message.includes("refresh token has expired") ||
+    message.includes("refresh_token_not_found")
+  );
+}
+
+function handleSupabaseAuthReadError(error: unknown, context: string) {
+  const message = getErrorMessage(error);
+
+  if (isInvalidSupabaseRefreshTokenError(error)) {
+    console.warn(`Sessione Supabase locale non più valida (${context}). Pulizia locale eseguita:`, message);
+    clearSupabaseAuthStorage();
+    return;
+  }
+
+  if (isSupabaseLockAbortError(error)) {
+    console.warn(`Lettura sessione Supabase rimandata (${context}): richiesta sovrapposta non bloccante.`, message);
+    return;
+  }
+
+  console.warn(`Lettura sessione Supabase non disponibile (${context}).`, message);
+}
+
+async function safeGetSupabaseSession(context: string) {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      handleSupabaseAuthReadError(error, context);
+      return null;
+    }
+    return data.session ?? null;
+  } catch (error) {
+    handleSupabaseAuthReadError(error, context);
+    return null;
+  }
+}
+
+async function safeGetSupabaseUser(context: string) {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      handleSupabaseAuthReadError(error, context);
+      return null;
+    }
+    return data.user ?? null;
+  } catch (error) {
+    handleSupabaseAuthReadError(error, context);
+    return null;
+  }
+}
+
 
 async function safeLocalSignOut() {
   try {
@@ -2494,6 +2539,12 @@ const [authReady, setAuthReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [accountNewPassword, setAccountNewPassword] = useState("");
+  const [accountConfirmPassword, setAccountConfirmPassword] = useState("");
+  const [accountPasswordMessage, setAccountPasswordMessage] = useState("");
+  const [accountPasswordLoading, setAccountPasswordLoading] = useState(false);
+  const [accountShowPassword, setAccountShowPassword] = useState(false);
   const [profileResetLoading, setProfileResetLoading] = useState(false);
   const [profileResetMessage, setProfileResetMessage] = useState("");
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
@@ -2550,6 +2601,9 @@ const [authReady, setAuthReady] = useState(false);
   const awarenessActionsLoadedRef = useRef(false);
   const mortgageCheckLoadedRef = useRef(false);
   const mortgageSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mortgageSaveStatus, setMortgageSaveStatus] = useState<"idle" | "saving" | "saved" | "local" | "error">("idle");
+  const [mortgageLastSavedAt, setMortgageLastSavedAt] = useState<string | null>(null);
+  const [mortgageSaveMessage, setMortgageSaveMessage] = useState("");
   const pacHistoryLoadKeyRef = useRef<string | null>(null);
   const pacHistoryRequestIdRef = useRef(0);
   const holdingsLoadKeyRef = useRef<string | null>(null);
@@ -2799,20 +2853,13 @@ const [authReady, setAuthReady] = useState(false);
           return;
         }
 
-        const { data, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.warn("Sessione Supabase non valida, pulizia locale:", error.message);
-          clearSupabaseAuthStorage();
-          if (!mounted) return;
-          setUser(null);
-          setAuthMessage("Sessione scaduta o non valida. Effettua di nuovo l'accesso.");
-          setAuthReady(true);
-          return;
-        }
+        const session = await safeGetSupabaseSession("inizializzazione auth");
 
         if (!mounted) return;
-        setUser(data.session?.user ?? null);
+        setUser(session?.user ?? null);
+        if (!session && hasSupabaseAuthStorage()) {
+          setAuthMessage("Sessione scaduta o non valida. Effettua di nuovo l'accesso.");
+        }
         setAuthReady(true);
       } catch (error) {
         console.warn("Errore inizializzazione auth:", error);
@@ -3053,6 +3100,8 @@ const [authReady, setAuthReady] = useState(false);
 
     const state = buildMortgageCheckState();
     localStorage.setItem(getMortgageCheckStorageKey(user.id), JSON.stringify(state));
+    setMortgageSaveStatus("saving");
+    setMortgageSaveMessage("Salvataggio mutuo in corso...");
 
     if (mortgageSaveTimerRef.current) clearTimeout(mortgageSaveTimerRef.current);
     mortgageSaveTimerRef.current = setTimeout(() => {
@@ -4424,6 +4473,7 @@ const [authReady, setAuthReady] = useState(false);
     .filter((item) => item.questions.length > 0);
 
   const mortgageHasQuestionsForBank = mortgageCombinedEmailSections.length > 0;
+  const mortgageHasRelevantReportIssues = mortgageHasQuestionsForBank || mortgageEconomicAttentionFlags.length > 0;
 
   const mortgageGeneratedEmail = !mortgageHasQuestionsForBank
     ? "Oggetto: Conferma condizioni proposta di mutuo\n\nBuongiorno,\nsto verificando la documentazione relativa alla proposta di mutuo. Al momento i dati principali risultano individuati.\n\nVi chiedo cortesemente di confermarmi che il PIES ricevuto e aggiornato alle condizioni definitive e che non ci sono ulteriori costi, polizze o prodotti obbligatori non indicati nella documentazione.\n\nGrazie.\nCordiali saluti"
@@ -6526,6 +6576,50 @@ const [authReady, setAuthReady] = useState(false);
     setAuthLoading(false);
   }
 
+  async function handleAccountPasswordChange() {
+    if (!user) return;
+
+    setAccountPasswordLoading(true);
+    setAccountPasswordMessage("");
+
+    if (accountNewPassword.length < 8) {
+      setAccountPasswordMessage("La nuova password deve contenere almeno 8 caratteri.");
+      setAccountPasswordLoading(false);
+      return;
+    }
+
+    if (accountNewPassword !== accountConfirmPassword) {
+      setAccountPasswordMessage("Le password non coincidono.");
+      setAccountPasswordLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password: accountNewPassword });
+
+      if (error) {
+        setAccountPasswordMessage(getItalianAuthErrorMessage(error));
+        return;
+      }
+
+      setAccountPasswordMessage("Password aggiornata correttamente. Il tuo profilo è aggiornato.");
+      setAccountNewPassword("");
+      setAccountConfirmPassword("");
+    } catch (error) {
+      setAccountPasswordMessage(getItalianAuthErrorMessage(error));
+    } finally {
+      setAccountPasswordLoading(false);
+    }
+  }
+
+  function openProfileModal() {
+    setAccountNewPassword("");
+    setAccountConfirmPassword("");
+    setAccountPasswordMessage("");
+    setAccountShowPassword(false);
+    setProfileModalOpen(true);
+  }
+
   async function handleLogout() {
     await safeLocalSignOut();
     clearSupabaseAuthStorage();
@@ -6599,14 +6693,11 @@ const [authReady, setAuthReady] = useState(false);
     if (rows.length === 0) return;
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      const authUserId = authData?.user?.id;
+      const authUser = await safeGetSupabaseUser("sincronizzazione azioni risparmio");
+      const authUserId = authUser?.id;
 
-      if (authError || !authUserId || authUserId !== currentUser.id) {
-        console.warn(
-          "Sincronizzazione azioni risparmio rimandata: utente Supabase non ancora confermato.",
-          getErrorMessage(authError)
-        );
+      if (!authUserId || authUserId !== currentUser.id) {
+        console.warn("Sincronizzazione azioni risparmio rimandata: utente Supabase non ancora confermato.");
         return;
       }
 
@@ -6626,14 +6717,11 @@ const [authReady, setAuthReady] = useState(false);
     if (!user) return;
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      const authUserId = authData?.user?.id;
+      const authUser = await safeGetSupabaseUser("salvataggio azione risparmio");
+      const authUserId = authUser?.id;
 
-      if (authError || !authUserId || authUserId !== user.id) {
-        console.warn(
-          "Azione risparmio salvata solo in locale: utente Supabase non ancora confermato.",
-          getErrorMessage(authError)
-        );
+      if (!authUserId || authUserId !== user.id) {
+        console.warn("Azione risparmio salvata solo in locale: utente Supabase non ancora confermato.");
         return;
       }
 
@@ -6701,6 +6789,28 @@ const [authReady, setAuthReady] = useState(false);
       },
       piesFields: cleanMortgagePiesFields(mortgagePiesFields),
       openMortgagePiesSectionId,
+      results: {
+        sustainability: {
+          monthlyPayment: mortgageMonthlyPayment,
+          totalPaid: mortgageTotalPaid,
+          totalInterest: mortgageTotalInterest,
+          realMonthlyHomeCost: mortgageRealMonthlyHomeCost,
+          realMonthlyWithInitialCosts: mortgageRealMonthlyWithInitialCosts,
+          paymentIncomeRatio: mortgagePaymentIncomeRatio,
+          debtIncomeRatio: mortgageDebtIncomeRatio,
+          monthlyMargin: mortgageMonthlyMargin,
+          emergencyGap: mortgageEmergencyGap,
+          sustainabilityLevel: mortgageSustainabilityLevel,
+          trafficLight: mortgageTrafficLight.label,
+        },
+        pies: {
+          clarityScore: mortgageClarityScore,
+          foundCount: mortgagePiesFound.length,
+          issueCount: mortgagePiesIssues.length,
+          visibleFieldCount: visibleMortgagePiesFieldDefinitions.length,
+          hasRelevantIssues: mortgageHasRelevantReportIssues,
+        },
+      },
       updatedAt: new Date().toISOString(),
     };
   }
@@ -6774,6 +6884,9 @@ const [authReady, setAuthReady] = useState(false);
         openMortgagePiesSectionId: data.open_section_id,
         updatedAt: data.updated_at,
       });
+      setMortgageSaveStatus("saved");
+      setMortgageLastSavedAt(data.updated_at || null);
+      setMortgageSaveMessage("Dati mutuo recuperati da Supabase.");
     } catch (error) {
       console.warn("Mutuo caricato solo in locale: errore non bloccante.", getErrorMessage(error));
     }
@@ -6781,14 +6894,17 @@ const [authReady, setAuthReady] = useState(false);
 
   async function saveMortgageCheckToDb(currentUser: User, state: any) {
     try {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      const authUserId = authData?.user?.id;
+      const authUser = await safeGetSupabaseUser("salvataggio mutuo");
+      const authUserId = authUser?.id;
 
-      if (authError || !authUserId || authUserId !== currentUser.id) {
-        console.warn("Mutuo salvato solo in locale: utente Supabase non ancora confermato.", getErrorMessage(authError));
-        return;
+      if (!authUserId || authUserId !== currentUser.id) {
+        console.warn("Mutuo salvato solo in locale: utente Supabase non ancora confermato.");
+        setMortgageSaveStatus("local");
+        setMortgageSaveMessage("Salvato sul dispositivo. Sincronizzazione online rimandata.");
+        return false;
       }
 
+      const nowIso = new Date().toISOString();
       const { error } = await supabase.from("user_mortgage_checks").upsert(
         {
           user_id: authUserId,
@@ -6796,7 +6912,8 @@ const [authReady, setAuthReady] = useState(false);
           sustainability: state.sustainability,
           pies_fields: state.piesFields,
           open_section_id: state.openMortgagePiesSectionId,
-          updated_at: new Date().toISOString(),
+          calculated_results: state.results ?? {},
+          updated_at: nowIso,
         },
         { onConflict: "user_id" }
       );
@@ -6807,10 +6924,31 @@ const [authReady, setAuthReady] = useState(false);
         } else {
           console.warn("Mutuo salvato solo in locale: errore Supabase.", error.message);
         }
+        setMortgageSaveStatus("local");
+        setMortgageSaveMessage("Salvato sul dispositivo. Controlla la tabella user_mortgage_checks/RLS su Supabase.");
+        return false;
       }
+
+      setMortgageSaveStatus("saved");
+      setMortgageLastSavedAt(nowIso);
+      setMortgageSaveMessage("Dati mutuo salvati anche online.");
+      return true;
     } catch (error) {
       console.warn("Mutuo salvato solo in locale: errore non bloccante.", getErrorMessage(error));
+      setMortgageSaveStatus("local");
+      setMortgageSaveMessage("Salvato sul dispositivo. Sincronizzazione online non disponibile ora.");
+      return false;
     }
+  }
+
+
+  async function forceSaveMortgageCheck() {
+    if (!user) return;
+    const state = buildMortgageCheckState();
+    localStorage.setItem(getMortgageCheckStorageKey(user.id), JSON.stringify(state));
+    setMortgageSaveStatus("saving");
+    setMortgageSaveMessage("Salvataggio mutuo in corso...");
+    await saveMortgageCheckToDb(user, state);
   }
 
   async function saveHoldingToDb(item: Holding) {
@@ -7552,14 +7690,11 @@ const [authReady, setAuthReady] = useState(false);
     localStorage.setItem(getGoalStorageKey(user.id, selectedPortfolio.key), JSON.stringify(storagePayload));
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      const authUserId = authData?.user?.id;
+      const authUser = await safeGetSupabaseUser("salvataggio obiettivo");
+      const authUserId = authUser?.id;
 
-      if (authError || !authUserId || authUserId !== user.id) {
-        console.warn(
-          "Salvataggio obiettivo solo locale: utente Supabase non ancora confermato.",
-          getErrorMessage(authError)
-        );
+      if (!authUserId || authUserId !== user.id) {
+        console.warn("Salvataggio obiettivo solo locale: utente Supabase non ancora confermato.");
         return;
       }
 
@@ -7641,10 +7776,10 @@ const [authReady, setAuthReady] = useState(false);
     if (!user || !nextPurchase.unlocked) return;
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      const authUserId = authData.user?.id;
+      const authUser = await safeGetSupabaseUser("salvataggio piano");
+      const authUserId = authUser?.id;
 
-      if (authError || !authUserId || authUserId !== user.id) {
+      if (!authUserId || authUserId !== user.id) {
         console.warn("Salvataggio piano su Supabase saltato: utente autenticato non disponibile.");
         return;
       }
@@ -7732,6 +7867,39 @@ const [authReady, setAuthReady] = useState(false);
     }
   }
 
+  async function hasSavedGoalForPortfolio(currentUser: User, portfolioKey?: FinalPortfolioKey | string | null) {
+    if (!portfolioKey) return false;
+
+    try {
+      const { data, error } = await supabase
+        .from("user_goals")
+        .select("user_id")
+        .eq("user_id", currentUser.id)
+        .eq("portfolio_key", portfolioKey)
+        .maybeSingle();
+
+      if (error) {
+        const message = getErrorMessage(error);
+        if (isSupabaseLockAbortError(error)) {
+          console.warn("Verifica onboarding completato rimandata: richiesta Supabase sovrapposta.", message);
+        } else {
+          console.warn("Verifica onboarding completato non riuscita:", message);
+        }
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      if (isSupabaseLockAbortError(error)) {
+        console.warn("Verifica onboarding completato rimandata: richiesta Supabase sovrapposta.", message);
+      } else {
+        console.warn("Verifica onboarding completato non riuscita:", message);
+      }
+      return false;
+    }
+  }
+
   async function loadPurchaseFromDb(currentUser: User) {
     try {
       const { data, error } = await supabase
@@ -7785,7 +7953,9 @@ const [authReady, setAuthReady] = useState(false);
       if (savedStep && allowedPaidSteps.includes(savedStep)) {
         setStep(savedStep);
       } else if (shouldAutoRoute) {
-        setStep(remotePlan === "core" ? "onboarding" : "dashboard");
+        const onboardingAlreadyCompleted =
+          remotePlan !== "core" || await hasSavedGoalForPortfolio(currentUser, remotePurchase.selectedPortfolio);
+        setStep(onboardingAlreadyCompleted ? "dashboard" : "onboarding");
       }
     } catch (error) {
       const message = getErrorMessage(error);
@@ -7987,6 +8157,22 @@ const [authReady, setAuthReady] = useState(false);
   async function nextQuestion() {
     if (!hasAnsweredCurrent) return;
     if (currentQuestion === questions.length - 1) {
+      const finalPortfolio = scoreResult.finalPortfolio;
+      const previewPurchase: PurchaseState = {
+        ...purchase,
+        email: user?.email || purchase.email,
+        selectedPortfolio: finalPortfolio,
+      };
+
+      setPurchase(previewPurchase);
+      if (user) {
+        localStorage.setItem(getPurchaseKey(user.id), JSON.stringify(previewPurchase));
+        await saveUserProfile({
+          selected_portfolio: finalPortfolio,
+          quiz_answers: answers,
+        });
+      }
+
       await trackEvent("finish_test", { portfolio: scoreResult.portfolio.title });
       await trackEvent("view_plan", { portfolio: scoreResult.portfolio.title, step: "preview" });
       setStep("preview");
@@ -8401,6 +8587,26 @@ const [authReady, setAuthReady] = useState(false);
     setDashboardActiveTab(setupCompleted ? "monitor" : "guida");
   }, [step, setupCompleted, user?.id]);
 
+  const mortgageLastSavedLabel = mortgageLastSavedAt
+    ? new Date(mortgageLastSavedAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })
+    : "";
+  const mortgageSaveStatusLabel = mortgageSaveStatus === "saving"
+    ? "Salvataggio in corso..."
+    : mortgageSaveStatus === "saved"
+    ? `Salvato su Supabase${mortgageLastSavedLabel ? ` alle ${mortgageLastSavedLabel}` : ""}`
+    : mortgageSaveStatus === "local"
+    ? "Salvato in locale, sincronizzazione online da verificare"
+    : mortgageSaveStatus === "error"
+    ? "Errore di salvataggio online"
+    : "Salvataggio automatico attivo";
+  const mortgageSaveStatusClass = mortgageSaveStatus === "saved"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+    : mortgageSaveStatus === "saving"
+    ? "border-sky-200 bg-sky-50 text-sky-800"
+    : mortgageSaveStatus === "local" || mortgageSaveStatus === "error"
+    ? "border-amber-200 bg-amber-50 text-amber-900"
+    : "border-slate-200 bg-slate-50 text-slate-600";
+
   if (!authReady || (user && appBootLoading && authMode !== "updatePassword")) {
     return (
       <main className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900">
@@ -8804,9 +9010,172 @@ const [authReady, setAuthReady] = useState(false);
           isAdminAccount={isAdminAccount}
           onGoAdmin={() => setStep("admin")}
           onLogout={handleLogout}
+          onOpenProfile={openProfileModal}
           onResetProfile={resetAll}
           resetLoading={profileResetLoading}
         />
+
+        {profileModalOpen && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true">
+            <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-emerald-100 bg-white shadow-2xl">
+              <div className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-slate-900 p-6 text-white sm:p-8">
+                <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-white/10 blur-2xl" />
+                <div className="absolute -bottom-20 left-10 h-40 w-40 rounded-full bg-emerald-300/20 blur-2xl" />
+                <div className="relative flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-100">Profilo</p>
+                    <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Bentornato in Soldi Semplici</h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50 sm:text-base">
+                      Qui trovi le informazioni del tuo account, lo stato del piano e le azioni utili per tenere tutto sotto controllo con serenità.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setProfileModalOpen(false)}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl font-light text-white transition hover:bg-white/25"
+                    aria-label="Chiudi profilo"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl bg-white/12 p-4 ring-1 ring-white/15">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-100">Account</p>
+                    <p className="mt-2 truncate text-sm font-bold text-white">{user.email}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/12 p-4 ring-1 ring-white/15">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-100">Piano</p>
+                    <p className="mt-2 text-sm font-bold text-white">{purchaseStatus.statusLabel}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white p-4 text-slate-950 shadow-sm">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Giorni rimasti</p>
+                    <p className="mt-1 text-3xl font-black">{purchaseStatus.days ?? 0}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-5 p-5 sm:p-7">
+                <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Il tuo piano</p>
+                      <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-950">{purchaseStatus.planLabel}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        {purchaseStatus.isActive ? (
+                          <>Piano attivo fino al <strong className="text-slate-900">{purchaseStatus.expiresLabel}</strong>. Continua così: il valore vero è avere un metodo semplice da seguire nel tempo.</>
+                        ) : (
+                          <>Al momento non risulta un piano attivo. Quando attiverai Core o Pro, qui vedrai scadenza e giorni rimanenti.</>
+                        )}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-white px-5 py-4 text-center shadow-sm">
+                      <p className="text-3xl font-black tracking-tight text-slate-950">{purchaseStatus.daysLabel}</p>
+                      <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">validità</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-xl text-emerald-700 ring-1 ring-emerald-100">🔐</div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Sicurezza account</p>
+                      <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">Cambia password</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Aggiorna la password quando vuoi. Scegline una lunga, unica e diversa da quelle usate su altri servizi.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-sm font-semibold text-slate-700">Nuova password</span>
+                      <input
+                        type={accountShowPassword ? "text" : "password"}
+                        value={accountNewPassword}
+                        onChange={(event) => setAccountNewPassword(event.target.value)}
+                        className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                        placeholder="Almeno 8 caratteri"
+                        autoComplete="new-password"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-sm font-semibold text-slate-700">Conferma nuova password</span>
+                      <input
+                        type={accountShowPassword ? "text" : "password"}
+                        value={accountConfirmPassword}
+                        onChange={(event) => setAccountConfirmPassword(event.target.value)}
+                        className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                        placeholder="Ripeti la nuova password"
+                        autoComplete="new-password"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={accountShowPassword}
+                        onChange={(event) => setAccountShowPassword(event.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      Mostra password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAccountPasswordChange}
+                      disabled={accountPasswordLoading}
+                      className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {accountPasswordLoading ? "Salvataggio..." : "Salva nuova password"}
+                    </button>
+                  </div>
+
+                  {accountPasswordMessage && (
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold leading-6 text-slate-700">
+                      {accountPasswordMessage}
+                    </div>
+                  )}
+                </section>
+
+                <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Azioni account</p>
+                      <h3 className="mt-1 text-xl font-black tracking-tight text-slate-950">Gestione profilo</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Il logout è qui per tenere la navigazione più pulita. Il reset del test resta disponibile, ma usalo solo se vuoi ricominciare davvero da zero.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-3 sm:min-w-48">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setProfileModalOpen(false);
+                          await handleLogout();
+                        }}
+                        className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+                      >
+                        Logout
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetAll}
+                        disabled={profileResetLoading}
+                        className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+                      >
+                        {profileResetLoading ? "Reset..." : "Reset test"}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        )}
 
         {profileResetMessage && (
           <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
@@ -9931,7 +10300,7 @@ const [authReady, setAuthReady] = useState(false);
                 </p>
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-5 grid gap-3 lg:grid-cols-4">
                 {[
                   { key: "risparmio" as AwarenessTab, icon: "💡", title: "Risparmio", subtitle: "Libera soldi ogni mese", detail: "Sprechi, spesa intelligente e azioni pratiche." },
                   { key: "auto" as AwarenessTab, icon: "🚗", title: "Auto", subtitle: "Scopri il costo reale", detail: "Rata, TAEG, maxi rata e rifinanziamento." },
@@ -10605,6 +10974,20 @@ const [authReady, setAuthReady] = useState(false);
                       <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
                         Usa la scheda in due modi: valuta la sostenibilità del mutuo e, quando hai una proposta reale, fatti guidare nella lettura del PIES. Se qualcosa manca o non è chiaro, l'app prepara una richiesta precisa per la banca.
                       </p>
+                      <div className={`mt-4 flex flex-col gap-3 rounded-2xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${mortgageSaveStatusClass}`}>
+                        <div>
+                          <p className="font-bold">{mortgageSaveStatusLabel}</p>
+                          <p className="mt-1 text-xs leading-5 opacity-80">I dati di Sostenibilità e Verifica PIES vengono salvati subito in locale e sincronizzati su Supabase dopo una breve pausa.</p>
+                          {mortgageSaveMessage && <p className="mt-1 text-xs leading-5 opacity-80">{mortgageSaveMessage}</p>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={forceSaveMortgageCheck}
+                          className="shrink-0 rounded-xl border border-current/20 bg-white/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] transition hover:bg-white"
+                        >
+                          Salva ora
+                        </button>
+                      </div>
                       <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         <button
                           type="button"
@@ -11583,8 +11966,8 @@ const [authReady, setAuthReady] = useState(false);
 
         {step === "dashboard" && (
           <section className="space-y-6">
-            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-              <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className={`${dashboardActiveTab === "monitor" ? "" : "hidden lg:block"} overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm`}>
+              <div className="grid gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
                 <div className="p-6 md:p-8">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Dashboard</p>
                   <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Il tuo piano finanziario</h2>
@@ -11604,7 +11987,7 @@ const [authReady, setAuthReady] = useState(false);
 
                 <div className="border-t border-slate-200 bg-slate-50 p-6 md:p-8 lg:border-l lg:border-t-0">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Riepilogo rapido</p>
-                  <div className="mt-5 grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                  <div className="mt-5 grid gap-4 sm:grid-cols-3">
                     <PremiumStatCard
                       eyebrow="Capitale"
                       value={formatEuro(totalInvested)}
@@ -11625,7 +12008,7 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
-            <div className="hidden gap-4 lg:grid lg:grid-cols-2 xl:grid-cols-4">
+            <div className="hidden gap-4 lg:grid lg:grid-cols-4">
               {([
                 {
                   id: "monitor",
@@ -11697,8 +12080,6 @@ const [authReady, setAuthReady] = useState(false);
 
             {dashboardActiveTab === "monitor" && (
               <div className="space-y-6">
-                <PlanValidityBox purchase={purchase} compact />
-
             <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-6 shadow-sm md:p-8">
               <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-center">
                 <div>
@@ -12300,7 +12681,7 @@ const [authReady, setAuthReady] = useState(false);
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Guida operativa</p>
                   <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Il percorso operativo del tuo PAC</h3>
                   <p className="mt-4 max-w-3xl text-base leading-7 text-slate-700">
-                    Questa card sostituisce la vecchia pagina Guida: qui trovi i primi 6 passi e le azioni di mantenimento, senza uscire dalla Dashboard.
+                    Qui trovi i primi passi del percorso e le azioni di mantenimento da seguire con ordine, senza uscire dalla Dashboard.
                   </p>
                 </div>
 
@@ -14333,6 +14714,7 @@ function TopBar({
   isAdminAccount,
   onGoAdmin,
   onLogout,
+  onOpenProfile,
   onResetProfile,
   resetLoading,
 }: {
@@ -14354,6 +14736,7 @@ function TopBar({
   isAdminAccount: boolean;
   onGoAdmin: () => void;
   onLogout: () => void;
+  onOpenProfile: () => void;
   onResetProfile: () => void;
   resetLoading: boolean;
 }) {
@@ -14402,17 +14785,11 @@ function TopBar({
             </>
           )}
           <button
-            onClick={onResetProfile}
-            disabled={resetLoading}
-            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+            onClick={onOpenProfile}
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100"
           >
-            {resetLoading ? "Reset..." : "Reset test"}
-          </button>
-          <button
-            onClick={onLogout}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Logout
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white text-xs shadow-sm">👤</span>
+            <span>Profilo</span>
           </button>
         </nav>
 
@@ -14456,9 +14833,9 @@ function TopBar({
                 </button>
               </div>
               <div className="mt-4 rounded-2xl bg-white/12 p-3 ring-1 ring-white/15">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-100">Piano</p>
-                <p className="mt-1 text-sm font-bold">{unlocked ? `Piano ${isProPlan ? "Pro" : "Core"} attivo` : "Piano non ancora attivo"}</p>
-                <p className="mt-1 truncate text-xs text-emerald-50">{userEmail}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-100">Account</p>
+                <p className="mt-1 truncate text-sm font-bold text-white">{userEmail}</p>
+                <p className="mt-1 text-xs text-emerald-50">Piano e sicurezza sono nella voce Profilo.</p>
               </div>
             </div>
 
@@ -14571,18 +14948,16 @@ function TopBar({
             <div className="border-t border-slate-200 p-4">
               <button
                 type="button"
-                onClick={() => runMobileAction(onLogout)}
-                className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+                onClick={() => runMobileAction(onOpenProfile)}
+                className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100"
               >
-                Logout
-              </button>
-              <button
-                type="button"
-                onClick={() => runMobileAction(onResetProfile)}
-                disabled={resetLoading}
-                className="mt-3 w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
-              >
-                {resetLoading ? "Reset..." : "Reset test"}
+                <span className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-lg shadow-sm">👤</span>
+                  <span>
+                    <span className="block text-sm font-black text-emerald-900">Profilo</span>
+                    <span className="mt-1 block text-xs font-semibold text-emerald-700">Piano, password e logout</span>
+                  </span>
+                </span>
               </button>
             </div>
           </aside>
