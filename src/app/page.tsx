@@ -300,6 +300,7 @@ type StrumentiCategory =
 type StrumentiRow = {
   name: string;
   isin: string;
+  tickerApi?: string;
 };
 
 type InstrumentSource = "program" | "custom";
@@ -308,6 +309,40 @@ type InstrumentOption = StrumentiRow & {
   source: InstrumentSource;
   id?: string;
   note?: string;
+  tickerApi?: string;
+  incomeConfig?: IncomeConfig;
+};
+
+type IncomeType =
+  | "none"
+  | "dividend"
+  | "distribution"
+  | "bond_coupon"
+  | "deposit_interest"
+  | "remunerated_cash"
+  | "maturity_yield";
+
+type IncomeFrequency = "monthly" | "quarterly" | "semiannual" | "annual" | "at_maturity" | "irregular";
+
+type StampDutyMode = "user_pays" | "bank_pays" | "ignore";
+
+type IncomeConfig = {
+  enabled: boolean;
+  type: IncomeType;
+  frequency: IncomeFrequency;
+  grossAmountPerUnit?: number;
+  referenceUnitPrice?: number;
+  annualRate?: number;
+  nextExDate?: string;
+  nextPaymentDate?: string;
+  maturityDate?: string;
+  expectedMaturityValue?: number;
+  taxRate?: number;
+  stampDutyMode?: StampDutyMode;
+  currency?: string;
+  /** Cambio manuale: 1 unità della valuta dello strumento = X EUR. Per EUR resta 1. */
+  exchangeRateToEur?: number;
+  notes?: string;
 };
 
 type CustomInstrument = {
@@ -315,8 +350,237 @@ type CustomInstrument = {
   category: StrumentiCategory;
   name: string;
   isin: string;
+  tickerApi?: string;
   note?: string;
+  incomeConfig?: IncomeConfig;
 };
+
+const CUSTOM_INSTRUMENT_INCOME_MARKER = "__SS_INCOME_CONFIG__:";
+const CUSTOM_INSTRUMENT_INCOME_LOCAL_STORAGE_KEY = "soldi_semplici_custom_instrument_income_v1";
+
+type StoredIncomeConfigMap = Record<string, Record<string, IncomeConfig>>;
+
+function getLocalIncomeConfigStore(): StoredIncomeConfigMap {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_INSTRUMENT_INCOME_LOCAL_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed as StoredIncomeConfigMap : {};
+  } catch (error) {
+    console.warn("Configurazione locale entrate non leggibile", error);
+    return {};
+  }
+}
+
+function getStoredIncomeConfigForInstrument(userId: string, instrumentId: string) {
+  const normalized = normalizeIncomeConfig(getLocalIncomeConfigStore()?.[userId]?.[instrumentId]);
+  return normalized?.enabled ? normalized : undefined;
+}
+
+function saveStoredIncomeConfigForInstrument(userId: string, instrumentId: string, config?: IncomeConfig) {
+  if (typeof window === "undefined" || !userId || !instrumentId) return;
+  try {
+    const store = getLocalIncomeConfigStore();
+    const userStore = { ...(store[userId] || {}) };
+    const normalized = normalizeIncomeConfig(config);
+    if (normalized?.enabled) {
+      userStore[instrumentId] = normalized;
+    } else {
+      delete userStore[instrumentId];
+    }
+    store[userId] = userStore;
+    window.localStorage.setItem(CUSTOM_INSTRUMENT_INCOME_LOCAL_STORAGE_KEY, JSON.stringify(store));
+  } catch (error) {
+    console.warn("Configurazione locale entrate non salvata", error);
+  }
+}
+
+function normalizeIncomeType(value: unknown): IncomeType {
+  const allowed: IncomeType[] = ["none", "dividend", "distribution", "bond_coupon", "deposit_interest", "remunerated_cash", "maturity_yield"];
+  return allowed.includes(value as IncomeType) ? value as IncomeType : "none";
+}
+
+function normalizeIncomeFrequency(value: unknown): IncomeFrequency {
+  const allowed: IncomeFrequency[] = ["monthly", "quarterly", "semiannual", "annual", "at_maturity", "irregular"];
+  return allowed.includes(value as IncomeFrequency) ? value as IncomeFrequency : "annual";
+}
+
+function normalizeStampDutyMode(value: unknown): StampDutyMode {
+  const allowed: StampDutyMode[] = ["user_pays", "bank_pays", "ignore"];
+  return allowed.includes(value as StampDutyMode) ? value as StampDutyMode : "ignore";
+}
+
+function sanitizeIncomeNumber(value: unknown) {
+  const numeric = typeof value === "string" ? Number(value.replace(",", ".")) : Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : undefined;
+}
+
+function normalizeIncomeConfig(raw: any): IncomeConfig | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+
+  const type = normalizeIncomeType(raw.type);
+  const enabled = !!raw.enabled && type !== "none";
+  return {
+    enabled,
+    type: enabled ? type : "none",
+    frequency: normalizeIncomeFrequency(raw.frequency),
+    grossAmountPerUnit: sanitizeIncomeNumber(raw.grossAmountPerUnit),
+    referenceUnitPrice: sanitizeIncomeNumber(raw.referenceUnitPrice),
+    annualRate: sanitizeIncomeNumber(raw.annualRate),
+    nextExDate: typeof raw.nextExDate === "string" ? raw.nextExDate : "",
+    nextPaymentDate: typeof raw.nextPaymentDate === "string" ? raw.nextPaymentDate : "",
+    maturityDate: typeof raw.maturityDate === "string" ? raw.maturityDate : "",
+    expectedMaturityValue: sanitizeIncomeNumber(raw.expectedMaturityValue),
+    taxRate: sanitizeIncomeNumber(raw.taxRate) ?? 26,
+    stampDutyMode: normalizeStampDutyMode(raw.stampDutyMode),
+    currency: typeof raw.currency === "string" && raw.currency.trim() ? raw.currency.trim().toUpperCase().slice(0, 8) : "EUR",
+    exchangeRateToEur: sanitizeIncomeNumber(raw.exchangeRateToEur) ?? (String(raw.currency || "EUR").trim().toUpperCase() === "EUR" ? 1 : undefined),
+    notes: typeof raw.notes === "string" ? raw.notes : "",
+  };
+}
+
+function parseCustomInstrumentStoredNote(value: string | null | undefined): { publicNote: string; incomeConfig?: IncomeConfig } {
+  const raw = String(value || "");
+  const markerIndex = raw.indexOf(CUSTOM_INSTRUMENT_INCOME_MARKER);
+  if (markerIndex < 0) {
+    return { publicNote: raw.trim() };
+  }
+
+  const publicNote = raw.slice(0, markerIndex).trim();
+  const encoded = raw.slice(markerIndex + CUSTOM_INSTRUMENT_INCOME_MARKER.length).trim();
+
+  try {
+    const parsed = JSON.parse(encoded);
+    return { publicNote, incomeConfig: normalizeIncomeConfig(parsed) };
+  } catch {
+    return { publicNote };
+  }
+}
+
+function buildCustomInstrumentStoredNote(publicNote: string, incomeConfig?: IncomeConfig) {
+  const cleanNote = String(publicNote || "").trim();
+  const normalized = normalizeIncomeConfig(incomeConfig);
+  if (!normalized?.enabled) return cleanNote || null;
+  return `${cleanNote}${cleanNote ? "\n" : ""}${CUSTOM_INSTRUMENT_INCOME_MARKER}${JSON.stringify(normalized)}`;
+}
+
+function hasIncomeConfig(instrument: CustomInstrument | InstrumentOption) {
+  return !!("incomeConfig" in instrument && instrument.incomeConfig?.enabled);
+}
+
+function normalizeInstrumentText(value: string | undefined) {
+  return (value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function normalizeInstrumentIsin(value: string | undefined) {
+  const normalized = (value || "").trim().toUpperCase();
+  return normalized && normalized !== "N/A" ? normalized : "";
+}
+
+function isCustomInstrumentInPortfolio(instrument: CustomInstrument, holdings: Holding[]) {
+  const instrumentIsin = normalizeInstrumentIsin(instrument.isin);
+  const instrumentTicker = normalizeTickerApi(instrument.tickerApi);
+  const instrumentName = normalizeInstrumentText(instrument.name);
+
+  return holdings.some((holding) => {
+    if (!categoriesAreMonitorCompatible(holding.category, instrument.category)) return false;
+
+    const holdingIsin = normalizeInstrumentIsin(holding.isin);
+    if (instrumentIsin && holdingIsin && instrumentIsin === holdingIsin) return true;
+
+    const holdingTicker = normalizeTickerApi(holding.tickerApi);
+    if (instrumentTicker && holdingTicker && instrumentTicker === holdingTicker) return true;
+
+    return instrumentName.length > 0 && instrumentName === normalizeInstrumentText(holding.strumentiName);
+  });
+}
+
+function getIncomeTypeLabel(type: IncomeType) {
+  const labels: Record<IncomeType, string> = {
+    none: "Nessuna",
+    dividend: "Dividendo",
+    distribution: "Distribuzione ETF/fondo",
+    bond_coupon: "Cedola",
+    deposit_interest: "Interesse conto deposito",
+    remunerated_cash: "Liquidità remunerata",
+    maturity_yield: "Rendimento a scadenza",
+  };
+  return labels[type] || "Entrata";
+}
+
+function getIncomeFrequencyLabel(frequency: IncomeFrequency) {
+  const labels: Record<IncomeFrequency, string> = {
+    monthly: "Mensile",
+    quarterly: "Trimestrale",
+    semiannual: "Semestrale",
+    annual: "Annuale",
+    at_maturity: "A scadenza",
+    irregular: "Irregolare",
+  };
+  return labels[frequency] || "Annuale";
+}
+
+function getPaymentsPerYear(frequency: IncomeFrequency) {
+  if (frequency === "monthly") return 12;
+  if (frequency === "quarterly") return 4;
+  if (frequency === "semiannual") return 2;
+  if (frequency === "annual" || frequency === "at_maturity") return 1;
+  return 1;
+}
+
+function addMonthsSafe(date: Date, months: number) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function getNextIncomeDates(config: IncomeConfig, horizonDays = 365) {
+  const dates: Date[] = [];
+  const baseDateValue = config.nextPaymentDate || config.nextExDate || config.maturityDate;
+  if (!baseDateValue) return dates;
+
+  const base = new Date(baseDateValue);
+  if (Number.isNaN(base.getTime())) return dates;
+
+  const now = new Date();
+  const horizon = new Date();
+  horizon.setDate(now.getDate() + horizonDays);
+
+  if (config.frequency === "at_maturity" || config.type === "maturity_yield") {
+    const maturity = config.maturityDate ? new Date(config.maturityDate) : base;
+    if (!Number.isNaN(maturity.getTime()) && maturity >= now && maturity <= horizon) dates.push(maturity);
+    return dates;
+  }
+
+  const monthsByFrequency: Partial<Record<IncomeFrequency, number>> = {
+    monthly: 1,
+    quarterly: 3,
+    semiannual: 6,
+    annual: 12,
+    irregular: 12,
+  };
+
+  const stepMonths = monthsByFrequency[config.frequency] || 12;
+  let current = new Date(base);
+  let guard = 0;
+  while (current < now && guard < 80) {
+    current = addMonthsSafe(current, stepMonths);
+    guard += 1;
+  }
+
+  while (current <= horizon && guard < 120) {
+    dates.push(new Date(current));
+    current = addMonthsSafe(current, stepMonths);
+    guard += 1;
+  }
+
+  return dates;
+}
 
 type ShoppingCategory =
   | "Frutta e verdura"
@@ -389,12 +653,80 @@ type PurchaseState = {
   lastPaymentType?: PurchasePaymentType;
 };
 
+type DynamicModelMode = "app" | "custom";
+
 type Holding = {
   id: string;
+  modelMode?: DynamicModelMode;
   category: StrumentiCategory;
   strumentiName: string;
   isin: string;
+  tickerApi?: string;
   amount: number;
+};
+type DynamicModelAssetKind = "api" | "deposit" | "manual";
+type DynamicModelMovementType = "deposit" | "withdrawal" | "alignment" | "correction";
+type DynamicModelAllocationMode = "by_model" | "single_asset" | "manual";
+
+type DynamicModelAsset = {
+  id: string;
+  holdingId?: string;
+  name: string;
+  category: StrumentiCategory;
+  ticker: string;
+  weight: number;
+  initialValue: number;
+  currentManualValue?: number;
+  grossRate?: number;
+  kind: DynamicModelAssetKind;
+  apiEnabled: boolean;
+  basePrice?: number;
+  lastPrice?: number;
+  lastPriceAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type DynamicModelMovement = {
+  id: string;
+  modelMode?: DynamicModelMode;
+  assetId?: string;
+  type: DynamicModelMovementType;
+  amount: number;
+  movementDate: string;
+  insertedAt: string;
+  allocationMode: DynamicModelAllocationMode;
+  note?: string;
+};
+
+type DynamicModelState = {
+  mode: DynamicModelMode;
+  assets: DynamicModelAsset[];
+  movements: DynamicModelMovement[];
+  lastManualAlignmentAt?: string;
+  updatedAt?: string;
+};
+
+type MarketPriceCacheEntry = {
+  ticker: string;
+  price: number;
+  currency?: string;
+  provider?: string;
+  fetchedAt?: string;
+};
+
+type MarketPriceSnapshotEntry = {
+  ticker: string;
+  price: number;
+  fetchedAt: string;
+};
+
+type DynamicChartPoint = {
+  label: string;
+  invested: number;
+  value: number;
+  fetchedAt?: string;
+  categoryValues?: Partial<Record<StrumentiCategory, number>>;
 };
 
 type AppStep =
@@ -918,6 +1250,90 @@ const portfolioMap: Record<FinalPortfolioKey, PortfolioTemplate> = {
       "Anche qui il ribilanciamento annuale aiuta a mantenere la strategia sostenibile.",
   },
 };
+
+const defaultMarketAssetByCategory: Partial<Record<StrumentiCategory, { ticker: string; name: string; provider: string; currency: string }>> = {
+  "Azioni Globali": { ticker: "VT", name: "Vanguard Total World Stock ETF", provider: "yahoo-dev", currency: "USD" },
+  "Mercati Emergenti": { ticker: "EEM", name: "iShares MSCI Emerging Markets ETF", provider: "yahoo-dev", currency: "USD" },
+  Obbligazioni: { ticker: "AGG", name: "iShares Core U.S. Aggregate Bond ETF", provider: "yahoo-dev", currency: "USD" },
+  "Obbligazioni Breve Termine": { ticker: "SHY", name: "iShares 1-3 Year Treasury Bond ETF", provider: "yahoo-dev", currency: "USD" },
+  "Obbligazioni Lungo Termine": { ticker: "TLT", name: "iShares 20+ Year Treasury Bond ETF", provider: "yahoo-dev", currency: "USD" },
+  Oro: { ticker: "GLD", name: "SPDR Gold Shares", provider: "yahoo-dev", currency: "USD" },
+  "Materie Prime": { ticker: "DBC", name: "Invesco DB Commodity Index Tracking Fund", provider: "yahoo-dev", currency: "USD" },
+};
+
+function getDefaultMarketAssetForCategory(category: StrumentiCategory) {
+  if (category === "Liquidita") return null;
+  const mapped = defaultMarketAssetByCategory[category];
+  const first = strumentiLibrary[category]?.[0];
+  if (!mapped || !first) return null;
+  return {
+    name: first.name || mapped.name,
+    ticker: mapped.ticker,
+    category,
+    currency: mapped.currency,
+    provider: mapped.provider,
+  };
+}
+
+function buildAppDynamicModelAssets(portfolio: PortfolioTemplate, baseCapital: number, marketPrices: Record<string, MarketPriceCacheEntry> = {}) {
+  const safeBaseCapital = Math.max(0, Number(baseCapital || 0));
+  return portfolio.composition.map((item) => {
+    const value = safeBaseCapital > 0 ? safeBaseCapital * (item.percentage / 100) : 0;
+    const defaultAsset = getDefaultMarketAssetForCategory(item.category);
+    const now = new Date().toISOString();
+
+    if (item.category === "Liquidita" || !defaultAsset) {
+      return {
+        id: `app-model-${portfolio.key}-${item.category}`,
+        name: item.category === "Liquidita" ? "Conto deposito / liquidità" : item.label,
+        category: item.category,
+        ticker: "",
+        weight: item.percentage,
+        initialValue: value,
+        currentManualValue: value,
+        grossRate: 0,
+        kind: "deposit" as DynamicModelAssetKind,
+        apiEnabled: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+
+    const priceInfo = marketPrices[defaultAsset.ticker];
+    const price = priceInfo?.price && priceInfo.price > 0 ? priceInfo.price : undefined;
+
+    return {
+      id: `app-model-${portfolio.key}-${item.category}`,
+      name: defaultAsset.name,
+      category: item.category,
+      ticker: defaultAsset.ticker,
+      weight: item.percentage,
+      initialValue: value,
+      currentManualValue: value,
+      kind: "api" as DynamicModelAssetKind,
+      apiEnabled: true,
+      basePrice: price,
+      lastPrice: price,
+      lastPriceAt: priceInfo?.fetchedAt,
+      createdAt: now,
+      updatedAt: now,
+    };
+  });
+}
+
+function applyMarketPricesToDynamicAssets(assets: DynamicModelAsset[], marketPrices: Record<string, MarketPriceCacheEntry>) {
+  return assets.map((asset) => {
+    if (!asset.apiEnabled || asset.kind !== "api" || !asset.ticker) return asset;
+    const priceInfo = marketPrices[asset.ticker.toUpperCase()];
+    if (!priceInfo || !priceInfo.price || priceInfo.price <= 0) return asset;
+    return {
+      ...asset,
+      basePrice: asset.basePrice && asset.basePrice > 0 ? asset.basePrice : priceInfo.price,
+      lastPrice: priceInfo.price,
+      lastPriceAt: priceInfo.fetchedAt,
+    };
+  });
+}
 
 const checklistItems: ChecklistItem[] = [
   {
@@ -1606,6 +2022,18 @@ function safeNumber(value: string | number) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+
+function parseCurrencyInput(value: string | number) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const cleaned = String(value || "")
+    .replace(/\s/g, "")
+    .replace(/€/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function calcMortgagePayment(principal: number, annualRatePercent: number, years: number) {
   const months = Math.max(Math.round(years * 12), 1);
   const monthlyRate = annualRatePercent / 100 / 12;
@@ -1664,6 +2092,43 @@ function formatEuro(value: number): string {
     currency: "EUR",
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function normalizeSignedZero(value: number, decimals = 2): number {
+  const threshold = 1 / Math.pow(10, decimals + 1);
+  return Math.abs(value) < threshold ? 0 : value;
+}
+
+function roundToDecimals(value: number, decimals = 2): number {
+  const factor = Math.pow(10, decimals);
+  return Math.round(normalizeSignedZero(Number(value || 0), decimals) * factor) / factor;
+}
+
+function formatEuroCents(value: number): string {
+  const normalized = roundToDecimals(value, 2);
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(normalized);
+}
+
+function formatSignedEuroCents(value: number): string {
+  const normalized = roundToDecimals(value, 2);
+  if (normalized === 0) return formatEuroCents(0);
+  return `${normalized > 0 ? "+" : ""}${formatEuroCents(normalized)}`;
+}
+
+function formatPercent(value: number, decimals = 2): string {
+  const normalized = roundToDecimals(value, decimals);
+  return `${normalized.toFixed(decimals).replace(".", ",")}%`;
+}
+
+function formatSignedPercent(value: number, decimals = 2): string {
+  const normalized = roundToDecimals(value, decimals);
+  if (normalized === 0) return formatPercent(0, decimals);
+  return `${normalized > 0 ? "+" : ""}${formatPercent(normalized, decimals)}`;
 }
 
 const PLAN_VALIDITY_DAYS = 365;
@@ -1793,9 +2258,326 @@ function getPortfolioRate(profileFamily: BaseProfile) {
   return 0.05;
 }
 
+type PersonalModelEstimateAssumption = {
+  annualReturn: number;
+  annualReturnRange: [number, number];
+  stressDrawdown: number;
+  stressDrawdownRange: [number, number];
+  recoveryRange: [number, number];
+  riskClass: "growth" | "defensive" | "duration" | "alternative" | "cash";
+};
+
+const personalModelEstimateAssumptions: Record<StrumentiCategory, PersonalModelEstimateAssumption> = {
+  "Azioni Globali": {
+    annualReturn: 0.09,
+    annualReturnRange: [8, 10],
+    stressDrawdown: 48,
+    stressDrawdownRange: [40, 55],
+    recoveryRange: [3, 8],
+    riskClass: "growth",
+  },
+  "Mercati Emergenti": {
+    annualReturn: 0.095,
+    annualReturnRange: [8, 11],
+    stressDrawdown: 58,
+    stressDrawdownRange: [50, 65],
+    recoveryRange: [4, 10],
+    riskClass: "growth",
+  },
+  Obbligazioni: {
+    annualReturn: 0.03,
+    annualReturnRange: [2, 4],
+    stressDrawdown: 18,
+    stressDrawdownRange: [10, 25],
+    recoveryRange: [1, 5],
+    riskClass: "defensive",
+  },
+  "Obbligazioni Breve Termine": {
+    annualReturn: 0.0225,
+    annualReturnRange: [1.5, 3],
+    stressDrawdown: 6,
+    stressDrawdownRange: [3, 10],
+    recoveryRange: [0.5, 2],
+    riskClass: "defensive",
+  },
+  "Obbligazioni Lungo Termine": {
+    annualReturn: 0.0325,
+    annualReturnRange: [2, 4.5],
+    stressDrawdown: 28,
+    stressDrawdownRange: [20, 35],
+    recoveryRange: [2, 7],
+    riskClass: "duration",
+  },
+  Oro: {
+    annualReturn: 0.035,
+    annualReturnRange: [2, 5],
+    stressDrawdown: 35,
+    stressDrawdownRange: [25, 45],
+    recoveryRange: [3, 8],
+    riskClass: "alternative",
+  },
+  "Materie Prime": {
+    annualReturn: 0.035,
+    annualReturnRange: [2, 5],
+    stressDrawdown: 40,
+    stressDrawdownRange: [30, 50],
+    recoveryRange: [3, 8],
+    riskClass: "alternative",
+  },
+  Liquidita: {
+    annualReturn: 0.0125,
+    annualReturnRange: [0, 2.5],
+    stressDrawdown: 2,
+    stressDrawdownRange: [0, 5],
+    recoveryRange: [0, 1],
+    riskClass: "cash",
+  },
+};
+
+type PersonalModelWeightSummary = {
+  totalWeight: number;
+  growthWeight: number;
+  defensiveWeight: number;
+  durationWeight: number;
+  alternativeWeight: number;
+  liquidityWeight: number;
+  activeCategories: number;
+  annualReturn: number;
+  estimatedDrawdown: number;
+  recoveryYears: number;
+};
+
+function calculatePersonalModelWeightSummary(composition: { category: StrumentiCategory; percentage: number }[]): PersonalModelWeightSummary {
+  const totalWeight = composition.reduce((sum, item) => sum + Number(item.percentage || 0), 0);
+  if (totalWeight <= 0) {
+    return {
+      totalWeight: 0,
+      growthWeight: 0,
+      defensiveWeight: 0,
+      durationWeight: 0,
+      alternativeWeight: 0,
+      liquidityWeight: 0,
+      activeCategories: 0,
+      annualReturn: 0,
+      estimatedDrawdown: 0,
+      recoveryYears: 0,
+    };
+  }
+
+  let growthWeight = 0;
+  let defensiveWeight = 0;
+  let durationWeight = 0;
+  let alternativeWeight = 0;
+  let liquidityWeight = 0;
+
+  const annualReturn = composition.reduce((sum, item) => {
+    const weight = Number(item.percentage || 0) / totalWeight;
+    const assumption = personalModelEstimateAssumptions[item.category];
+    if (assumption.riskClass === "growth") growthWeight += weight;
+    if (assumption.riskClass === "defensive") defensiveWeight += weight;
+    if (assumption.riskClass === "duration") durationWeight += weight;
+    if (assumption.riskClass === "alternative") alternativeWeight += weight;
+    if (assumption.riskClass === "cash") liquidityWeight += weight;
+    return sum + weight * assumption.annualReturn;
+  }, 0);
+
+  const rawStress = composition.reduce((sum, item) => {
+    const weight = Number(item.percentage || 0) / totalWeight;
+    return sum + weight * personalModelEstimateAssumptions[item.category].stressDrawdown;
+  }, 0);
+
+  const activeCategories = composition.filter((item) => Number(item.percentage || 0) > 0).length;
+  const categoryDiversification = Math.min(0.16, Math.max(0, (activeCategories - 1) * 0.025));
+  const defensiveDiscount = Math.min(0.12, defensiveWeight * 0.18);
+  const liquidityDiscount = Math.min(0.16, liquidityWeight * 0.45);
+  const alternativeDiscount = alternativeWeight > 0.12 && growthWeight > 0.15 ? 0.06 : alternativeWeight > 0 ? 0.03 : 0;
+  const durationPenalty = durationWeight > 0.25 ? 0.04 : 0;
+  const concentrationPenalty = growthWeight > 0.75 ? 0.08 : growthWeight > 0.55 ? 0.04 : 0;
+  const finalDiscount = Math.max(0, Math.min(0.42, categoryDiversification + defensiveDiscount + liquidityDiscount + alternativeDiscount - durationPenalty - concentrationPenalty));
+  const estimatedDrawdown = Math.max(0, Math.round(rawStress * (1 - finalDiscount)));
+
+  const recoveryBase = annualReturn > 0 ? estimatedDrawdown / Math.max(3.5, annualReturn * 100 + liquidityWeight * 4 + defensiveWeight * 2) : 0;
+  const recoveryYears = estimatedDrawdown <= 0 ? 0 : Math.max(0.5, Math.min(8, recoveryBase));
+
+  return {
+    totalWeight,
+    growthWeight,
+    defensiveWeight,
+    durationWeight,
+    alternativeWeight,
+    liquidityWeight,
+    activeCategories,
+    annualReturn,
+    estimatedDrawdown,
+    recoveryYears,
+  };
+}
+
+function estimatePersonalModelAnnualRate(composition: { category: StrumentiCategory; percentage: number }[]) {
+  return calculatePersonalModelWeightSummary(composition).annualReturn;
+}
+
+function roundToHalf(value: number) {
+  return Math.round(value * 2) / 2;
+}
+
+function formatPercentRange(low: number, high: number) {
+  const safeLow = roundToHalf(low);
+  const safeHigh = roundToHalf(Math.max(high, low));
+  const format = (value: number) => Number.isInteger(value) ? `${value}` : value.toString().replace(".", ",");
+  if (Math.abs(safeHigh - safeLow) < 0.25) return `${format(safeLow)}%`;
+  return `${format(safeLow)}% - ${format(safeHigh)}%`;
+}
+
+function formatNegativePercentRange(low: number, high: number) {
+  const safeLow = Math.max(0, Math.round(low));
+  const safeHigh = Math.max(safeLow, Math.round(high));
+  if (safeHigh <= 0) return "0% stimato";
+  if (safeLow === safeHigh) return `-${safeHigh}% stimato`;
+  return `-${safeLow}% / -${safeHigh}%`;
+}
+
+function formatRecoveryRange(low: number, high: number) {
+  const safeLow = Math.max(0, roundToHalf(low));
+  const safeHigh = Math.max(safeLow, roundToHalf(high));
+  const format = (value: number) => Number.isInteger(value) ? `${value}` : value.toString().replace(".", ",");
+  if (safeHigh <= 0) return "non significativo";
+  if (safeHigh <= 1) return "entro 1 anno";
+  if (Math.abs(safeHigh - safeLow) < 0.25) return `${format(safeHigh)} anni`;
+  return `${format(safeLow)} - ${format(safeHigh)} anni`;
+}
+
+function estimatePersonalModelStats(composition: { category: StrumentiCategory; percentage: number }[]) {
+  const summary = calculatePersonalModelWeightSummary(composition);
+  if (summary.totalWeight <= 0) {
+    return { average: "n.d.", maxDrawdown: "n.d.", recovery: "n.d." };
+  }
+
+  const normalized = composition
+    .map((item) => ({ ...item, weight: Number(item.percentage || 0) / summary.totalWeight }))
+    .filter((item) => item.weight > 0 && personalModelEstimateAssumptions[item.category]);
+
+  const weightedRange = (selector: (assumption: PersonalModelEstimateAssumption) => [number, number]) => {
+    return normalized.reduce(
+      (acc, item) => {
+        const [low, high] = selector(personalModelEstimateAssumptions[item.category]);
+        acc.low += item.weight * low;
+        acc.high += item.weight * high;
+        return acc;
+      },
+      { low: 0, high: 0 }
+    );
+  };
+
+  const returnRange = weightedRange((assumption) => assumption.annualReturnRange);
+  const rawDrawdownRange = weightedRange((assumption) => assumption.stressDrawdownRange);
+  const rawRecoveryRange = weightedRange((assumption) => assumption.recoveryRange);
+
+  const activeCategories = normalized.length;
+  const diversificationDiscount = Math.min(0.12, Math.max(0, (activeCategories - 1) * 0.02));
+  const defensiveDiscount = Math.min(0.1, summary.defensiveWeight * 0.14);
+  const liquidityDiscount = Math.min(0.14, summary.liquidityWeight * 0.35);
+  const alternativeDiscount = summary.alternativeWeight > 0.12 && summary.growthWeight > 0.15 ? 0.04 : summary.alternativeWeight > 0 ? 0.02 : 0;
+  const durationPenalty = summary.durationWeight > 0.25 ? 0.03 : 0;
+  const concentrationPenalty = summary.growthWeight > 0.85 ? 0.03 : summary.growthWeight > 0.65 ? 0.015 : 0;
+  const adjustment = Math.max(0, Math.min(0.3, diversificationDiscount + defensiveDiscount + liquidityDiscount + alternativeDiscount - durationPenalty - concentrationPenalty));
+
+  const drawdownLow = rawDrawdownRange.low * (1 - adjustment);
+  const drawdownHigh = rawDrawdownRange.high * (1 - adjustment * 0.55);
+  const recoveryLow = rawRecoveryRange.low * (1 - Math.min(0.18, summary.liquidityWeight * 0.2 + summary.defensiveWeight * 0.08));
+  // Il range di recupero deve restare educativo e leggibile: non allarghiamo verso l'alto
+  // il valore massimo delle ipotesi di categoria, altrimenti un 100% azionario passa da
+  // "3 - 8 anni" a "3 - 8,5 anni", dando una falsa precisione.
+  const recoveryHigh = rawRecoveryRange.high;
+
+  return {
+    average: `${formatPercentRange(returnRange.low, returnRange.high)} annuo`,
+    maxDrawdown: formatNegativePercentRange(drawdownLow, drawdownHigh),
+    recovery: formatRecoveryRange(recoveryLow, recoveryHigh),
+  };
+}
+
+function getPersonalModelEducationalPanels(composition: { category: StrumentiCategory; percentage: number }[]) {
+  const summary = calculatePersonalModelWeightSummary(composition);
+  if (summary.totalWeight <= 0) {
+    return {
+      structureSummary: [
+        "Aggiungi una o più categorie per costruire il tuo modello personale",
+        "La torta grigia indica la quota ancora da assegnare",
+        "Quando il totale arriva al 100%, puoi salvare un modello completo",
+      ],
+      attention: [
+        "Evita di scegliere le percentuali solo in base all'umore del momento",
+        "Prima definisci il ruolo di ogni categoria, poi scegli gli strumenti nel portafoglio",
+        "Il modello personale resta una guida educativa, non una consulenza finanziaria",
+      ],
+      annualRebalanceNote: "Quando avrai salvato il modello personale, controlla una volta l'anno se le percentuali si sono allontanate troppo dai pesi scelti.",
+    };
+  }
+
+  const structureSummary: string[] = [];
+  const attention: string[] = [];
+
+  if (summary.liquidityWeight >= 0.25) {
+    structureSummary.push("La liquidità ha un peso importante: il modello punta più su controllo e flessibilità che su massima crescita");
+  } else if (summary.growthWeight >= 0.65) {
+    structureSummary.push("La parte azionaria è dominante: il modello cerca crescita, ma richiede pazienza nei ribassi");
+  } else if (summary.growthWeight >= 0.35) {
+    structureSummary.push("La componente di crescita è presente ma non totale: il modello cerca equilibrio tra rendimento e controllo");
+  } else {
+    structureSummary.push("La componente prudente è prevalente: il modello privilegia stabilità e oscillazioni più contenute");
+  }
+
+  if (summary.defensiveWeight + summary.durationWeight > 0.25) {
+    structureSummary.push("La parte obbligazionaria aiuta a dare struttura, ma le obbligazioni lunghe possono oscillare quando cambiano i tassi");
+  }
+
+  if (summary.alternativeWeight > 0.15) {
+    structureSummary.push("Oro e materie prime aggiungono diversificazione, ma non devono essere interpretati come protezione perfetta");
+  }
+
+  if (summary.activeCategories >= 5) {
+    structureSummary.push("Il modello è distribuito su più categorie: questo riduce la dipendenza da un solo motore di rendimento");
+  }
+
+  if (summary.growthWeight >= 0.6) {
+    attention.push("Nei ribassi la parte azionaria può pesare molto: serve un orizzonte lungo e una regola scritta prima di intervenire");
+  }
+
+  if (summary.liquidityWeight >= 0.3) {
+    attention.push("Troppa liquidità può rendere il percorso più tranquillo, ma anche rallentare il raggiungimento degli obiettivi di lungo periodo");
+  }
+
+  if (summary.durationWeight >= 0.15) {
+    attention.push("Le obbligazioni lunghe non sono sempre tranquille: possono scendere quando i tassi salgono");
+  }
+
+  if (summary.alternativeWeight >= 0.25) {
+    attention.push("La quota alternativa è rilevante: controlla che oro e materie prime non diventino una scommessa mascherata da diversificazione");
+  }
+
+  if (Math.abs(summary.totalWeight - 100) > 0.2) {
+    attention.push("Il totale non è ancora al 100%: completa il modello prima di usarlo come riferimento operativo");
+  }
+
+  if (!attention.length) {
+    attention.push("Il punto chiave è rispettare le percentuali scelte, soprattutto quando una categoria sale o scende molto");
+    attention.push("Controlla il modello a intervalli regolari, non ogni volta che il mercato si muove");
+  }
+
+  return {
+    structureSummary,
+    attention,
+    annualRebalanceNote: "Per il modello personale, usa il ribilanciamento come controllo periodico: se una categoria si allontana molto dal peso scelto, valuta di riportarla gradualmente verso il modello senza inseguire il mercato.",
+  };
+}
+
 function getAssetColor(category: StrumentiCategory) {
-  if (category === "Azioni Globali" || category === "Mercati Emergenti") return "#ef4444";
-  if (category === "Obbligazioni" || category === "Obbligazioni Breve Termine" || category === "Obbligazioni Lungo Termine") return "#2563eb";
+  if (category === "Azioni Globali") return "#ef4444";
+  if (category === "Mercati Emergenti") return "#b91c1c";
+  if (category === "Obbligazioni") return "#2563eb";
+  if (category === "Obbligazioni Breve Termine") return "#38bdf8";
+  if (category === "Obbligazioni Lungo Termine") return "#1d4ed8";
   if (category === "Oro") return "#eab308";
   if (category === "Materie Prime") return "#94a3b8";
   if (category === "Liquidita") return "#22c55e";
@@ -1812,6 +2594,1126 @@ function getPurchaseKey(userId: string) {
 
 function getHoldingsKey(userId: string) {
   return `${getPrefix(userId)}-holdings`;
+}
+
+
+function getDynamicModelStorageKey(userId: string) {
+  return `${getPrefix(userId)}-dynamic-model-v1`;
+}
+
+function getPersonalModelAssetsBackupKey(userId: string) {
+  return `${getPrefix(userId)}-personal-model-assets-v1`;
+}
+
+function readPersonalModelAssetsBackup(userId: string): DynamicModelAsset[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getPersonalModelAssetsBackupKey(userId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePersonalModelAssetsBackup(userId: string, assets: DynamicModelAsset[]) {
+  if (typeof window === "undefined" || !assets.length) return;
+  try {
+    window.localStorage.setItem(getPersonalModelAssetsBackupKey(userId), JSON.stringify(assets));
+  } catch (error) {
+    console.warn("Backup locale modello personale non salvato", error);
+  }
+}
+
+function buildEmptyDynamicModelState(): DynamicModelState {
+  return {
+    mode: "app",
+    assets: [],
+    movements: [],
+  };
+}
+
+function normalizeDynamicModelMode(value: unknown): DynamicModelMode {
+  return value === "custom" ? "custom" : "app";
+}
+
+function inferModelModeFromScopedId(id: string | undefined): DynamicModelMode | null {
+  if (!id) return null;
+  if (id.startsWith("custom-")) return "custom";
+  if (id.startsWith("app-")) return "app";
+  return null;
+}
+
+function getHoldingModelMode(item: Holding, fallbackMode: DynamicModelMode = "app"): DynamicModelMode {
+  return item.modelMode || inferModelModeFromScopedId(item.id) || fallbackMode;
+}
+
+function getMovementModelMode(item: DynamicModelMovement, fallbackMode: DynamicModelMode = "app"): DynamicModelMode {
+  return item.modelMode || inferModelModeFromScopedId(item.id) || fallbackMode;
+}
+
+function normalizeHoldingScope(item: Holding, fallbackMode: DynamicModelMode): Holding {
+  return { ...item, modelMode: getHoldingModelMode(item, fallbackMode) };
+}
+
+function normalizeMovementScope(item: DynamicModelMovement, fallbackMode: DynamicModelMode): DynamicModelMovement {
+  return { ...item, modelMode: getMovementModelMode(item, fallbackMode) };
+}
+
+function getSavedDynamicModelMode(raw: string | null): DynamicModelMode {
+  if (!raw) return "app";
+  try {
+    const parsed = JSON.parse(raw) as Partial<DynamicModelState>;
+    return normalizeDynamicModelMode(parsed?.mode);
+  } catch {
+    return "app";
+  }
+}
+
+function isSameMonthKey(dateValue: string | undefined, monthKey: string) {
+  if (!dateValue) return false;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return false;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}` === monthKey;
+}
+
+function normalizePercent(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+}
+
+function getIndicativeApiFactor(asset: DynamicModelAsset) {
+  // Finché le Edge Function non salvano prezzi reali, non simuliamo oscillazioni finte.
+  // Il grafico resta sulla base manuale; quando arriveranno basePrice/lastPrice userà dati reali.
+  if (asset.basePrice && asset.lastPrice && asset.basePrice > 0) return asset.lastPrice / asset.basePrice;
+  return 1;
+}
+
+function estimateDynamicModelAssetValue(asset: DynamicModelAsset, atDate = new Date()) {
+  const base = Number(asset.currentManualValue || asset.initialValue || 0);
+  if (base <= 0) return 0;
+
+  if (asset.kind === "deposit") {
+    const created = new Date(asset.createdAt || new Date().toISOString());
+    const days = Math.max(0, Math.round((atDate.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)));
+    const grossRate = Number(asset.grossRate || 0) / 100;
+    return base * (1 + (grossRate * days) / 365);
+  }
+
+  if (asset.kind === "api" && asset.apiEnabled) {
+    return base * getIndicativeApiFactor(asset);
+  }
+
+  return base;
+}
+
+function sumDynamicModelInitialCapital(assets: DynamicModelAsset[]) {
+  return assets.reduce((sum, asset) => sum + Number(asset.initialValue || 0), 0);
+}
+
+function sumDynamicModelEstimatedValue(assets: DynamicModelAsset[]) {
+  return assets.reduce((sum, asset) => sum + estimateDynamicModelAssetValue(asset), 0);
+}
+
+function getSignedDynamicMovementAmount(movement: DynamicModelMovement) {
+  const amount = Math.max(0, Number(movement.amount || 0));
+  if (movement.type === "withdrawal") return -amount;
+  if (movement.type === "alignment") return 0;
+  return amount;
+}
+
+function extractAlignmentInvestedCapital(note?: string) {
+  if (!note) return 0;
+  const match = note.match(/Capitale versato[^:]*:\s*([^|]+)/i);
+  return match ? parseCurrencyInput(match[1]) : 0;
+}
+
+function getMonitorCapitalByCategory(holdings: Holding[], movements: DynamicModelMovement[]) {
+  const holdingById = new Map(holdings.map((holding) => [holding.id, holding]));
+  const movementTotalsByHoldingId: Record<string, { deposits: number; withdrawals: number; hasDeposits: boolean }> = {};
+
+  movements.forEach((movement) => {
+    if (movement.type === "alignment") return;
+    const holding = findHoldingForMovement(movement, holdings);
+    if (!holding) return;
+    const holdingKey = holding.id;
+
+    if (!movementTotalsByHoldingId[holdingKey]) {
+      movementTotalsByHoldingId[holdingKey] = { deposits: 0, withdrawals: 0, hasDeposits: false };
+    }
+
+    const amount = Math.max(0, Number(movement.amount || 0));
+    if (movement.type === "withdrawal") {
+      movementTotalsByHoldingId[holdingKey].withdrawals += amount;
+      return;
+    }
+
+    movementTotalsByHoldingId[holdingKey].deposits += amount;
+    movementTotalsByHoldingId[holdingKey].hasDeposits = true;
+  });
+
+  const result: Partial<Record<StrumentiCategory, number>> = {};
+
+  holdings.forEach((holding) => {
+    const movementTotals = movementTotalsByHoldingId[holding.id];
+    const holdingCapital = Math.max(0, Number(holding.amount || 0));
+    const deposits = Math.max(0, Number(movementTotals?.deposits || 0));
+    const withdrawals = Math.max(0, Number(movementTotals?.withdrawals || 0));
+
+    // Se esistono movimenti datati per questo specifico strumento, il capitale del Monitor
+    // viene ricostruito da quei movimenti. Gli strumenti più vecchi senza movimenti restano
+    // invece agganciati all'importo salvato, così non spariscono quando l'utente aggiunge
+    // nuovi investimenti nella stessa categoria.
+    const capital = Math.max(0, movementTotals?.hasDeposits ? deposits - withdrawals : holdingCapital - withdrawals);
+    result[holding.category] = (result[holding.category] || 0) + capital;
+  });
+
+  return result;
+}
+
+function sumMonitorCapitalByCategory(capitalByCategory: Partial<Record<StrumentiCategory, number>>) {
+  return Object.values(capitalByCategory).reduce((sum, value) => sum + Number(value || 0), 0);
+}
+
+function applyPortfolioAndMovementCapitalToAssets(
+  assets: DynamicModelAsset[],
+  holdings: Holding[],
+  movements: DynamicModelMovement[]
+) {
+  if (!assets.length) return assets;
+
+  const capitalByCategory = getMonitorCapitalByCategory(holdings, movements);
+  const holdingById = new Map(holdings.map((holding) => [holding.id, holding]));
+  const latestAlignmentByCategory: Partial<Record<StrumentiCategory, { currentValue: number; investedCapital: number; time: number }>> = {};
+
+  movements.forEach((movement) => {
+    if (movement.type !== "alignment" || !movement.assetId) return;
+    const holding = holdingById.get(movement.assetId);
+    if (!holding) return;
+    const currentValue = Math.max(0, Number(movement.amount || 0));
+    if (currentValue <= 0) return;
+    const investedCapital = extractAlignmentInvestedCapital(movement.note);
+    const time = new Date(movement.insertedAt || movement.movementDate).getTime();
+    const existing = latestAlignmentByCategory[holding.category];
+    if (!existing || time >= existing.time) {
+      latestAlignmentByCategory[holding.category] = { currentValue, investedCapital, time };
+    }
+  });
+
+  const assetsByCategory = assets.reduce((acc, asset) => {
+    if (!acc[asset.category]) acc[asset.category] = [];
+    acc[asset.category]!.push(asset);
+    return acc;
+  }, {} as Partial<Record<StrumentiCategory, DynamicModelAsset[]>>);
+
+  return assets.map((asset) => {
+    const categoryAssets = assetsByCategory[asset.category] || [asset];
+    const latestAlignment = latestAlignmentByCategory[asset.category];
+    const categoryCapitalFromPortfolio = Math.max(0, Number(capitalByCategory[asset.category] || 0));
+    const categoryCapital = Math.max(0, Number(latestAlignment?.investedCapital || 0)) || categoryCapitalFromPortfolio;
+    const categoryCurrentValue = Math.max(0, Number(latestAlignment?.currentValue || 0));
+    if (categoryCapital <= 0 && categoryCurrentValue <= 0) return asset;
+
+    const categoryInitialTotal = categoryAssets.reduce((sum, item) => sum + Number(item.initialValue || item.currentManualValue || 0), 0);
+    const categoryWeightTotal = categoryAssets.reduce((sum, item) => sum + Number(item.weight || 0), 0);
+    const share = categoryInitialTotal > 0
+      ? Number(asset.initialValue || asset.currentManualValue || 0) / categoryInitialTotal
+      : categoryWeightTotal > 0
+        ? Number(asset.weight || 0) / categoryWeightTotal
+        : 1 / categoryAssets.length;
+    const allocatedCapital = Math.max(0, categoryCapital * share);
+    const allocatedCurrentValue = categoryCurrentValue > 0 ? Math.max(0, categoryCurrentValue * share) : allocatedCapital;
+    const basePriceAfterAlignment = categoryCurrentValue > 0 ? (asset.lastPrice || asset.basePrice) : asset.basePrice;
+
+    return {
+      ...asset,
+      initialValue: allocatedCapital,
+      currentManualValue: allocatedCurrentValue,
+      basePrice: basePriceAfterAlignment,
+      updatedAt: asset.updatedAt || new Date().toISOString(),
+    };
+  });
+}
+
+function getMovementCategoryFromNote(note?: string) {
+  if (!note) return undefined;
+  const normalizedNote = note.toLowerCase();
+  const categories = Object.keys(strumentiLibrary) as StrumentiCategory[];
+  return categories
+    .slice()
+    .sort((a, b) => b.length - a.length)
+    .find((category) => normalizedNote.includes(category.toLowerCase()));
+}
+
+function getMovementInstrumentNameFromNote(note?: string, category?: StrumentiCategory) {
+  if (!note || !category) return undefined;
+  const marker = ` - ${category}`;
+  const markerIndex = note.toLowerCase().indexOf(marker.toLowerCase());
+  if (markerIndex <= 0) return undefined;
+  const rawName = note.slice(0, markerIndex).trim();
+  return rawName || undefined;
+}
+
+function buildManualAssetFromMovementNote(note: string | undefined, category: StrumentiCategory): DynamicModelAsset {
+  const now = new Date().toISOString();
+  const name = getMovementInstrumentNameFromNote(note, category) || category;
+  return {
+    id: `movement-note-manual-${category}-${name}`.replace(/[^a-zA-Z0-9_-]/g, "-"),
+    name,
+    category,
+    ticker: "",
+    weight: 0,
+    initialValue: 0,
+    currentManualValue: 0,
+    kind: "manual",
+    apiEnabled: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function findHoldingForMovement(movement: DynamicModelMovement, holdings: Holding[]) {
+  if (movement.assetId) {
+    const direct = holdings.find((holding) => holding.id === movement.assetId);
+    if (direct) return direct;
+  }
+
+  const movementCategory = getMovementCategoryFromNote(movement.note);
+  const movementName = getMovementInstrumentNameFromNote(movement.note, movementCategory);
+  if (!movementCategory || !movementName) return undefined;
+
+  const normalizedName = movementName.trim().toLowerCase();
+  return holdings.find((holding) =>
+    categoriesAreMonitorCompatible(holding.category, movementCategory) &&
+    (holding.strumentiName || "").trim().toLowerCase() === normalizedName
+  );
+}
+
+function getMonitorCategoryFamily(category: StrumentiCategory): StrumentiCategory {
+  if (
+    category === "Obbligazioni" ||
+    category === "Obbligazioni Breve Termine" ||
+    category === "Obbligazioni Lungo Termine"
+  ) {
+    return "Obbligazioni";
+  }
+
+  return category;
+}
+
+function categoriesAreMonitorCompatible(a: StrumentiCategory, b: StrumentiCategory) {
+  return getMonitorCategoryFamily(a) === getMonitorCategoryFamily(b);
+}
+
+type MonitorRowsSourceItem = {
+  label: string;
+  category: StrumentiCategory;
+  percentage: number;
+};
+
+function buildMonitorRowsSource(
+  activeComposition: Array<{ label: string; category: StrumentiCategory; percentage: number }>,
+  categoryTotals: Partial<Record<StrumentiCategory, { invested: number; value: number }>>
+): MonitorRowsSourceItem[] {
+  const rowsByFamily = new Map<StrumentiCategory, MonitorRowsSourceItem>();
+
+  activeComposition.forEach((item) => {
+    const family = getMonitorCategoryFamily(item.category);
+    const existing = rowsByFamily.get(family);
+    if (existing) {
+      existing.percentage += Number(item.percentage || 0);
+      return;
+    }
+
+    rowsByFamily.set(family, {
+      label: family,
+      category: family,
+      percentage: Number(item.percentage || 0),
+    });
+  });
+
+  (Object.keys(categoryTotals) as StrumentiCategory[]).forEach((category) => {
+    const family = getMonitorCategoryFamily(category);
+    if (rowsByFamily.has(family)) return;
+    rowsByFamily.set(family, {
+      label: family,
+      category: family,
+      percentage: 0,
+    });
+  });
+
+  return Array.from(rowsByFamily.values());
+}
+
+function getValidDateTime(dateValue?: string) {
+  if (!dateValue) return Number.NaN;
+  const time = new Date(dateValue).getTime();
+  return Number.isFinite(time) ? time : Number.NaN;
+}
+
+function getChartDateKey(dateValue?: string) {
+  const time = getValidDateTime(dateValue);
+  if (!Number.isFinite(time)) return new Date().toISOString();
+  return new Date(time).toISOString();
+}
+
+function getSortedMarketSnapshots(snapshots: MarketPriceSnapshotEntry[] = []) {
+  return snapshots
+    .filter((snapshot) => Number(snapshot.price || 0) > 0 && Number.isFinite(getValidDateTime(snapshot.fetchedAt)))
+    .slice()
+    .sort((a, b) => getValidDateTime(a.fetchedAt) - getValidDateTime(b.fetchedAt));
+}
+
+function getSnapshotAtOrBefore(snapshots: MarketPriceSnapshotEntry[], time: number) {
+  let selected: MarketPriceSnapshotEntry | undefined;
+  for (const snapshot of snapshots) {
+    const snapshotTime = getValidDateTime(snapshot.fetchedAt);
+    if (!Number.isFinite(snapshotTime)) continue;
+    if (snapshotTime <= time) selected = snapshot;
+    else break;
+  }
+  return selected;
+}
+
+function getFirstSnapshotAtOrAfter(snapshots: MarketPriceSnapshotEntry[], time: number) {
+  return snapshots.find((snapshot) => {
+    const snapshotTime = getValidDateTime(snapshot.fetchedAt);
+    return Number.isFinite(snapshotTime) && snapshotTime >= time;
+  });
+}
+
+type DynamicChartLot = {
+  id: string;
+  asset: DynamicModelAsset;
+  amount: number;
+  startDate: string;
+  source: "movement" | "legacy-holding" | "fallback-asset" | "missing-static";
+};
+
+function normalizeTickerApi(value: string | undefined) {
+  return (value || "").trim().toUpperCase();
+}
+
+function isLikelyTickerApi(value: string | undefined) {
+  const normalized = normalizeTickerApi(value);
+  if (!normalized) return false;
+  // Gli ISIN hanno 12 caratteri alfanumerici e iniziano con due lettere: non li trattiamo come ticker API.
+  if (/^[A-Z]{2}[A-Z0-9]{10}$/.test(normalized)) return false;
+  return /^[A-Z0-9.\-=^]{1,20}$/.test(normalized);
+}
+
+function buildApiAssetFromHolding(holding: Holding): DynamicModelAsset | null {
+  const ticker = normalizeTickerApi(holding.tickerApi);
+  if (!isLikelyTickerApi(ticker)) return null;
+  const now = new Date().toISOString();
+  return {
+    id: `holding-api-${holding.id}`,
+    holdingId: holding.id,
+    name: holding.strumentiName,
+    category: holding.category,
+    ticker,
+    weight: 0,
+    initialValue: Math.max(0, Number(holding.amount || 0)),
+    currentManualValue: Math.max(0, Number(holding.amount || 0)),
+    kind: "api",
+    apiEnabled: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function isProgramLibraryHolding(holding: Holding) {
+  const categoryRows = strumentiLibrary[holding.category] || [];
+  const normalizedIsin = (holding.isin || "").trim().toUpperCase();
+  const normalizedName = (holding.strumentiName || "").trim().toLowerCase();
+
+  return categoryRows.some((row) => {
+    const rowIsin = (row.isin || "").trim().toUpperCase();
+    const rowName = (row.name || "").trim().toLowerCase();
+    return (!!normalizedIsin && rowIsin === normalizedIsin) || (!!normalizedName && rowName === normalizedName);
+  });
+}
+
+function buildManualAssetFromHolding(holding: Holding): DynamicModelAsset {
+  const now = new Date().toISOString();
+  return {
+    id: `holding-manual-${holding.id}`,
+    holdingId: holding.id,
+    name: holding.strumentiName || getStrumentiNameFromHolding(holding.category, holding.isin),
+    category: holding.category,
+    ticker: "",
+    weight: 0,
+    initialValue: Math.max(0, Number(holding.amount || 0)),
+    currentManualValue: Math.max(0, Number(holding.amount || 0)),
+    kind: "manual",
+    apiEnabled: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function getAssetsByCategory(assets: DynamicModelAsset[]) {
+  return assets.reduce((acc, asset) => {
+    if (!acc[asset.category]) acc[asset.category] = [];
+    acc[asset.category]!.push(asset);
+    return acc;
+  }, {} as Partial<Record<StrumentiCategory, DynamicModelAsset[]>>);
+}
+
+function getAssetShareWithinCategory(asset: DynamicModelAsset, categoryAssets: DynamicModelAsset[]) {
+  const categoryInitialTotal = categoryAssets.reduce((sum, item) => sum + Number(item.initialValue || item.currentManualValue || 0), 0);
+  if (categoryInitialTotal > 0) {
+    return Math.max(0, Number(asset.initialValue || asset.currentManualValue || 0)) / categoryInitialTotal;
+  }
+
+  const categoryWeightTotal = categoryAssets.reduce((sum, item) => sum + Number(item.weight || 0), 0);
+  if (categoryWeightTotal > 0) {
+    return Math.max(0, Number(asset.weight || 0)) / categoryWeightTotal;
+  }
+
+  return categoryAssets.length ? 1 / categoryAssets.length : 0;
+}
+
+function buildLotsForCategory(
+  category: StrumentiCategory,
+  amount: number,
+  startDate: string,
+  assetsByCategory: Partial<Record<StrumentiCategory, DynamicModelAsset[]>>,
+  source: DynamicChartLot["source"],
+  idPrefix: string
+): DynamicChartLot[] {
+  const safeAmount = Number(amount || 0);
+  if (!Number.isFinite(safeAmount) || safeAmount === 0) return [];
+
+  const exactCategoryAssets = assetsByCategory[category] || [];
+  const compatibleFamilyAssets = Object.entries(assetsByCategory)
+    .filter(([assetCategory]) => categoriesAreMonitorCompatible(assetCategory as StrumentiCategory, category))
+    .flatMap(([, assets]) => assets || []);
+
+  // Prima proviamo la categoria esatta. Se il modello usa una categoria obbligazionaria
+  // generica e il movimento arriva da una sotto-categoria, ad esempio "Obbligazioni Lungo Termine",
+  // usiamo la famiglia compatibile invece di perdere il lotto o spostarlo sulle azioni.
+  const categoryAssets = exactCategoryAssets.length ? exactCategoryAssets : compatibleFamilyAssets;
+  if (!categoryAssets.length) return [];
+
+  return categoryAssets
+    .map((asset) => {
+      const share = getAssetShareWithinCategory(asset, categoryAssets);
+      const allocatedAmount = safeAmount * share;
+      if (!Number.isFinite(allocatedAmount) || Math.abs(allocatedAmount) <= 0.0001) return null;
+      return {
+        id: `${idPrefix}-${asset.id}`,
+        asset,
+        amount: allocatedAmount,
+        startDate,
+        source,
+      } satisfies DynamicChartLot;
+    })
+    .filter(Boolean) as DynamicChartLot[];
+}
+
+function buildDynamicChartLots(
+  state: DynamicModelState,
+  fallbackCapital: number,
+  holdings: Holding[] = []
+) {
+  const assetsByCategory = getAssetsByCategory(state.assets);
+  const holdingById = new Map(holdings.map((holding) => [holding.id, holding]));
+  const lots: DynamicChartLot[] = [];
+  const holdingIdsWithMovementLots = new Set<string>();
+
+  state.movements.forEach((movement) => {
+    if (movement.type === "alignment") return;
+
+    const movementAmount = getSignedDynamicMovementAmount(movement);
+    if (!movementAmount) return;
+
+    const movementDate = getChartDateKey(movement.movementDate || movement.insertedAt);
+    const directAsset = state.assets.find((asset) => asset.id === movement.assetId);
+    if (directAsset) {
+      lots.push({
+        id: `movement-${movement.id}-${directAsset.id}`,
+        asset: directAsset,
+        amount: movementAmount,
+        startDate: movementDate,
+        source: "movement",
+      });
+      return;
+    }
+
+    const holding = findHoldingForMovement(movement, holdings);
+    const holdingApiAsset = holding ? buildApiAssetFromHolding(holding) : null;
+    if (holdingApiAsset) {
+      if (holding?.id) holdingIdsWithMovementLots.add(holding.id);
+      lots.push({
+        id: `movement-${movement.id}-${holdingApiAsset.id}`,
+        asset: holdingApiAsset,
+        amount: movementAmount,
+        startDate: movementDate,
+        source: "movement",
+      });
+      return;
+    }
+
+    // Se il movimento è collegato a uno strumento personale senza ticker API valido,
+    // non dobbiamo valorizzarlo con il ticker generico della categoria (es. VT per tutte le azioni).
+    // Lo trattiamo come strumento manuale: resta nel grafico dal giorno di ingresso, ma non eredita prezzi di altri asset.
+    if (holding && !isProgramLibraryHolding(holding)) {
+      const holdingManualAsset = buildManualAssetFromHolding(holding);
+      holdingIdsWithMovementLots.add(holding.id);
+      lots.push({
+        id: `movement-${movement.id}-${holdingManualAsset.id}`,
+        asset: holdingManualAsset,
+        amount: movementAmount,
+        startDate: movementDate,
+        source: "movement",
+      });
+      return;
+    }
+
+    const movementCategory = holding?.category || getMovementCategoryFromNote(movement.note);
+    if (!movementCategory) return;
+
+    const movementNameFromNote = getMovementInstrumentNameFromNote(movement.note, movementCategory);
+    const noteLooksLikeProgramInstrument = !!movementNameFromNote && isProgramLibraryHolding({
+      id: `note-${movement.id}`,
+      category: movementCategory,
+      strumentiName: movementNameFromNote,
+      isin: "",
+      amount: movementAmount,
+      modelMode: movement.modelMode,
+    });
+
+    // Regola fondamentale: se il movimento contiene un nome strumento non appartenente
+    // alla libreria del programma, non deve mai ricadere sul ticker generico della categoria
+    // (es. VT per tutte le "Azioni Globali"). In quel caso lo mostriamo come strumento reale
+    // separato. Se in futuro il movimento viene riagganciato a un holding con ticker API,
+    // il ramo holdingApiAsset sopra userà il ticker corretto.
+    if (movementNameFromNote && !noteLooksLikeProgramInstrument) {
+      const manualAsset = buildManualAssetFromMovementNote(movement.note, movementCategory);
+      lots.push({
+        id: `movement-${movement.id}-${manualAsset.id}`,
+        asset: manualAsset,
+        amount: movementAmount,
+        startDate: movementDate,
+        source: "movement",
+      });
+      return;
+    }
+
+    const movementLots = buildLotsForCategory(movementCategory, movementAmount, movementDate, assetsByCategory, "movement", `movement-${movement.id}`);
+    if (movementLots.length) {
+      if (holding?.id) holdingIdsWithMovementLots.add(holding.id);
+      lots.push(...movementLots);
+    }
+  });
+
+  // IMPORTANTE: da questa versione il Monitor non trasforma più gli holdings senza movimento
+  // in capitale reale. Gli holdings descrivono strumenti/posizioni disponibili, ma il grafico deve
+  // nascere solo da movimenti datati. Questa scelta elimina il "capitale fantasma": vecchi holdings
+  // rimasti in Supabase/localStorage non compariranno più nel Monitor se non esiste un movimento reale
+  // collegato e cancellabile nella lista movimenti.
+  //
+  // Gli holdings restano comunque usati sopra come mappa per capire nome, categoria e ticker API dei
+  // movimenti esistenti.
+
+  return lots;
+}
+
+function estimateDynamicChartLotValue(
+  lot: DynamicChartLot,
+  atTime: number,
+  sortedSnapshotsByTicker: Record<string, MarketPriceSnapshotEntry[]>
+) {
+  const startTime = getValidDateTime(lot.startDate);
+  if (!Number.isFinite(startTime) || atTime < startTime) return 0;
+
+  const amount = Number(lot.amount || 0);
+  if (!amount) return 0;
+
+  if (lot.asset.kind === "deposit") {
+    const days = Math.max(0, Math.round((atTime - startTime) / (1000 * 60 * 60 * 24)));
+    const grossRate = Number(lot.asset.grossRate || 0) / 100;
+    return amount * (1 + (grossRate * days) / 365);
+  }
+
+  if (lot.asset.kind === "api" && lot.asset.apiEnabled && lot.asset.ticker) {
+    const ticker = lot.asset.ticker.toUpperCase();
+    const snapshots = sortedSnapshotsByTicker[ticker] || [];
+    const entrySnapshot = getFirstSnapshotAtOrAfter(snapshots, startTime) || getSnapshotAtOrBefore(snapshots, startTime);
+    const currentSnapshot = getSnapshotAtOrBefore(snapshots, atTime) || entrySnapshot;
+    const entryPrice = Number(entrySnapshot?.price || lot.asset.basePrice || lot.asset.lastPrice || 0);
+    const currentPrice = Number(currentSnapshot?.price || lot.asset.lastPrice || entryPrice || 0);
+
+    return entryPrice > 0 && currentPrice > 0 ? amount * (currentPrice / entryPrice) : amount;
+  }
+
+  return amount;
+}
+
+function buildDynamicModelChartPoints(
+  state: DynamicModelState,
+  fallbackCapital: number,
+  marketSnapshots: Record<string, MarketPriceSnapshotEntry[]> = {},
+  holdings: Holding[] = []
+): DynamicChartPoint[] {
+  const now = new Date();
+  const lots = buildDynamicChartLots(state, fallbackCapital, holdings);
+  const sortedSnapshotsByTicker = Object.fromEntries(
+    Object.entries(marketSnapshots).map(([ticker, snapshots]) => [ticker.toUpperCase(), getSortedMarketSnapshots(snapshots)])
+  ) as Record<string, MarketPriceSnapshotEntry[]>;
+
+  const snapshotDates = Array.from(new Set(
+    lots.flatMap((lot) => {
+      if (lot.asset.kind !== "api" || !lot.asset.apiEnabled || !lot.asset.ticker) return [];
+      return (sortedSnapshotsByTicker[lot.asset.ticker.toUpperCase()] || []).map((snapshot) => snapshot.fetchedAt);
+    })
+  ));
+
+  const lotStartDates = lots
+    .filter((lot) => lot.source !== "legacy-holding")
+    .map((lot) => lot.startDate);
+  const allDateValues = Array.from(new Set([...snapshotDates, ...lotStartDates, now.toISOString()]))
+    .filter((dateValue) => Number.isFinite(getValidDateTime(dateValue)))
+    .sort((a, b) => getValidDateTime(a) - getValidDateTime(b));
+
+  const firstRelevantTime = Math.min(
+    ...lots
+      .filter((lot) => lot.source !== "legacy-holding")
+      .map((lot) => getValidDateTime(lot.startDate))
+      .filter(Number.isFinite),
+    ...snapshotDates.map(getValidDateTime).filter(Number.isFinite),
+    now.getTime()
+  );
+
+  const relevantDates = allDateValues.filter((dateValue) => getValidDateTime(dateValue) >= firstRelevantTime);
+  const hasRealHistory = snapshotDates.length >= 2 || lots.some((lot) => lot.source === "movement");
+
+  if (lots.length && hasRealHistory && relevantDates.length >= 1) {
+    const mustKeep = new Set([relevantDates[0], relevantDates[relevantDates.length - 1], now.toISOString(), ...lotStartDates]);
+    const limitedDates = relevantDates.length > 90
+      ? relevantDates.filter((dateValue, index) => mustKeep.has(dateValue) || index % Math.ceil(relevantDates.length / 90) === 0)
+      : relevantDates;
+
+    const normalizedDates = Array.from(new Set(limitedDates)).sort((a, b) => getValidDateTime(a) - getValidDateTime(b));
+
+    return normalizedDates.map((dateValue) => {
+      const time = getValidDateTime(dateValue);
+      const date = new Date(time);
+      const activeLots = lots.filter((lot) => {
+        const startTime = getValidDateTime(lot.startDate);
+        return Number.isFinite(startTime) && startTime <= time;
+      });
+      const categoryValues: Partial<Record<StrumentiCategory, number>> = {};
+      const invested = activeLots.reduce((sum, lot) => sum + Number(lot.amount || 0), 0);
+      const value = activeLots.reduce((sum, lot) => {
+        const lotValue = estimateDynamicChartLotValue(lot, time, sortedSnapshotsByTicker);
+        const category = getMonitorCategoryFamily(lot.asset.category);
+        categoryValues[category] = roundToDecimals((categoryValues[category] || 0) + Math.max(0, lotValue), 2);
+        return sum + lotValue;
+      }, 0);
+
+      return {
+        label: `${date.getDate()}/${date.getMonth() + 1}`,
+        invested: roundToDecimals(Math.max(0, invested), 2),
+        value: roundToDecimals(Math.max(0, value), 2),
+        fetchedAt: dateValue,
+        categoryValues,
+      };
+    });
+  }
+
+  const initialCapital = lots.length
+    ? lots.reduce((sum, lot) => sum + Number(lot.amount || 0), 0)
+    : 0;
+  const currentValue = lots.length
+    ? lots.reduce((sum, lot) => sum + estimateDynamicChartLotValue(lot, now.getTime(), sortedSnapshotsByTicker), 0)
+    : 0;
+
+  // Se non esistono movimenti reali, il Monitor deve restare a zero.
+  // Non usiamo più asset del modello, holdings legacy o fallbackCapital per inventare capitale:
+  // il modello è una struttura target, non una posizione investita.
+  return [{
+    label: `${now.getDate()}/${now.getMonth() + 1}`,
+    invested: roundToDecimals(Math.max(0, initialCapital), 2),
+    value: roundToDecimals(Math.max(0, currentValue), 2),
+    fetchedAt: now.toISOString(),
+  }];
+}
+
+type MonitorEngineAssetRow = {
+  id: string;
+  name: string;
+  category: StrumentiCategory;
+  value: number;
+  investedCapital: number;
+  deltaValue: number;
+  deltaPercent: number;
+  weight: number;
+  modelPercentage: number;
+  color: string;
+  ticker: string;
+  kind: DynamicModelAssetKind;
+  percentage: number;
+  shareRatio: number;
+};
+
+type MonitorEngineResult = {
+  chartPoints: DynamicChartPoint[];
+  totalInvested: number;
+  currentValue: number;
+  deltaValue: number;
+  deltaPercent: number;
+  assetRows: MonitorEngineAssetRow[];
+};
+
+function buildMonitorEngine(
+  state: DynamicModelState,
+  fallbackCapital: number,
+  marketSnapshots: Record<string, MarketPriceSnapshotEntry[]> = {},
+  holdings: Holding[] = [],
+  activeComposition: Array<{ label: string; category: StrumentiCategory; percentage: number }> = []
+): MonitorEngineResult {
+  const hasRealCapitalMovements = state.movements.some((movement) => {
+    if (movement.type === "alignment") return false;
+    return Math.abs(getSignedDynamicMovementAmount(movement)) > 0;
+  });
+
+  // Guardia anti-capitale fantasma: holdings, asset del modello e fallbackCapital non sono capitale reale.
+  // Se nel mondo attivo non esiste almeno un movimento datato, il Monitor deve restare vuoto/zero.
+  if (!hasRealCapitalMovements) {
+    const now = new Date();
+    return {
+      chartPoints: [{
+        label: `${now.getDate()}/${now.getMonth() + 1}`,
+        invested: 0,
+        value: 0,
+        fetchedAt: now.toISOString(),
+        categoryValues: {},
+      }],
+      totalInvested: 0,
+      currentValue: 0,
+      deltaValue: 0,
+      deltaPercent: 0,
+      assetRows: [],
+    };
+  }
+
+  const chartPoints = buildDynamicModelChartPoints(state, fallbackCapital, marketSnapshots, holdings);
+  const lastPoint = chartPoints[chartPoints.length - 1];
+
+  const lots = buildDynamicChartLots(state, fallbackCapital, holdings);
+  const nowTime = new Date().getTime();
+  const sortedSnapshotsByTicker = Object.fromEntries(
+    Object.entries(marketSnapshots).map(([ticker, snapshots]) => [ticker.toUpperCase(), getSortedMarketSnapshots(snapshots)])
+  ) as Record<string, MarketPriceSnapshotEntry[]>;
+
+  const categoryTotals: Partial<Record<StrumentiCategory, { invested: number; value: number }>> = {};
+  lots.forEach((lot) => {
+    const startTime = getValidDateTime(lot.startDate);
+    if (!Number.isFinite(startTime) || startTime > nowTime) return;
+
+    const category = getMonitorCategoryFamily(lot.asset.category);
+    if (!categoryTotals[category]) categoryTotals[category] = { invested: 0, value: 0 };
+    categoryTotals[category]!.invested += Number(lot.amount || 0);
+    categoryTotals[category]!.value += estimateDynamicChartLotValue(lot, nowTime, sortedSnapshotsByTicker);
+  });
+
+  const totalInvestedFromLots = Object.values(categoryTotals).reduce((sum, item) => sum + Math.max(0, Number(item?.invested || 0)), 0);
+  const currentValueFromLots = Object.values(categoryTotals).reduce((sum, item) => sum + Math.max(0, Number(item?.value || 0)), 0);
+  const totalInvested = roundToDecimals(Math.max(0, totalInvestedFromLots || Number(lastPoint?.invested || 0)), 2);
+  const currentValue = roundToDecimals(Math.max(0, currentValueFromLots || Number(lastPoint?.value || 0)), 2);
+  const activeRowsSource = buildMonitorRowsSource(activeComposition, categoryTotals);
+  const totalModelWeight = activeRowsSource.reduce((sum, item) => sum + Number(item.percentage || 0), 0) || 100;
+
+  const lotTotalsByAsset = new Map<string, {
+    asset: DynamicModelAsset;
+    invested: number;
+    value: number;
+  }>();
+
+  lots.forEach((lot) => {
+    const startTime = getValidDateTime(lot.startDate);
+    if (!Number.isFinite(startTime) || startTime > nowTime) return;
+
+    const key = lot.asset.holdingId || lot.asset.id || `${lot.asset.category}-${lot.asset.name}-${lot.asset.ticker || "manual"}`;
+    const existing = lotTotalsByAsset.get(key) || { asset: lot.asset, invested: 0, value: 0 };
+    existing.invested += Number(lot.amount || 0);
+    existing.value += estimateDynamicChartLotValue(lot, nowTime, sortedSnapshotsByTicker);
+    lotTotalsByAsset.set(key, existing);
+  });
+
+  const instrumentRows = Array.from(lotTotalsByAsset.entries()).map(([key, item]) => {
+    const investedCapital = Math.max(0, Number(item.invested || 0));
+    const value = Math.max(0, Number(item.value || 0));
+    const categoryFamily = getMonitorCategoryFamily(item.asset.category);
+    const modelItem = activeRowsSource.find((candidate) => categoriesAreMonitorCompatible(candidate.category, categoryFamily));
+    const modelPercentage = totalModelWeight > 0 && modelItem
+      ? (Number(modelItem.percentage || 0) / totalModelWeight) * 100
+      : 0;
+    const deltaValue = value - investedCapital;
+    const deltaPercent = investedCapital > 0 ? (deltaValue / investedCapital) * 100 : 0;
+
+    return {
+      id: `monitor-${key}`,
+      name: item.asset.name || categoryFamily,
+      category: categoryFamily,
+      value,
+      investedCapital,
+      deltaValue,
+      deltaPercent,
+      weight: Number(modelItem?.percentage || 0),
+      modelPercentage,
+      color: getAssetColor(categoryFamily),
+      ticker: item.asset.ticker || "",
+      kind: item.asset.kind,
+      percentage: currentValue > 0 ? (value / currentValue) * 100 : modelPercentage,
+      shareRatio: currentValue > 0 ? value / currentValue : modelPercentage / 100,
+    } satisfies MonitorEngineAssetRow;
+  });
+
+  const categoryRows = activeRowsSource.map((modelItem) => {
+    const linkedAssets = state.assets.filter((asset) => categoriesAreMonitorCompatible(asset.category, modelItem.category));
+    const totals = categoryTotals[modelItem.category];
+    const investedCapital = Math.max(0, Number(totals?.invested || 0));
+    const value = Math.max(0, Number(totals?.value || 0));
+    const modelPercentage = totalModelWeight > 0 ? (Number(modelItem.percentage || 0) / totalModelWeight) * 100 : 0;
+    const deltaValue = value - investedCapital;
+    const deltaPercent = investedCapital > 0 ? (deltaValue / investedCapital) * 100 : 0;
+    const tickers = Array.from(new Set(linkedAssets.map((asset) => asset.ticker).filter(Boolean)));
+
+    return {
+      id: `monitor-${modelItem.category}`,
+      name: modelItem.label,
+      category: modelItem.category,
+      value,
+      investedCapital,
+      deltaValue,
+      deltaPercent,
+      weight: Number(modelItem.percentage || 0),
+      modelPercentage,
+      color: getAssetColor(modelItem.category),
+      ticker: tickers.length === 1 ? tickers[0] : tickers.length > 1 ? `${tickers.length} ticker` : "",
+      kind: linkedAssets.some((asset) => asset.kind === "api") ? "api" as DynamicModelAssetKind : "manual" as DynamicModelAssetKind,
+      percentage: currentValue > 0 ? (value / currentValue) * 100 : modelPercentage,
+      shareRatio: currentValue > 0 ? value / currentValue : modelPercentage / 100,
+    } satisfies MonitorEngineAssetRow;
+  });
+
+  // Se nel Monitor ci sono lotti reali, la sezione sotto il grafico deve mostrare gli strumenti
+  // effettivamente registrati, non una sola card aggregata per categoria. La torta/area del grafico
+  // può restare aggregata per categoria, ma la card di dettaglio deve distinguere Vanguard da Nvidia,
+  // ETF diversi, obbligazioni diverse, ecc. Questo evita anche il falso "VT" quando un movimento
+  // appartiene a uno strumento personale nella stessa categoria.
+  const rows = (instrumentRows.length ? instrumentRows : categoryRows)
+    .filter((asset) => asset.value > 0 || asset.investedCapital > 0 || asset.modelPercentage > 0)
+    .sort((a, b) => {
+      const aScore = a.value > 0 ? a.value : a.modelPercentage;
+      const bScore = b.value > 0 ? b.value : b.modelPercentage;
+      return bScore - aScore;
+    });
+
+  const visibleRowsTotal = rows.reduce((sum, asset) => sum + Math.max(0, Number(asset.value || 0)), 0);
+  const assetRows = rows.map((asset) => ({
+    ...asset,
+    percentage: visibleRowsTotal > 0 ? (Math.max(0, Number(asset.value || 0)) / visibleRowsTotal) * 100 : asset.percentage,
+    shareRatio: visibleRowsTotal > 0 ? Math.max(0, Number(asset.value || 0)) / visibleRowsTotal : asset.shareRatio,
+  }));
+
+  const deltaValue = currentValue - totalInvested;
+  const deltaPercent = totalInvested > 0 ? (deltaValue / totalInvested) * 100 : 0;
+
+  return {
+    chartPoints,
+    totalInvested,
+    currentValue,
+    deltaValue,
+    deltaPercent,
+    assetRows,
+  };
+}
+
+type SvgPoint = { x: number; y: number };
+
+function buildSmoothSvgPath(points: SvgPoint[], startWithMove = true) {
+  if (!points.length) return "";
+  if (points.length === 1) {
+    return `${startWithMove ? "M" : "L"} ${points[0].x} ${points[0].y}`;
+  }
+
+  let d = `${startWithMove ? "M" : "L"} ${points[0].x} ${points[0].y}`;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    const controlX = (current.x + next.x) / 2;
+    d += ` C ${controlX} ${current.y}, ${controlX} ${next.y}, ${next.x} ${next.y}`;
+  }
+  return d;
+}
+
+function buildSmoothClosedAreaPath(topPoints: SvgPoint[], bottomPoints: SvgPoint[]) {
+  if (!topPoints.length || !bottomPoints.length) return "";
+  return `${buildSmoothSvgPath(topPoints, true)} ${buildSmoothSvgPath(bottomPoints, false)} Z`;
+}
+
+function buildLinearSvgPath(points: SvgPoint[], startWithMove = true) {
+  if (!points.length) return "";
+  return points
+    .map((point, index) => `${index === 0 && startWithMove ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
+}
+
+function buildStepSvgPath(points: SvgPoint[], startWithMove = true) {
+  if (!points.length) return "";
+  if (points.length === 1) return `${startWithMove ? "M" : "L"} ${points[0].x} ${points[0].y}`;
+
+  let d = `${startWithMove ? "M" : "L"} ${points[0].x} ${points[0].y}`;
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    d += ` L ${current.x} ${previous.y} L ${current.x} ${current.y}`;
+  }
+  return d;
+}
+
+function expandStepSvgPoints(points: SvgPoint[]) {
+  if (!points.length) return [];
+  const expanded: SvgPoint[] = [points[0]];
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    expanded.push({ x: current.x, y: previous.y }, current);
+  }
+  return expanded;
+}
+
+function buildStepClosedAreaPath(topPoints: SvgPoint[], bottomPoints: SvgPoint[]) {
+  if (!topPoints.length || !bottomPoints.length) return "";
+
+  const topExpanded = expandStepSvgPoints(topPoints);
+  const bottomExpanded = expandStepSvgPoints(bottomPoints).reverse();
+  const allPoints = [...topExpanded, ...bottomExpanded];
+
+  return allPoints
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ") + " Z";
+}
+
+type MonitorChartRange = "day" | "week" | "month" | "year";
+
+function getMonitorRangeStartTime(range: MonitorChartRange, nowTime = Date.now()) {
+  const days = range === "day" ? 1 : range === "week" ? 7 : range === "month" ? 31 : 365;
+  return nowTime - days * 24 * 60 * 60 * 1000;
+}
+
+function thinMonitorChartPoints(points: DynamicChartPoint[], maxPoints: number) {
+  if (points.length <= maxPoints) return points;
+
+  const keepIndexes = new Set<number>([0, points.length - 1]);
+  points.forEach((point, index) => {
+    const previous = points[index - 1];
+    if (!previous) return;
+    if (Math.abs(Number(point.invested || 0) - Number(previous.invested || 0)) >= 0.01) {
+      keepIndexes.add(Math.max(0, index - 1));
+      keepIndexes.add(index);
+    }
+  });
+
+  const remainingSlots = Math.max(0, maxPoints - keepIndexes.size);
+  if (remainingSlots > 0) {
+    const step = Math.max(1, Math.ceil(points.length / remainingSlots));
+    points.forEach((_, index) => {
+      if (index % step === 0) keepIndexes.add(index);
+    });
+  }
+
+  return Array.from(keepIndexes)
+    .sort((a, b) => a - b)
+    .map((index) => points[index])
+    .filter(Boolean);
+}
+
+function getMonitorChartPointsForRange(points: DynamicChartPoint[], range: MonitorChartRange) {
+  const sortedPoints = points
+    .filter((point) => Number.isFinite(getValidDateTime(point.fetchedAt)))
+    .slice()
+    .sort((a, b) => getValidDateTime(a.fetchedAt) - getValidDateTime(b.fetchedAt));
+
+  if (!sortedPoints.length) return [];
+
+  const rangeStartTime = getMonitorRangeStartTime(range);
+  const visiblePoints = sortedPoints.filter((point) => getValidDateTime(point.fetchedAt) >= rangeStartTime);
+
+  // Se nel periodo selezionato esistono punti reali, non tagliamo più per numero fisso
+  // con slice(-12): manteniamo le vere date, soprattutto i giorni dei versamenti.
+  // Questo evita che nel mensile un versamento del 13 maggio sembri presente già dal 1 maggio.
+  const basePoints = visiblePoints.length ? visiblePoints : [sortedPoints[sortedPoints.length - 1]];
+  const maxPoints = range === "day" ? 48 : range === "week" ? 42 : range === "month" ? 70 : 96;
+  return thinMonitorChartPoints(basePoints, maxPoints);
+}
+
+function getMonitorChartTimeBounds(points: DynamicChartPoint[]) {
+  const times = points.map((point) => getValidDateTime(point.fetchedAt)).filter(Number.isFinite);
+  const min = times.length ? Math.min(...times) : Date.now();
+  const max = times.length ? Math.max(...times) : min;
+  return { min, max };
+}
+
+function getNiceAxisCeiling(value: number, targetSteps = 5) {
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  const rawStep = value / targetSteps;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const normalized = rawStep / magnitude;
+
+  let stepBase = 10;
+  if (normalized <= 1) stepBase = 1;
+  else if (normalized <= 2) stepBase = 2;
+  else if (normalized <= 2.5) stepBase = 2.5;
+  else if (normalized <= 5) stepBase = 5;
+
+  const step = stepBase * magnitude;
+  return Math.ceil(value / step) * step;
+}
+
+function buildDynamicModelReading(state: DynamicModelState, fallbackCapital: number, currentMonthCompleted: boolean) {
+  const initialCapital = state.assets.length ? sumDynamicModelInitialCapital(state.assets) : fallbackCapital;
+  const estimatedValue = state.assets.length ? sumDynamicModelEstimatedValue(state.assets) : fallbackCapital;
+  const delta = estimatedValue - initialCapital;
+  const deltaPercent = initialCapital > 0 ? (delta / initialCapital) * 100 : 0;
+  const lastMovement = [...state.movements].sort((a, b) => new Date(b.insertedAt).getTime() - new Date(a.insertedAt).getTime())[0];
+  const hasBackdatedMovement = lastMovement && lastMovement.movementDate && !isSameMonthKey(lastMovement.movementDate, `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}`);
+
+  let title = "Modello pronto da seguire";
+  let text = "Il grafico serve a leggere il percorso nel suo insieme, non a inseguire i singoli strumenti.";
+  let action = currentMonthCompleted
+    ? "PAC del mese segnato: ora la priorità è mantenere metodo e coerenza."
+    : "Se il PAC del mese non è ancora stato fatto, la priorità resta completarlo con l'importo sostenibile che hai scelto.";
+
+  if (state.assets.length === 0) {
+    title = "Configura il modello dinamico";
+    text = "Per ora il Monitor usa il capitale registrato. Nel Pro puoi creare un modello personalizzato con strumenti scelti da te; nel Core puoi seguire il modello Soldi Semplici.";
+    action = "Vai in Modello per scegliere la struttura e in Strumenti per collegare gli asset al modello.";
+  } else if (hasBackdatedMovement) {
+    title = "Movimento arretrato registrato";
+    text = "Hai inserito un movimento con data passata. Il grafico è stato aggiornato da quella data, ma la variazione di oggi viene letta separatamente.";
+  } else if (Math.abs(deltaPercent) < 0.5) {
+    title = "Giornata quasi stabile";
+    text = "Il modello si è mosso poco. In queste fasi la continuità conta più dell'osservazione dei piccoli movimenti.";
+  } else if (deltaPercent <= -1.5) {
+    title = "Oscillazione negativa da leggere con calma";
+    text = "Il modello è sceso per effetto delle oscillazioni. Torna al piano e verifica se obiettivo, orizzonte o capacità di versamento sono ancora coerenti.";
+  } else if (deltaPercent >= 1.5) {
+    title = "Movimento positivo, senza euforia";
+    text = "Il modello è cresciuto. Bene, ma la crescita recente non deve spingerti ad aumentare il rischio senza una ragione legata al piano.";
+  } else if (delta > 0) {
+    title = "Percorso in lieve crescita";
+    text = "Il modello è leggermente sopra la base inserita. Il dato è utile, ma il punto centrale resta seguire il metodo nel tempo.";
+  } else {
+    title = "Percorso in lieve flessione";
+    text = "Il modello è leggermente sotto la base inserita. Una singola variazione non basta per giudicare il piano.";
+  }
+
+  return { title, text, action, deltaPercent };
 }
 
 function getChecklistStorageKey(userId: string, portfolioKey: FinalPortfolioKey) {
@@ -2581,6 +4483,7 @@ const [authReady, setAuthReady] = useState(false);
 
   const [step, setStep] = useState<AppStep>("home");
   const [dashboardActiveTab, setDashboardActiveTab] = useState<DashboardTab>("monitor");
+  const [pendingDashboardSection, setPendingDashboardSection] = useState<string | null>(null);
   const [showPacHistoryMonths, setShowPacHistoryMonths] = useState(false);
   const dashboardRouteKeyRef = useRef("");
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -2621,14 +4524,67 @@ const [authReady, setAuthReady] = useState(false);
   const goalLoadRequestIdRef = useRef(0);
   const lastScamPerfectGameSignatureRef = useRef<string | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [dynamicModel, setDynamicModel] = useState<DynamicModelState>(() => buildEmptyDynamicModelState());
+  const [customModelDraftWeights, setCustomModelDraftWeights] = useState<Partial<Record<StrumentiCategory, string>>>({});
+  const [customModelDraftNotice, setCustomModelDraftNotice] = useState("");
+  const [personalModelCategoryToAdd, setPersonalModelCategoryToAdd] = useState<StrumentiCategory>("Azioni Globali");
+  const [personalModelPercentageToAdd, setPersonalModelPercentageToAdd] = useState("");
+  const [dynamicModelDraft, setDynamicModelDraft] = useState({
+    name: "",
+    ticker: "",
+    category: "Azioni Globali" as StrumentiCategory,
+    weight: "",
+    initialValue: "",
+    kind: "api" as DynamicModelAssetKind,
+    grossRate: "",
+    holdingId: "",
+  });
+  const [dynamicMovementDraft, setDynamicMovementDraft] = useState({
+    type: "deposit" as DynamicModelMovementType,
+    amount: "",
+    movementDate: new Date().toISOString().slice(0, 10),
+    assetId: "",
+    allocationMode: "by_model" as DynamicModelAllocationMode,
+    note: "",
+  });
+  const [dynamicAlignmentDraft, setDynamicAlignmentDraft] = useState({
+    assetId: "",
+    value: "",
+    investedCapital: "",
+  });
+  const [dynamicModelMessage, setDynamicModelMessage] = useState("");
+  const [monitorRange, setMonitorRange] = useState<"day" | "week" | "month" | "year">("week");
+  const [monitorMovementsOpen, setMonitorMovementsOpen] = useState(false);
+  const [monitorMovementsShowAll, setMonitorMovementsShowAll] = useState(false);
+  const [manualValueCorrectionOpen, setManualValueCorrectionOpen] = useState(false);
+  const [marketPriceCache, setMarketPriceCache] = useState<Record<string, MarketPriceCacheEntry>>({});
+  const [marketSnapshotCache, setMarketSnapshotCache] = useState<Record<string, MarketPriceSnapshotEntry[]>>({});
   const [customInstruments, setCustomInstruments] = useState<CustomInstrument[]>([]);
   const [customInstrumentDraft, setCustomInstrumentDraft] = useState({
     category: "Azioni Globali" as StrumentiCategory,
     name: "",
     isin: "",
+    tickerApi: "",
     note: "",
+    incomeEnabled: false,
+    incomeType: "none" as IncomeType,
+    incomeFrequency: "quarterly" as IncomeFrequency,
+    grossAmountPerUnit: "",
+    referenceUnitPrice: "",
+    annualRate: "",
+    nextExDate: "",
+    nextPaymentDate: "",
+    maturityDate: "",
+    expectedMaturityValue: "",
+    taxRate: "26",
+    stampDutyMode: "ignore" as StampDutyMode,
+    currency: "EUR",
+    exchangeRateToEur: "1",
+    incomeNotes: "",
   });
+  const [editingCustomInstrumentId, setEditingCustomInstrumentId] = useState<string | null>(null);
   const [customInstrumentMessage, setCustomInstrumentMessage] = useState("");
+  const customInstrumentFormRef = useRef<HTMLDivElement | null>(null);
   const [checklistState, setChecklistState] = useState<Record<string, boolean>>({});
   const [guideActionVisited, setGuideActionVisited] = useState<Record<string, boolean>>({});
   const [pacHistory, setPacHistory] = useState<PacMonth[]>([]);
@@ -2669,6 +4625,7 @@ const [authReady, setAuthReady] = useState(false);
   const [mortgageDownPayment, setMortgageDownPayment] = useState("50000");
   const [mortgagePrincipal, setMortgagePrincipal] = useState("200000");
   const [mortgageRate, setMortgageRate] = useState("3.5");
+  const [mortgageTaeg, setMortgageTaeg] = useState("");
   const [mortgageYears, setMortgageYears] = useState("25");
   const [mortgageRateType, setMortgageRateType] = useState("fisso");
   const [mortgageCapRate, setMortgageCapRate] = useState("5.5");
@@ -2706,6 +4663,7 @@ const [authReady, setAuthReady] = useState(false);
     category: "Azioni Globali" as StrumentiCategory,
     strumentiName: strumentiLibrary["Azioni Globali"][0].name,
     isin: strumentiLibrary["Azioni Globali"][0].isin,
+    tickerApi: strumentiLibrary["Azioni Globali"][0].tickerApi || "",
     amount: "",
   });
 
@@ -2771,7 +4729,9 @@ const [authReady, setAuthReady] = useState(false);
           id: instrument.id,
           name: instrument.name,
           isin: instrument.isin,
+          tickerApi: instrument.tickerApi,
           note: instrument.note,
+          incomeConfig: instrument.incomeConfig,
           source: "custom",
         },
       ];
@@ -2942,6 +4902,8 @@ const [authReady, setAuthReady] = useState(false);
 
       const savedPurchase = localStorage.getItem(getPurchaseKey(currentUser.id));
       const savedHoldings = localStorage.getItem(getHoldingsKey(currentUser.id));
+      const savedDynamicModel = localStorage.getItem(getDynamicModelStorageKey(currentUser.id));
+      const savedDynamicMode = getSavedDynamicModelMode(savedDynamicModel);
 
       try {
         if (savedPurchase) {
@@ -2960,8 +4922,14 @@ const [authReady, setAuthReady] = useState(false);
         }));
       }
 
-      if (savedHoldings) setHoldings(JSON.parse(savedHoldings));
-      else setHoldings([]);
+      if (savedHoldings) {
+        try {
+          const parsedHoldings = JSON.parse(savedHoldings) as Holding[];
+          setHoldings(parsedHoldings.map((item) => normalizeHoldingScope(item, savedDynamicMode)));
+        } catch {
+          setHoldings([]);
+        }
+      } else setHoldings([]);
 
       try {
         // Dati essenziali per decidere la schermata iniziale: profilo e piano.
@@ -2975,6 +4943,7 @@ const [authReady, setAuthReady] = useState(false);
 
       // Dati non essenziali: possono caricarsi in background senza bloccare la UI.
       loadHoldingsFromDb(currentUser);
+      loadDynamicModelFromDb(currentUser);
       loadCustomInstrumentsFromDb(currentUser);
       loadShoppingItemsFromDb(currentUser);
     }
@@ -3174,6 +5143,102 @@ const [authReady, setAuthReady] = useState(false);
     if (!user) return;
     localStorage.setItem(getHoldingsKey(user.id), JSON.stringify(holdings));
   }, [holdings, user]);
+
+
+  useEffect(() => {
+    if (!user) return;
+    localStorage.setItem(getDynamicModelStorageKey(user.id), JSON.stringify(dynamicModel));
+  }, [dynamicModel, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const appModelTickers = selectedPortfolio.composition
+      .map((item) => getDefaultMarketAssetForCategory(item.category)?.ticker)
+      .filter((ticker): ticker is string => !!ticker);
+
+    const customTickers = dynamicModel.assets
+      .filter((asset) => asset.apiEnabled && asset.kind === "api" && asset.ticker)
+      .map((asset) => asset.ticker.toUpperCase());
+
+    const customInstrumentTickers = customInstruments
+      .map((instrument) => normalizeTickerApi(instrument.tickerApi))
+      .filter(isLikelyTickerApi);
+
+    const holdingTickers = holdings
+      .map((holding) => normalizeTickerApi(holding.tickerApi))
+      .filter(isLikelyTickerApi);
+
+    const tickers = Array.from(new Set([...appModelTickers, ...customTickers, ...customInstrumentTickers, ...holdingTickers]));
+    if (tickers.length === 0) return;
+
+    let cancelled = false;
+
+    async function loadMarketPrices() {
+      try {
+        const { data, error } = await supabase
+          .from("market_assets")
+          .select("ticker,last_price,currency,provider,last_price_at")
+          .in("ticker", tickers);
+
+        if (cancelled) return;
+
+        if (error) {
+          console.warn("Prezzi modello non disponibili da Supabase:", error.message);
+          return;
+        }
+
+        const nextCache: Record<string, MarketPriceCacheEntry> = {};
+        (data || []).forEach((row: any) => {
+          const price = Number(row.last_price || 0);
+          if (!row.ticker || price <= 0) return;
+          nextCache[String(row.ticker).toUpperCase()] = {
+            ticker: String(row.ticker).toUpperCase(),
+            price,
+            currency: row.currency || "EUR",
+            provider: row.provider || undefined,
+            fetchedAt: row.last_price_at || undefined,
+          };
+        });
+
+        setMarketPriceCache((prev) => ({ ...prev, ...nextCache }));
+
+        const { data: snapshotData, error: snapshotError } = await supabase
+          .from("market_price_snapshots")
+          .select("ticker,price,fetched_at")
+          .in("ticker", tickers)
+          .order("fetched_at", { ascending: true })
+          .limit(500);
+
+        if (cancelled) return;
+
+        if (snapshotError) {
+          console.warn("Storico prezzi non ancora disponibile da Supabase:", snapshotError.message);
+          return;
+        }
+
+        const nextSnapshots: Record<string, MarketPriceSnapshotEntry[]> = {};
+        (snapshotData || []).forEach((row: any) => {
+          const ticker = String(row.ticker || "").toUpperCase();
+          const price = Number(row.price || 0);
+          const fetchedAt = String(row.fetched_at || "");
+          if (!ticker || price <= 0 || !fetchedAt) return;
+          if (!nextSnapshots[ticker]) nextSnapshots[ticker] = [];
+          nextSnapshots[ticker].push({ ticker, price, fetchedAt });
+        });
+
+        setMarketSnapshotCache((prev) => ({ ...prev, ...nextSnapshots }));
+      } catch (error) {
+        if (!cancelled) console.warn("Caricamento prezzi modello rimandato:", getErrorMessage(error));
+      }
+    }
+
+    void loadMarketPrices();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [customInstruments, dynamicModel.assets, holdings, selectedPortfolio.composition, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -3513,6 +5578,7 @@ const [authReady, setAuthReady] = useState(false);
     downPayment: safeNumber(mortgageDownPayment),
     principal: safeNumber(mortgagePrincipal),
     annualRate: safeNumber(mortgageRate),
+    taeg: safeNumber(mortgageTaeg),
     years: Math.max(safeNumber(mortgageYears), 1),
     rateType: mortgageRateType,
     capRate: safeNumber(mortgageCapRate),
@@ -3532,20 +5598,36 @@ const [authReady, setAuthReady] = useState(false);
   const mortgageSuggestedPrincipal = Math.max(mortgage.homePrice - mortgage.downPayment, 0);
   const mortgagePrincipalForCalc = mortgage.principal > 0 ? mortgage.principal : mortgageSuggestedPrincipal;
   const mortgageEstimatedPayment = calcMortgagePayment(mortgagePrincipalForCalc, mortgage.annualRate, mortgage.years);
+  const mortgageHasTaeg = mortgage.taeg > 0 && mortgagePrincipalForCalc > 0;
+  const mortgageEstimatedPaymentFromTaeg = mortgageHasTaeg ? calcMortgagePayment(mortgagePrincipalForCalc, mortgage.taeg, mortgage.years) : 0;
   const mortgageUsesDeclaredPayment = mortgage.declaredPayment > 0;
   const mortgageMonthlyPayment = mortgageUsesDeclaredPayment ? mortgage.declaredPayment : mortgageEstimatedPayment;
+  const mortgageTaegMonthlyExtra = mortgageHasTaeg ? Math.max(mortgageEstimatedPaymentFromTaeg - mortgageEstimatedPayment, 0) : 0;
+  const mortgageFinancingMonthlyForSustainability = mortgageHasTaeg
+    ? Math.max(mortgageMonthlyPayment, mortgageEstimatedPaymentFromTaeg)
+    : mortgageMonthlyPayment;
+  const mortgageSustainabilityTaegTanDifference = mortgageHasTaeg && mortgage.annualRate > 0 ? mortgage.taeg - mortgage.annualRate : 0;
+  const mortgageTaegReading = !mortgageHasTaeg
+    ? "Inserisci il TAEG se lo hai nel PIES: aiuta a stimare il costo reale del mutuo oltre alla sola rata calcolata con il TAN."
+    : mortgageSustainabilityTaegTanDifference > 0.8
+    ? "Il TAEG e sensibilmente superiore al TAN: i costi collegati al mutuo incidono in modo importante sul costo reale. Controlla spese, polizze e prodotti collegati."
+    : mortgageSustainabilityTaegTanDifference > 0.3
+    ? "Il TAEG e piu alto del TAN: e normale, ma significa che alcuni costi accessori stanno incidendo. Usalo per confrontare offerte diverse."
+    : "TAEG e TAN sono vicini: i costi accessori sembrano contenuti rispetto al tasso nominale, ma resta utile verificare le singole voci nel PIES.";
   const mortgageMonths = mortgage.years * 12;
   const mortgageTotalPaid = mortgageMonthlyPayment * mortgageMonths;
+  const mortgagePrudentialTotalPaid = mortgageFinancingMonthlyForSustainability * mortgageMonths;
   const mortgageTotalInterest = Math.max(mortgageTotalPaid - mortgagePrincipalForCalc, 0);
   const mortgageRecurringMonthly = mortgage.recurringYearly / 12 + mortgage.condoMonthly + mortgage.utilitiesMonthly + mortgage.insuranceYearly / 12 + mortgage.maintenanceYearly / 12;
-  const mortgageRealMonthlyHomeCost = mortgageMonthlyPayment + mortgageRecurringMonthly;
+  const mortgageRealMonthlyHomeCost = mortgageFinancingMonthlyForSustainability + mortgageRecurringMonthly;
   const mortgageInitialCostsMonthly = mortgage.initialCosts / mortgageMonths;
   const mortgageRealMonthlyWithInitialCosts = mortgageRealMonthlyHomeCost + mortgageInitialCostsMonthly;
   const mortgageFrontCashNeeded = mortgage.downPayment + mortgage.initialCosts;
-  const mortgageRealTotalHomeCost = mortgageTotalPaid + mortgage.initialCosts + mortgageRecurringMonthly * mortgageMonths;
+  const mortgageRealTotalHomeCost = mortgagePrudentialTotalPaid + mortgage.initialCosts + mortgageRecurringMonthly * mortgageMonths;
   const mortgagePaymentIncomeRatio = mortgage.monthlyIncome > 0 ? mortgageMonthlyPayment / mortgage.monthlyIncome : 0;
+  const mortgagePrudentialPaymentIncomeRatio = mortgage.monthlyIncome > 0 ? mortgageFinancingMonthlyForSustainability / mortgage.monthlyIncome : 0;
   const mortgageHomeIncomeRatio = mortgage.monthlyIncome > 0 ? mortgageRealMonthlyHomeCost / mortgage.monthlyIncome : 0;
-  const mortgageDebtIncomeRatio = mortgage.monthlyIncome > 0 ? (mortgageMonthlyPayment + mortgage.otherDebtsMonthly) / mortgage.monthlyIncome : 0;
+  const mortgageDebtIncomeRatio = mortgage.monthlyIncome > 0 ? (mortgageFinancingMonthlyForSustainability + mortgage.otherDebtsMonthly) / mortgage.monthlyIncome : 0;
   const mortgageMonthlyMargin = mortgage.monthlyIncome - mortgage.fixedExpensesMonthly - mortgage.otherDebtsMonthly - mortgageRealMonthlyHomeCost;
   const mortgageEmergencyNeeded = (mortgage.fixedExpensesMonthly + mortgage.otherDebtsMonthly + mortgageRealMonthlyHomeCost) * mortgage.emergencyMonths;
   const mortgageEmergencyGap = mortgage.liquidAfterPurchase - mortgageEmergencyNeeded;
@@ -4726,7 +6808,7 @@ const [authReady, setAuthReady] = useState(false);
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 
   const openMortgagePdfReport = () => {
@@ -5457,15 +7539,349 @@ const [authReady, setAuthReady] = useState(false);
     retakeIsBlocked && daysSinceLastRetake !== null
       ? retakeCooldownDays - daysSinceLastRetake
       : 0;
-  const totalInvested = holdings.reduce((sum, item) => sum + item.amount, 0);
+  const activeModelMode = dynamicModel.mode;
+  const activeHoldings = useMemo(
+    // I dati vecchi senza modelMode non devono comparire in entrambi i mondi.
+    // Li trattiamo come modello app per evitare che inquinino il modello personale.
+    () => holdings.filter((item) => getHoldingModelMode(item, "app") === activeModelMode),
+    [holdings, activeModelMode]
+  );
+  const activeDynamicMovements = useMemo(
+    // Stessa regola per i movimenti legacy: se non hanno ambito esplicito, restano nel mondo app.
+    () => dynamicModel.movements.filter((item) => getMovementModelMode(item, "app") === activeModelMode),
+    [dynamicModel.movements, activeModelMode]
+  );
+  const activeDynamicModelState = useMemo(
+    () => ({ ...dynamicModel, movements: activeDynamicMovements }),
+    [dynamicModel, activeDynamicMovements]
+  );
+  const activeModelLabel = activeModelMode === "custom" ? "modello personale" : "modello app";
+  const totalInvested = activeHoldings.reduce((sum, item) => sum + item.amount, 0);
+  const monitorCapitalByCategory = useMemo(
+    () => getMonitorCapitalByCategory(activeHoldings, activeDynamicMovements),
+    [activeHoldings, activeDynamicMovements]
+  );
+  const effectiveMonitorBaseCapital = Math.max(0, sumMonitorCapitalByCategory(monitorCapitalByCategory));
+
+  const isProPlanActive = purchase.unlocked && purchase.plan === "pro";
+  const monitorDynamicModel = useMemo(() => {
+    // Quando l'utente sceglie "Usa modello app", il Monitor deve ignorare
+    // le eventuali percentuali del modello personale salvate in dynamicModel.assets.
+    // Quelle percentuali restano memorizzate per poter tornare al modello personale,
+    // ma non devono continuare a guidare Dashboard, grafico, ripartizione e consigli.
+    const baseAssets = activeModelMode === "app"
+      ? buildAppDynamicModelAssets(selectedPortfolio, effectiveMonitorBaseCapital, marketPriceCache)
+      : applyMarketPricesToDynamicAssets(dynamicModel.assets, marketPriceCache);
+
+    return {
+      ...activeDynamicModelState,
+      assets: applyPortfolioAndMovementCapitalToAssets(baseAssets, activeHoldings, activeDynamicMovements),
+    };
+  }, [activeDynamicModelState, activeDynamicMovements, activeHoldings, activeModelMode, dynamicModel.assets, effectiveMonitorBaseCapital, marketPriceCache, selectedPortfolio]);
+
+  const dynamicModelCategoryComposition = useMemo(() => {
+    const grouped: Partial<Record<StrumentiCategory, number>> = {};
+    const assets = dynamicModel.mode === "custom" ? dynamicModel.assets : monitorDynamicModel.assets;
+    assets.forEach((asset) => {
+      grouped[asset.category] = (grouped[asset.category] || 0) + Number(asset.weight || 0);
+    });
+
+    const entries = Object.keys(strumentiLibrary)
+      .map((category) => ({
+        label: category,
+        category: category as StrumentiCategory,
+        percentage: Math.round(Number(grouped[category as StrumentiCategory] || 0) * 10) / 10,
+      }))
+      .filter((item) => item.percentage > 0);
+
+    return entries;
+  }, [dynamicModel.assets, dynamicModel.mode, monitorDynamicModel.assets]);
+  const dynamicModelCategoryWeightTotal = dynamicModelCategoryComposition.reduce((sum, item) => sum + Number(item.percentage || 0), 0);
+  const personalModelHasSavedModel = dynamicModel.assets.length > 0;
+  const personalModelDraftComposition = (Object.keys(strumentiLibrary) as StrumentiCategory[])
+    .map((category) => ({
+      label: category,
+      category,
+      percentage: Number((customModelDraftWeights[category] ?? "") || 0),
+    }))
+    .filter((item) => item.percentage > 0);
+  const personalModelDraftWeightTotal = (Object.keys(strumentiLibrary) as StrumentiCategory[])
+    .reduce((sum, category) => sum + Number((customModelDraftWeights[category] ?? "") || 0), 0);
+  const personalModelReadyForPortfolio = dynamicModel.mode === "custom" && personalModelDraftComposition.length > 0 && Math.abs(personalModelDraftWeightTotal - 100) <= 0.2;
+  const personalModelCompositionForDisplay = personalModelDraftComposition.length > 0
+    ? personalModelDraftComposition
+    : dynamicModelCategoryComposition;
+  const displayedModelComposition = dynamicModel.mode === "custom"
+    ? personalModelCompositionForDisplay
+    : selectedPortfolio.composition;
+  const dashboardActiveModelSummary = useMemo(() => {
+    if (dynamicModel.mode !== "custom") {
+      return {
+        profileLabel: `Profilo: ${selectedPortfolio.shortTitle}`,
+        profileBadge: selectedPortfolio.badge,
+        modeNote: "Stai seguendo il modello generato dall'app.",
+      };
+    }
+
+    const summary = calculatePersonalModelWeightSummary(displayedModelComposition);
+    if (summary.totalWeight <= 0) {
+      return {
+        profileLabel: "Profilo: Modello personale",
+        profileBadge: "Da completare",
+        modeNote: "Stai costruendo il modello personale. Gli investimenti del modello app restano separati.",
+      };
+    }
+
+    const dominantCategory = [...displayedModelComposition]
+      .filter((item) => Number(item.percentage || 0) > 0)
+      .sort((a, b) => Number(b.percentage || 0) - Number(a.percentage || 0))[0];
+    const dominantLabel = dominantCategory
+      ? `${Math.round(Number(dominantCategory.percentage || 0))}% ${dominantCategory.label || dominantCategory.category}`
+      : "Personalizzato da te";
+
+    let riskDescription = "Personalizzato da te";
+    if (summary.liquidityWeight >= 0.35) {
+      riskDescription = "Difensivo · Attenzione all'inflazione";
+    } else if (summary.growthWeight >= 0.8) {
+      riskDescription = "Molto orientato alla crescita · Alta volatilità";
+    } else if (summary.growthWeight >= 0.6) {
+      riskDescription = "Crescita bilanciata · Volatilità media";
+    } else if (summary.growthWeight >= 0.4) {
+      riskDescription = "Equilibrato · Crescita e stabilità";
+    } else if (summary.defensiveWeight + summary.liquidityWeight >= 0.6) {
+      riskDescription = "Prudente · Maggiore stabilità";
+    } else if (summary.durationWeight >= 0.35) {
+      riskDescription = "Conservativo · Sensibile ai tassi";
+    }
+
+    const compositionPrefix = summary.activeCategories === 1
+      ? dominantLabel
+      : `${summary.activeCategories} categorie`;
+
+    return {
+      profileLabel: "Profilo: Modello personale",
+      profileBadge: `${compositionPrefix} · ${riskDescription}`,
+      modeNote: "Stai seguendo il modello personale. Gli investimenti del modello app restano separati.",
+    };
+  }, [displayedModelComposition, dynamicModel.mode, selectedPortfolio.badge, selectedPortfolio.shortTitle]);
+  const displayedModelStats = dynamicModel.mode === "custom"
+    ? estimatePersonalModelStats(displayedModelComposition)
+    : selectedPortfolio.historical;
+  const personalModelEducationalPanels = getPersonalModelEducationalPanels(displayedModelComposition);
+  const displayedStructureSummary = dynamicModel.mode === "custom" ? personalModelEducationalPanels.structureSummary : selectedPortfolio.structureSummary;
+  const displayedAttentionItems = dynamicModel.mode === "custom" ? personalModelEducationalPanels.attention : selectedPortfolio.attention;
+  const displayedAnnualRebalanceNote = dynamicModel.mode === "custom" ? personalModelEducationalPanels.annualRebalanceNote : selectedPortfolio.annualRebalanceNote;
+  const rebalanceTargetComposition = useMemo(() => {
+    const source = dynamicModel.mode === "custom" ? displayedModelComposition : selectedPortfolio.composition;
+    return source
+      .filter((item) => Number(item.percentage || 0) > 0)
+      .map((item) => ({
+        label: item.label,
+        category: item.category,
+        percentage: Number(item.percentage || 0),
+      }));
+  }, [displayedModelComposition, dynamicModel.mode, selectedPortfolio.composition]);
+  const rebalanceModelLabel = dynamicModel.mode === "custom" ? "modello personale" : "modello app";
+  const displayedPortfolioRate = dynamicModel.mode === "custom" ? estimatePersonalModelAnnualRate(displayedModelComposition) : getPortfolioRate(selectedPortfolio.profileFamily);
+  const monitorActiveComposition = useMemo(() => {
+    return (dynamicModel.mode === "custom" ? displayedModelComposition : selectedPortfolio.composition)
+      .filter((item) => Number(item.percentage || 0) > 0)
+      .map((item) => ({
+        label: item.label,
+        category: item.category,
+        percentage: Number(item.percentage || 0),
+      }));
+  }, [displayedModelComposition, dynamicModel.mode, selectedPortfolio.composition]);
+  const monitorEngine = useMemo(
+    () => buildMonitorEngine(monitorDynamicModel, effectiveMonitorBaseCapital, marketSnapshotCache, activeHoldings, monitorActiveComposition),
+    [effectiveMonitorBaseCapital, activeHoldings, marketSnapshotCache, monitorActiveComposition, monitorDynamicModel]
+  );
+  const dynamicChartPoints = monitorEngine.chartPoints;
+
+  const monitorRangeLabels: Record<typeof monitorRange, string> = {
+    day: "Giorno",
+    week: "Settimana",
+    month: "Mese",
+    year: "Anno",
+  };
+  const monitorChartPoints = getMonitorChartPointsForRange(dynamicChartPoints, monitorRange);
+  const monitorChartRawMax = Math.max(1, ...monitorChartPoints.flatMap((point) => [point.invested, point.value]));
+  const monitorChartMax = getNiceAxisCeiling(monitorChartRawMax * 1.15, 5);
+  const monitorChartMin = 0;
+  const monitorChartRange = Math.max(1, monitorChartMax - monitorChartMin);
+  const monitorPlot = { left: 8, right: 116, top: 10, bottom: 95 };
+  const monitorPlotWidth = monitorPlot.right - monitorPlot.left;
+  const monitorPlotHeight = monitorPlot.bottom - monitorPlot.top;
+  const monitorChartTimeBounds = getMonitorChartTimeBounds(monitorChartPoints);
+  const getMonitorX = (index: number) => {
+    const pointTime = getValidDateTime(monitorChartPoints[index]?.fetchedAt);
+    const timeRange = monitorChartTimeBounds.max - monitorChartTimeBounds.min;
+    if (!Number.isFinite(pointTime) || timeRange <= 0) {
+      return monitorChartPoints.length <= 1 ? monitorPlot.left : monitorPlot.left + (index / (monitorChartPoints.length - 1)) * monitorPlotWidth;
+    }
+    return monitorPlot.left + ((pointTime - monitorChartTimeBounds.min) / timeRange) * monitorPlotWidth;
+  };
+  const getMonitorY = (value: number) => monitorPlot.bottom - ((value - monitorChartMin) / monitorChartRange) * monitorPlotHeight;
+  const monitorYAxisTicks = [1, 0.8, 0.6, 0.4, 0.2].map((ratio) => {
+    const value = monitorChartMax * ratio;
+    return { value, y: getMonitorY(value), label: formatEuro(value) };
+  });
+  const monitorXAxisTicks = monitorChartPoints.length
+    ? Array.from(new Set([0, Math.floor((monitorChartPoints.length - 1) / 2), monitorChartPoints.length - 1]))
+        .map((index) => ({ index, x: getMonitorX(index), label: monitorChartPoints[index]?.label || "" }))
+    : [];
+  const monitorLinePoints: SvgPoint[] = monitorChartPoints.map((point, index) => ({ x: getMonitorX(index), y: getMonitorY(point.value) }));
+  const monitorPointMarkers = monitorLinePoints.map((point, index) => ({
+    id: `monitor-point-${index}`,
+    left: `${(point.x / 120) * 100}%`,
+    top: `${(point.y / 110) * 100}%`,
+  }));
+  const monitorInvestedPoints: SvgPoint[] = monitorChartPoints.map((point, index) => ({ x: getMonitorX(index), y: getMonitorY(point.invested) }));
+  const monitorInvestedPolyline = monitorInvestedPoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const monitorValuePolyline = monitorLinePoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const monitorTopLinePath = buildStepSvgPath(monitorLinePoints);
+  const monitorInvestedPath = buildStepSvgPath(monitorInvestedPoints);
+  const monitorPremiumAssetRows = monitorEngine.assetRows;
+  const monitorDisplayedTotalValue = monitorEngine.currentValue;
+  const monitorDisplayedInitialCapital = monitorEngine.totalInvested;
+  const monitorDisplayedDeltaPercent = monitorEngine.deltaPercent;
+  const activeMonitorApiAssetCount = monitorPremiumAssetRows.filter((asset) => asset.ticker && asset.kind === "api").length;
+  const monitorPremiumUpdateFrequencyLabel = activeMonitorApiAssetCount === 0
+    ? "Manuale / conto deposito"
+    : activeMonitorApiAssetCount <= 5
+      ? "2 aggiornamenti al giorno: 12:30 e 22:30"
+      : "1 aggiornamento al giorno: 22:30";
+
+  const monitorStackedAreas = useMemo(() => {
+    const positiveRows = monitorPremiumAssetRows
+      .filter((asset) => Number(asset.shareRatio || 0) > 0)
+      .map((asset) => ({ ...asset, normalizedShare: Number(asset.shareRatio || 0) }));
+
+    const orderedRows = [...positiveRows].sort((a, b) => {
+      const valueDifference = Number(b.value || 0) - Number(a.value || 0);
+      if (Math.abs(valueDifference) > 0.01) return valueDifference;
+      return Number(b.normalizedShare || 0) - Number(a.normalizedShare || 0);
+    });
+
+    // Le aree colorate non usano più una quota fissa applicata a tutto il grafico.
+    // Ogni data usa i valori reali di categoria calcolati dal motore Monitor.
+    // Così nessuna fascia può uscire sopra la linea bianca del valore totale nei giorni di versamento.
+    const cumulativeByPoint = monitorChartPoints.map(() => 0);
+
+    return orderedRows.map((asset, assetIndex) => {
+      const isLastArea = assetIndex === orderedRows.length - 1;
+      const bottomValues = cumulativeByPoint.map((value) => value);
+      const categoryValues = monitorChartPoints.map((point, pointIndex) => {
+        const explicitValue = point.categoryValues?.[asset.category];
+        const fallbackValue = Number(point.value || 0) * Number(asset.normalizedShare || 0);
+        const rawValue = Number.isFinite(Number(explicitValue)) ? Number(explicitValue || 0) : fallbackValue;
+        const availableSpace = Math.max(0, Number(point.value || 0) - cumulativeByPoint[pointIndex]);
+        return Math.min(availableSpace, Math.max(0, rawValue));
+      });
+
+      if (isLastArea) {
+        categoryValues.forEach((_, pointIndex) => {
+          categoryValues[pointIndex] = Math.max(0, Number(monitorChartPoints[pointIndex]?.value || 0) - cumulativeByPoint[pointIndex]);
+        });
+      }
+
+      const topValues = categoryValues.map((value, pointIndex) => {
+        const topValue = Math.min(Number(monitorChartPoints[pointIndex]?.value || 0), cumulativeByPoint[pointIndex] + value);
+        cumulativeByPoint[pointIndex] = topValue;
+        return topValue;
+      });
+
+      const topPoints = topValues.map((value, index) => ({ x: getMonitorX(index), y: getMonitorY(value) }));
+      const bottomPoints = bottomValues.map((value, index) => ({ x: getMonitorX(index), y: getMonitorY(value) }));
+
+      return {
+        ...asset,
+        share: Number(asset.normalizedShare || 0),
+        topRatio: 0,
+        bottomRatio: 0,
+        points: `${topPoints.map((point) => `${point.x},${point.y}`).join(" ")} ${bottomPoints.map((point) => `${point.x},${point.y}`).join(" ")}`,
+        path: buildStepClosedAreaPath(topPoints, bottomPoints),
+      };
+    });
+  }, [monitorPremiumAssetRows, monitorChartPoints, monitorChartRange, monitorChartMin]);
+
+  const monitorMovementRows = useMemo(() => {
+    return [...activeDynamicMovements]
+      .sort((a, b) => new Date(b.movementDate || b.insertedAt).getTime() - new Date(a.movementDate || a.insertedAt).getTime())
+      .map((movement) => {
+        const holding = movement.assetId ? activeHoldings.find((item) => item.id === movement.assetId) : undefined;
+        const asset = movement.assetId
+          ? monitorDynamicModel.assets.find(
+              (item) => item.id === movement.assetId || ("holdingId" in item && item.holdingId === movement.assetId)
+            )
+          : undefined;
+        return {
+          ...movement,
+          assetName: holding?.strumentiName || asset?.name || (movement.type === "alignment" ? "Rettifica valore" : "Movimento modello"),
+          category: holding?.category || asset?.category,
+        };
+      });
+  }, [activeDynamicMovements, activeHoldings, monitorDynamicModel.assets]);
+  const monitorIncomeRows = useMemo(() => {
+    if (!isProPlanActive) return [];
+
+    const rows: Array<{
+      id: string;
+      date: Date;
+      dateLabel: string;
+      instrumentName: string;
+      typeLabel: string;
+      frequencyLabel: string;
+      note?: string;
+    }> = [];
+
+    customInstruments
+      .filter((instrument) => instrument.incomeConfig?.enabled)
+      .filter((instrument) => isCustomInstrumentInPortfolio(instrument, activeHoldings))
+      .forEach((instrument) => {
+        const config = normalizeIncomeConfig(instrument.incomeConfig);
+        if (!config?.enabled) return;
+
+        const dates = getNextIncomeDates(config, 90);
+        dates.slice(0, 6).forEach((date, index) => {
+          rows.push({
+            id: `${instrument.id}-${date.toISOString()}-${index}`,
+            date,
+            dateLabel: date.toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }),
+            instrumentName: instrument.name,
+            typeLabel: getIncomeTypeLabel(config.type),
+            frequencyLabel: getIncomeFrequencyLabel(config.frequency),
+            note: config.notes,
+          });
+        });
+      });
+
+    return rows.sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [activeHoldings, customInstruments, isProPlanActive]);
+
+  const monitorIncome30DaysCount = useMemo(() => {
+    const limit = new Date();
+    limit.setDate(limit.getDate() + 30);
+    return monitorIncomeRows.filter((row) => row.date <= limit).length;
+  }, [monitorIncomeRows]);
+
+  const monitorIncome90DaysCount = monitorIncomeRows.length;
+
+  const monitorHasEnoughHistory = monitorChartPoints.length > 1;
+  const monitorRealSnapshotCount = (Object.values(marketSnapshotCache) as MarketPriceSnapshotEntry[][]).reduce((sum, snapshots) => sum + snapshots.length, 0);
+  const monitorHistoryStatusText = monitorHasEnoughHistory
+    ? `Storico disponibile: ${monitorChartPoints.length} punti visibili nel periodo selezionato.`
+    : monitorRealSnapshotCount > 0
+      ? "C'è già un primo dato salvato: il grafico inizierà a muoversi dal prossimo aggiornamento utile."
+      : "Nessuno storico ancora disponibile: il monitoraggio partirà dal primo aggiornamento utile.";
 
   const investedByCategory = useMemo(() => {
     const grouped: Partial<Record<StrumentiCategory, number>> = {};
-    holdings.forEach((item) => {
+    activeHoldings.forEach((item) => {
       grouped[item.category] = (grouped[item.category] || 0) + item.amount;
     });
     return grouped;
-  }, [holdings]);
+  }, [activeHoldings]);
 
   const dashboardBreakdown = useMemo(() => {
     return Object.entries(investedByCategory)
@@ -5484,13 +7900,24 @@ const [authReady, setAuthReady] = useState(false);
   };
 
   const getInvestedAmountForPortfolioCategory = (targetCategory: StrumentiCategory) => {
-    return holdings.reduce((sum, item) => {
+    return activeHoldings.reduce((sum, item) => {
       return matchesPortfolioCategory(item.category, targetCategory) ? sum + item.amount : sum;
     }, 0);
   };
 
+  const activeModelComposition = useMemo(() => {
+    const source = dynamicModel.mode === "custom" ? displayedModelComposition : selectedPortfolio.composition;
+    return source
+      .filter((item) => Number(item.percentage || 0) > 0)
+      .map((item) => ({
+        label: item.label,
+        category: item.category,
+        percentage: Number(item.percentage || 0),
+      }));
+  }, [displayedModelComposition, dynamicModel.mode, selectedPortfolio.composition]);
+
   const targetCoverage = useMemo(() => {
-    return selectedPortfolio.composition.map((item) => {
+    return activeModelComposition.map((item) => {
       const currentAmount = getInvestedAmountForPortfolioCategory(item.category);
       const currentPercentage = totalInvested > 0 ? Math.round((currentAmount / totalInvested) * 100) : 0;
       const delta = currentPercentage - item.percentage;
@@ -5504,7 +7931,7 @@ const [authReady, setAuthReady] = useState(false);
         delta,
       };
     });
-  }, [selectedPortfolio, holdings, totalInvested]);
+  }, [activeModelComposition, activeHoldings, totalInvested]);
 
   const biggestGap = useMemo(() => {
     if (targetCoverage.length === 0) return null;
@@ -5516,19 +7943,19 @@ const [authReady, setAuthReady] = useState(false);
 
   const rebalanceCurrentByCategory = useMemo(() => {
     const grouped: Partial<Record<StrumentiCategory, number>> = {};
-    selectedPortfolio.composition.forEach((item) => {
+    rebalanceTargetComposition.forEach((item) => {
       grouped[item.category] = Math.max(0, Number(rebalanceValues[item.category] || 0));
     });
     return grouped;
-  }, [rebalanceValues, selectedPortfolio.composition]);
+  }, [rebalanceValues, rebalanceTargetComposition]);
 
-  const rebalanceTotalInvested = selectedPortfolio.composition.reduce(
+  const rebalanceTotalInvested = rebalanceTargetComposition.reduce(
     (sum, item) => sum + (rebalanceCurrentByCategory[item.category] || 0),
     0
   );
 
   const rebalanceCoverage = useMemo(() => {
-    return selectedPortfolio.composition.map((item) => {
+    return rebalanceTargetComposition.map((item) => {
       const currentAmount = rebalanceCurrentByCategory[item.category] || 0;
       const currentPercentageRaw = rebalanceTotalInvested > 0 ? (currentAmount / rebalanceTotalInvested) * 100 : 0;
       const currentPercentage = Number(currentPercentageRaw.toFixed(1));
@@ -5550,7 +7977,7 @@ const [authReady, setAuthReady] = useState(false);
         delta,
       };
     });
-  }, [selectedPortfolio.composition, rebalanceCurrentByCategory, rebalanceTotalInvested]);
+  }, [rebalanceTargetComposition, rebalanceCurrentByCategory, rebalanceTotalInvested]);
 
   const rebalanceBiggestGap = useMemo(() => {
     if (rebalanceCoverage.length === 0) return null;
@@ -5922,7 +8349,7 @@ const [authReady, setAuthReady] = useState(false);
       ? "Stai costruendo un modello reale con dati persistenti e una struttura sempre più chiara."
       : "La dashboard è pronta: ora ti manca solo il primo investimento per trasformare il piano in azione.";
 
-  const portfolioRate = getPortfolioRate(selectedPortfolio.profileFamily);
+  const portfolioRate = displayedPortfolioRate;
 
   const currentYear = new Date().getFullYear();
   const goalEndYearNumber = Number(goalEndYear || currentYear);
@@ -5933,12 +8360,15 @@ const [authReady, setAuthReady] = useState(false);
   const safeDraftGoalEndYear = Math.max(currentYear, draftGoalEndYearNumber);
   const draftGoalDurationYears = safeDraftGoalEndYear - currentYear;
   const draftGoalDurationMonths = draftGoalDurationYears * 12;
-  const goalDraftFormKey = `${selectedPortfolio.key}-${goalTitle}-${goalTarget}-${goalCurrentValue}-${goalPreviousValue}-${goalReason}-${goalEndYear}`;
+  const goalDraftFormKey = `${selectedPortfolio.key}-${goalTitle}-${goalTarget}-${goalEndYear}`;
 
   const goalTargetNumber = Number(goalTarget || 0);
-  const goalCurrentNumber = Number(goalCurrentValue || 0);
+  const storedGoalCurrentNumber = Number(goalCurrentValue || 0);
+  const goalCurrentNumber = monitorDisplayedTotalValue > 0 ? monitorDisplayedTotalValue : storedGoalCurrentNumber;
   const goalPreviousNumber = Number(goalPreviousValue || 0);
-  const goalDelta = goalCurrentNumber - goalPreviousNumber;
+  const goalDelta = monitorDisplayedTotalValue > 0
+    ? monitorDisplayedTotalValue - monitorDisplayedInitialCapital
+    : goalCurrentNumber - goalPreviousNumber;
   const goalProgressPercent = goalTargetNumber > 0 ? Math.max(0, Math.min(100, (goalCurrentNumber / goalTargetNumber) * 100)) : 0;
   const goalEstimatedFinal = calculatePAC(
     Number(portMonthly || 0),
@@ -5949,31 +8379,19 @@ const [authReady, setAuthReady] = useState(false);
 
   const goalMessage = useMemo(() => {
     if (goalCurrentNumber <= 0) {
-      return "Imposta il valore attuale del tuo capitale per visualizzare un progresso concreto verso l'obiettivo.";
+      return "Registra almeno un investimento nel Monitor: il progresso verso l'obiettivo verrà calcolato automaticamente dai dati del portafoglio.";
     }
 
-    if (goalDelta > 0 && goalReason === "investimento") {
-      return "Ottimo segnale: stai aumentando il capitale con azioni concrete. La continuita nel tempo fa una differenza enorme.";
+    if (Math.abs(goalDelta) <= 1) {
+      return "Il progresso viene letto dai dati del Monitor. In questa fase conta soprattutto mantenere continuità e registrare bene i movimenti.";
     }
 
     if (goalDelta > 0) {
-      return "Il tuo capitale è aumentato. Continua a dare priorità alla costanza più che alla ricerca del momento perfetto.";
+      return "Il valore stimato del portafoglio è sopra il capitale inserito. Bene, ma continua a dare priorità alla costanza più che alla ricerca del momento perfetto.";
     }
 
-    if (goalDelta < 0 && goalReason === "prelievo") {
-      return "Hai utilizzato parte del capitale: può succedere. L'importante e riprendere il piano con serenità quando possibile.";
-    }
-
-    if (goalDelta < 0 && goalReason === "mercato") {
-      return "Le oscillazioni di mercato fanno parte del percorso. Una fase negativa non significa che la strategia non funzioni.";
-    }
-
-    if (goalDelta < 0) {
-      return "Il valore si e ridotto rispetto all'aggiornamento precedente. Mantieni calma e metodo, poi rivaluta il contesto.";
-    }
-
-    return "Stai mantenendo il piano. Anche la stabilita è un risultato importante quando il percorso è di lungo periodo.";
-  }, [goalCurrentNumber, goalDelta, goalReason]);
+    return "Il valore stimato del portafoglio è leggermente sotto il capitale inserito. È una normale oscillazione da leggere con calma, senza trasformarla in una decisione impulsiva.";
+  }, [goalCurrentNumber, goalDelta]);
 
   const homeProjection = calculatePAC(Number(homeMonthly || 0), Number(homeYears || 0), 0.07);
   const portfolioProjection = calculatePAC(
@@ -6018,7 +8436,7 @@ const [authReady, setAuthReady] = useState(false);
       : "Segna il PAC del mese per iniziare a costruire la tua serie.";
 
   const monthlyPacAmount = Number(portMonthly || 0);
-  const monthlyAllocationPlan = selectedPortfolio.composition.map((item) => {
+  const monthlyAllocationPlan = activeModelComposition.map((item) => {
     const rawAmount = (monthlyPacAmount * item.percentage) / 100;
     const roundedAmount = Math.round(rawAmount / 5) * 5;
 
@@ -6042,7 +8460,7 @@ const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     setCheckedPacAllocations({});
-  }, [portMonthly, selectedPortfolio.key]);
+  }, [portMonthly, activeModelLabel, activeModelComposition.map((item) => `${item.category}:${item.percentage}`).join("|")]);
 
   const pacImpactPercent =
     goalTargetNumber > 0 ? (monthlyPacAmount / goalTargetNumber) * 100 : 0;
@@ -6208,29 +8626,389 @@ const [authReady, setAuthReady] = useState(false);
     ? "Non spezzare la catena: completa il PAC mensile e mantieni vivo il ritmo."
     : "Il primo PAC è il passaggio chiave: da qui il piano smette di essere teoria e diventa abitudine.";
   const dashboardOverallProgress = Math.round(
-    (checklistPercent + (holdings.length > 0 ? 100 : 0) + (currentMonthCompleted ? 100 : 0) + Math.min(100, currentStreak * 33)) / 4
+    (checklistPercent + (activeHoldings.length > 0 ? 100 : 0) + (currentMonthCompleted ? 100 : 0) + Math.min(100, currentStreak * 33)) / 4
   );
-  const dashboardNextActionTitle = !setupCompleted
-    ? "Completa la guida operativa"
-    : holdings.length === 0
-    ? "Registra il primo investimento"
-    : !currentMonthCompleted
-    ? "Chiudi il PAC del mese"
-    : "Mantieni il ritmo";
-  const dashboardNextActionText = !setupCompleted
-    ? "Prima rendi chiari i passaggi: modello, cifra mensile, strumenti e metodo. Dopo la dashboard diventa davvero utile."
-    : holdings.length === 0
-    ? "Aggiungi il primo investimento per trasformare il piano da teoria a percorso monitorabile."
-    : !currentMonthCompleted
-    ? "Segna il PAC solo dopo aver completato il versamento o verificato che l'automatismo sia partito."
-    : `Hai chiuso ${currentMonthLabel}. Ora controlla il piano senza inseguire il mercato.`;
-  const dashboardNextActionLabel = !setupCompleted
-    ? "Continua il percorso"
-    : holdings.length === 0
-    ? "Aggiungi investimento"
-    : !currentMonthCompleted
-    ? "Completa il mese"
-    : "Vai al controllo mensile";
+  const monitorSituation = useMemo(() => {
+    const invested = Number(monitorDisplayedInitialCapital || 0);
+    const value = Number(monitorDisplayedTotalValue || 0);
+    const deltaValue = value - invested;
+    const deltaPercent = invested > 0 ? (deltaValue / invested) * 100 : 0;
+    const absDeltaPercent = Math.abs(deltaPercent);
+    const meaningfulRows = monitorPremiumAssetRows.filter((asset) => Number(asset.investedCapital || 0) > 0 || Number(asset.value || 0) > 0);
+    const strongestModelDeviation = meaningfulRows.reduce(
+      (current, asset) => {
+        const deviation = Number(asset.percentage || 0) - Number(asset.modelPercentage || 0);
+        return Math.abs(deviation) > Math.abs(current.deviation)
+          ? {
+              category: asset.category,
+              deviation,
+              percentage: Number(asset.percentage || 0),
+              modelPercentage: Number(asset.modelPercentage || 0),
+            }
+          : current;
+      },
+      { category: "" as StrumentiCategory | "", deviation: 0, percentage: 0, modelPercentage: 0 }
+    );
+    const absModelDeviation = Math.abs(strongestModelDeviation.deviation);
+    const movementTimes = monitorMovementRows
+      .map((movement) => getValidDateTime(movement.movementDate || movement.insertedAt))
+      .filter((time) => Number.isFinite(time));
+    const nowTime = Date.now();
+    const firstMovementTime = movementTimes.length ? Math.min(...movementTimes) : NaN;
+    const lastMovementTime = movementTimes.length ? Math.max(...movementTimes) : NaN;
+    const daysFromFirstMovement = Number.isFinite(firstMovementTime)
+      ? Math.max(0, Math.round((nowTime - firstMovementTime) / (1000 * 60 * 60 * 24)))
+      : null;
+    const monthsFromFirstMovement = daysFromFirstMovement !== null ? Math.floor(daysFromFirstMovement / 30) : null;
+    const daysFromLastMovement = Number.isFinite(lastMovementTime)
+      ? Math.max(0, Math.round((nowTime - lastMovementTime) / (1000 * 60 * 60 * 24)))
+      : null;
+    const hasRecentMovement = daysFromLastMovement !== null && daysFromLastMovement <= 10;
+    const recentMovementAmount = monitorMovementRows.reduce((sum, movement) => {
+      const movementTime = getValidDateTime(movement.movementDate || movement.insertedAt);
+      const isRecent = Number.isFinite(movementTime) && (nowTime - movementTime) / (1000 * 60 * 60 * 24) <= 10;
+      return isRecent && movement.type !== "withdrawal" ? sum + Math.max(0, Number(movement.amount || 0)) : sum;
+    }, 0);
+    const hasMeaningfulRecentMovement = hasRecentMovement && invested > 0 && recentMovementAmount / invested >= 0.12;
+    const isVeryYoungPac = activeHoldings.length > 0 && (monthsFromFirstMovement === null || monthsFromFirstMovement < 6 || monitorMovementRows.length <= 3);
+    const isYoungPac = activeHoldings.length > 0 && (monthsFromFirstMovement === null || monthsFromFirstMovement < 24 || invested < 5000);
+    const isMatureEnoughForRebalance = monthsFromFirstMovement !== null && monthsFromFirstMovement >= 24 && invested >= 5000;
+    const worstNegativeAsset = meaningfulRows.reduce(
+      (current, asset) => Number(asset.deltaValue || 0) < Number(current.deltaValue || 0) ? asset : current,
+      { category: "" as StrumentiCategory | "", deltaValue: 0, deltaPercent: 0, investedCapital: 0 }
+    );
+    const isWorstAssetMeaningful = Number(worstNegativeAsset.investedCapital || 0) > 0 && Math.abs(Number(worstNegativeAsset.deltaValue || 0)) >= Math.max(1, invested * 0.0025);
+    const worstCategory = isWorstAssetMeaningful ? String(worstNegativeAsset.category || "") : "";
+    const isBondPressure = worstCategory.toLowerCase().includes("obbligazioni");
+    const isEquityPressure = worstCategory.toLowerCase().includes("azioni") || worstCategory.toLowerCase().includes("mercati");
+    const insightSeed = Math.abs(
+      Math.round(deltaPercent * 100) +
+      Math.round(absModelDeviation * 10) +
+      monitorMovementRows.length * 7 +
+      currentStreak * 11 +
+      (currentMonthCompleted ? 17 : 3) +
+      new Date().getDate()
+    );
+    const pick = (items: string[], salt = 0) => items[(insightSeed + salt) % items.length] || items[0] || "";
+
+    const pools = {
+      setupReading: [
+        "Il Monitor diventa davvero utile quando registri almeno un investimento. Da quel momento l'app può leggere capitale, movimenti, ripartizione e scostamenti con maggiore precisione.",
+        "La base del percorso è quasi pronta. Prima servono pochi dati corretti: modello, investimenti e movimenti registrati bene.",
+        "Per dare una lettura affidabile, il Monitor ha bisogno di un primo investimento e di movimenti ordinati. Meglio partire semplice, ma con dati puliti.",
+      ],
+      setupAction: [
+        "Completa la guida operativa iniziale e registra il primo investimento. Dopo il Monitor potrà trasformare i numeri in una lettura utile.",
+        "Prima rendi chiari modello, metodo e primi passaggi. Il grafico ha valore solo quando i dati di partenza sono corretti.",
+        "Registra o verifica gli investimenti collegati al portafoglio: da lì l'app potrà iniziare ad accompagnarti in modo più preciso.",
+      ],
+      inLineReading: [
+        "Il portafoglio è sostanzialmente in linea con il capitale inserito. Le piccole differenze che vedi sono normali oscillazioni di mercato e non richiedono interventi particolari.",
+        "La situazione è ordinata: valore, capitale inserito e ripartizione non mostrano segnali che richiedano correzioni immediate.",
+        "Il percorso sta procedendo in modo regolare. In questa fase non serve cercare correzioni: la cosa più importante è mantenere continuità.",
+        "Il modello sta facendo quello che deve fare: darti una struttura da seguire nel tempo, senza costringerti a reagire a ogni piccolo movimento.",
+      ],
+      mildNegativeReading: [
+        `Il portafoglio è leggermente sotto il capitale inserito di ${formatSignedEuroCents(deltaValue)} (${formatSignedPercent(deltaPercent, 2)}). Lo scostamento è contenuto e, da solo, non indica un problema del piano.`,
+        `La variazione è temporaneamente negativa: ${formatSignedEuroCents(deltaValue)} (${formatSignedPercent(deltaPercent, 2)}). In un PAC è normale vedere fasi in cui il valore si muove sotto il capitale versato, soprattutto all'inizio.`,
+        `Il dato è leggermente sotto il capitale inserito: ${formatSignedEuroCents(deltaValue)} (${formatSignedPercent(deltaPercent, 2)}). È una normale oscillazione, non un invito ad agire a caldo.`,
+      ],
+      visibleNegativeReading: [
+        `Il portafoglio è sotto il capitale inserito di ${formatSignedEuroCents(deltaValue)} (${formatSignedPercent(deltaPercent, 2)}). È una situazione da osservare con calma, non da affrontare con decisioni impulsive.`,
+        `La flessione è visibile: ${formatSignedEuroCents(deltaValue)} (${formatSignedPercent(deltaPercent, 2)}). Prima di intervenire, distingui tra oscillazione di mercato e vero problema della strategia.`,
+        `Il mercato sta prezzando più in basso una parte del portafoglio. È scomodo da vedere, ma il PAC serve proprio ad attraversare anche fasi non lineari.`,
+      ],
+      strongNegativeReading: [
+        `Il portafoglio sta attraversando una fase negativa più marcata: ${formatSignedEuroCents(deltaValue)} (${formatSignedPercent(deltaPercent, 2)}). Va guardata con lucidità, non con panico.`,
+        `Il calo è evidente. In questa fase non serve decidere a caldo: torna al piano, verifica che l’obiettivo e l’orizzonte temporale siano ancora coerenti e lascia che sia il metodo a guidarti, non il movimento del momento.`,
+        `Il calo è evidente. Il punto non è reagire al prezzo di oggi, ma capire se il piano resta coerente con il tuo obiettivo, il tuo orizzonte temporale e la tua tolleranza alle oscillazioni.`,
+        `Il calo è evidente. Evita decisioni a caldo: se obiettivo, orizzonte e profilo di rischio non sono cambiati, il piano resta il riferimento.`,
+        `Questa è una fase scomoda del percorso. Il punto non è ignorarla, ma evitare che una reazione emotiva comprometta il piano.`,
+      ],
+      positiveReading: [
+        `Il portafoglio è sopra il capitale inserito di ${formatSignedEuroCents(deltaValue)} (${formatSignedPercent(deltaPercent, 2)}). È un buon segnale, ma non è un motivo per aumentare il rischio.`,
+        `In questo momento il mercato sta premiando una parte del portafoglio: ${formatSignedEuroCents(deltaValue)} (${formatSignedPercent(deltaPercent, 2)}). Bene, ma il piano resta più importante del singolo dato positivo.`,
+        `Il valore è cresciuto rispetto ai versamenti. È una buona notizia, ma non significa che il rischio sia sparito o che la strategia vada accelerata.`,
+      ],
+      strongPositiveReading: [
+        `Il portafoglio è cresciuto in modo evidente: ${formatSignedEuroCents(deltaValue)} (${formatSignedPercent(deltaPercent, 2)}). È positivo, ma non deve trasformarsi in eccesso di fiducia.`,
+        `La fase è favorevole. Bene, ma un buon periodo non rende il mercato prevedibile e non giustifica automaticamente più rischio.`,
+        `Il risultato è positivo, ma va gestito con la stessa disciplina dei momenti difficili: il valore può salire e scendere nel tempo.`,
+      ],
+      youngPac: [
+        "Sei ancora nella fase di avvio. In questo periodo il rendimento dice poco: il dato più importante è creare continuità e registrare correttamente i movimenti.",
+        "Il portafoglio ha ancora una storia breve. I movimenti percentuali possono sembrare importanti, ma il vero risultato nasce dalla ripetizione del PAC nel tempo.",
+        "I primi mesi servono soprattutto a rendere il piano concreto. Prima viene la continuità, poi arriveranno dati più significativi da interpretare.",
+        "Il Monitor sta iniziando a costruire lo storico. Per ora l'obiettivo principale non è giudicare il rendimento, ma mantenere il processo.",
+      ],
+      recentMovement: [
+        "Una parte importante del capitale è stata inserita da poco. Per questo il rendimento complessivo va letto con cautela: quei soldi non hanno ancora avuto molto tempo per muoversi.",
+        "Il salto nel grafico non è rendimento: è nuovo capitale inserito. La performance va letta separando sempre versamenti e variazioni di prezzo.",
+        "Il rendimento reale dipende anche da quando i soldi sono stati investiti. Un versamento fatto da poco non può avere lo stesso storico di uno fatto mesi fa.",
+      ],
+      demandOffer: [
+        "I prezzi degli strumenti finanziari cambiano perché compratori e venditori non hanno sempre le stesse aspettative. Se prevalgono vendite e paura, il prezzo può scendere; se tornano fiducia e domanda, può salire.",
+        "Una piccola variazione negativa indica semplicemente che oggi il mercato sta dando agli strumenti un prezzo leggermente più basso rispetto al momento dell’acquisto. È una normale dinamica di prezzo, non un segnale da leggere con allarme.",
+        "I prezzi incorporano aspettative su tassi, utili, inflazione, crescita, crisi geopolitiche e fiducia. Per questo possono muoversi anche quando tu non hai fatto nulla di sbagliato.",
+      ],
+      geopolitics: [
+        "Le tensioni geopolitiche possono creare movimenti anche forti sui mercati, perché aumentano incertezza, paura e vendite nel breve periodo. Questo non significa automaticamente che il piano sia sbagliato.",
+        "Guerre, crisi energetiche, tensioni commerciali e instabilità politica possono far scendere i prezzi anche in modo significativo. Nei portafogli diversificati l'obiettivo non è evitare ogni scossa, ma restare costruiti per attraversarne diverse nel tempo.",
+        "Quando cresce l'incertezza geopolitica, molti investitori diventano più prudenti e vendono asset rischiosi. Questo può far calare temporaneamente i prezzi, anche se il valore di lungo periodo delle aziende non cambia nello stesso modo da un giorno all'altro.",
+      ],
+      marketHistory: [
+        "La storia dei mercati mostra che crisi, guerre, inflazione, recessioni e crolli fanno parte del percorso. Su orizzonti molto lunghi, i mercati azionari globali hanno superato molte fasi difficili, ma questo non garantisce rendimenti futuri.",
+        "Guardare solo il calo del momento può far perdere prospettiva. La lezione storica non è che tutto sale sempre, ma che disciplina, diversificazione e tempo hanno avuto un ruolo decisivo in molte fasi difficili.",
+        "In oltre un secolo di dati, le azioni hanno storicamente offerto rendimenti superiori a obbligazioni, liquidità e inflazione nei principali mercati analizzati. Il percorso però non è lineare: il prezzo da accettare sono oscillazioni anche importanti.",
+        "Il mercato non cresce perché deve crescere. Cresce quando, nel tempo, aziende, produttività, innovazione e utili riescono ad aumentare. Le crisi interrompono il percorso, ma non sempre cancellano la capacità dell'economia di adattarsi.",
+      ],
+      pacDuringDrops: [
+        "Nei ribassi il PAC può diventare psicologicamente difficile, ma tecnicamente interessante: con lo stesso importo compri più quote. Questo non garantisce guadagni futuri, ma può migliorare il prezzo medio di carico se continui con costanza.",
+        "Quando il mercato scende, la sensazione è di perdere terreno. Ma se l'orizzonte è lungo e il piano è coerente, i prossimi versamenti possono trasformare prezzi più bassi in una fase di accumulo più favorevole.",
+        "Il PAC funziona perché non pretende di indovinare il momento perfetto. Compra in mesi buoni e in mesi difficili, riducendo il peso del singolo ingresso.",
+      ],
+      bonds: [
+        "Anche le obbligazioni possono scendere. Quando i tassi salgono, molte obbligazioni già emesse possono perdere valore perché il mercato preferisce nuovi titoli con rendimenti più alti.",
+        "La parte obbligazionaria non serve a eliminare ogni oscillazione. Serve a dare una funzione diversa rispetto alle azioni, ma può muoversi negativamente soprattutto quando cambiano tassi e inflazione.",
+        "Le obbligazioni a lunga durata tendono a essere più sensibili ai movimenti dei tassi. Per questo possono oscillare più di quanto molti investitori si aspettino.",
+      ],
+      equities: [
+        "La parte azionaria può muoversi di più nel breve periodo perché riflette aspettative su utili, crescita economica, tassi e fiducia degli investitori.",
+        "Le azioni rappresentano partecipazioni in aziende: nel breve periodo il prezzo può oscillare molto, mentre nel lungo periodo conta la capacità delle imprese di produrre utili e crescere.",
+        "Quando cala la fiducia degli investitori, la parte azionaria può scendere anche rapidamente. Nel PAC questa volatilità va gestita con metodo, non con reazioni immediate.",
+      ],
+      diversification: [
+        "La diversificazione non serve a far salire tutto insieme. Serve a evitare che il risultato dipenda da una sola area, da un solo mercato o da un solo scenario economico.",
+        "In certi periodi una categoria può deludere mentre un'altra sostiene il portafoglio. È normale: un modello diversificato lavora proprio alternando il contributo delle sue parti.",
+        "Se una parte del portafoglio resta indietro, non significa per forza che vada eliminata. A volte la parte che oggi pesa meno è quella che protegge o recupera in uno scenario diverso.",
+      ],
+      rebalanceNone: [
+        "La ripartizione è vicina al modello. Non serve ribilanciare: continua con il PAC e lascia che i prossimi versamenti mantengano l'equilibrio.",
+        "Non serve fare manutenzione straordinaria. In una situazione ordinata, il miglior intervento è spesso non intervenire.",
+        "Il portafoglio non deve essere perfettamente identico al modello ogni giorno. Conta restare vicino alla direzione prevista.",
+      ],
+      rebalanceWithPac: [
+        "La ripartizione si è leggermente spostata. Non serve vendere o correggere subito: usa i prossimi versamenti per rafforzare le categorie più sotto peso.",
+        "Con un PAC attivo, piccoli squilibri possono spesso essere corretti acquistando di più le parti sotto peso, senza trasformare il ribilanciamento in un'abitudine mensile.",
+        "Non rincorrere il modello ogni settimana. Se lo scostamento è contenuto, lascia che siano i prossimi PAC a riportare equilibrio.",
+      ],
+      rebalanceYoung: [
+        "Lo scostamento è da osservare, ma il portafoglio è ancora giovane. In questa fase il ribilanciamento rischia di essere prematuro: meglio correggere gradualmente con i prossimi PAC.",
+        "Nei primi anni il PAC è già uno strumento di ribilanciamento naturale. Prima di vendere, prova a riequilibrare con i nuovi acquisti.",
+        "Ribilanciare troppo spesso può creare più rumore che beneficio, soprattutto quando capitale e storico sono ancora limitati.",
+      ],
+      rebalanceMature: [
+        "La ripartizione si è allontanata in modo più evidente dal modello. Non è un'emergenza, ma se il portafoglio è attivo da tempo può essere utile valutare un ribilanciamento ragionato.",
+        "Lo scostamento non va ignorato, ma nemmeno corretto di fretta. Il ribilanciamento ha senso quando serve a riportare il portafoglio al piano, non quando nasce da una reazione emotiva.",
+        "Per molti PAC una verifica ogni due o tre anni è più sensata di correzioni continue. Valuta il ribilanciamento solo se lo scostamento resta significativo e non è correggibile con i prossimi versamenti.",
+      ],
+      pacMissing: [
+        "Prima di valutare troppo il grafico, assicurati che il gesto operativo del mese sia stato fatto: il PAC funziona se diventa abitudine.",
+        "Il dato più importante in questo momento non è la variazione del portafoglio, ma completare il PAC del mese in modo coerente con il piano.",
+        "Il percorso resta semplice: un mese alla volta. Se il PAC non è ancora completato, questa è la priorità.",
+      ],
+      antiPanic: [
+        "Una flessione del portafoglio è una variazione del valore di mercato. Diventa una perdita realizzata solo se vendi a un prezzo inferiore rispetto a quello di acquisto.",
+        "Il rischio ora è prendere una decisione per paura. Torna al piano: chiediti se sono cambiati obiettivo, orizzonte e capacità di sostenere le oscillazioni, oppure se è cambiato solo il prezzo di mercato.",
+        "Avere un piano serve proprio quando il grafico non è piacevole da guardare.",
+      ],
+      antiEuphoria: [
+        "Nei momenti positivi il rischio è sentirsi invincibili. Una buona strategia resta prudente anche quando le cose vanno bene.",
+        "La disciplina non serve solo nei cali: serve anche nei rialzi, quando viene voglia di cambiare piano per accelerare.",
+        "Il rendimento passato non garantisce quello futuro. Per questo il modello conta più dell'entusiasmo del momento.",
+      ],
+      finalNotes: [
+        "Ogni movimento del grafico è un'informazione, non un ordine di agire.",
+        "Il Monitor serve a darti consapevolezza, non a spingerti a intervenire continuamente.",
+        "La costanza non elimina il rischio, ma riduce il peso delle emozioni.",
+        "Un buon piano deve essere abbastanza semplice da essere seguito anche nei mesi difficili.",
+        "Il tempo non garantisce risultati, ma senza tempo il PAC perde gran parte della sua forza.",
+        "Un portafoglio sano non è quello che sale sempre, ma quello che resta coerente con il piano scelto.",
+      ],
+      prudentNotes: [
+        "Questa lettura ha valore educativo: non è una raccomandazione personalizzata di investimento.",
+        "Il PAC riduce il peso del momento di ingresso, ma non elimina il rischio di mercato.",
+        "Prezzi più bassi permettono di acquistare più quote, ma non garantiscono guadagni futuri.",
+        "Ogni intervento sul piano dovrebbe partire da obiettivo, orizzonte temporale, tolleranza al rischio e situazione personale, non dal movimento di un singolo periodo.",
+      ],
+    };
+
+    let status: "Da configurare" | "In linea" | "Normale oscillazione" | "Da osservare" | "Da controllare" = "In linea";
+    if (!setupCompleted || activeHoldings.length === 0 || invested <= 0) status = "Da configurare";
+    else if (absDeltaPercent >= 12 || (absModelDeviation >= 14 && isMatureEnoughForRebalance)) status = "Da controllare";
+    else if (absDeltaPercent >= 5 || absModelDeviation >= 8) status = "Da osservare";
+    else if (Math.abs(deltaValue) >= 0.01 || absModelDeviation >= 3 || hasRecentMovement) status = "Normale oscillazione";
+
+    const tone = status === "Da configurare"
+      ? {
+          badge: "bg-slate-900 text-white",
+          border: "border-slate-200",
+          background: "from-slate-50 via-white to-white",
+          accent: "text-slate-700",
+        }
+      : status === "In linea"
+      ? {
+          badge: "bg-emerald-600 text-white",
+          border: "border-emerald-200",
+          background: "from-emerald-50 via-white to-white",
+          accent: "text-emerald-700",
+        }
+      : status === "Normale oscillazione"
+      ? {
+          badge: "bg-blue-600 text-white",
+          border: "border-blue-200",
+          background: "from-blue-50 via-white to-white",
+          accent: "text-blue-700",
+        }
+      : status === "Da osservare"
+      ? {
+          badge: "bg-amber-500 text-white",
+          border: "border-amber-200",
+          background: "from-amber-50 via-white to-white",
+          accent: "text-amber-700",
+        }
+      : {
+          badge: "bg-rose-600 text-white",
+          border: "border-rose-200",
+          background: "from-rose-50 via-white to-white",
+          accent: "text-rose-700",
+        };
+
+    let title = "Il punto della situazione";
+    let reading = pick(pools.inLineReading, 1);
+    let explanation = pick(pools.demandOffer, 2);
+    let action = currentMonthCompleted
+      ? `Hai già chiuso ${currentMonthLabel}: continua a monitorare con calma e torna al prossimo controllo mensile.`
+      : pick(pools.pacMissing, 3);
+    let note = pick(pools.finalNotes, 4);
+    let rebalanceGuidance = pick(pools.rebalanceNone, 5);
+
+    if (status === "Da configurare") {
+      title = "Prima rendiamo il monitor utile";
+      reading = pick(pools.setupReading, 6);
+      explanation = "Il Monitor deve partire da dati affidabili: capitale, strumenti e date dei movimenti. Senza questa base, anche il grafico più bello rischia di raccontare poco.";
+      action = pick(pools.setupAction, 7);
+      note = "Meglio pochi dati corretti che tanti riquadri pieni di messaggi: il Monitor deve aiutarti a decidere cosa fare adesso.";
+      rebalanceGuidance = "Il ribilanciamento non è una priorità finché il portafoglio non è stato configurato e non esiste uno storico minimo da leggere.";
+    } else if (hasMeaningfulRecentMovement) {
+      title = "Nuovo capitale appena entrato";
+      reading = pick(pools.recentMovement, 8);
+      explanation = deltaPercent < -0.25 ? pick(pools.demandOffer, 9) : pick(pools.diversification, 9);
+      action = currentMonthCompleted
+        ? "Non giudicare il nuovo versamento dai primi giorni. Lascialo entrare nel percorso del PAC e rivaluta al prossimo controllo."
+        : pick(pools.pacMissing, 10);
+      note = pick(pools.finalNotes, 11);
+      rebalanceGuidance = isYoungPac ? pick(pools.rebalanceYoung, 12) : pick(pools.rebalanceWithPac, 12);
+    } else if (deltaPercent <= -8) {
+      title = "Fase negativa da leggere con lucidità";
+      reading = pick(pools.strongNegativeReading, 13);
+      explanation = isBondPressure ? pick(pools.bonds, 14) : isEquityPressure ? pick(pools.equities, 14) : pick(pools.geopolitics, 14);
+      action = currentMonthCompleted
+        ? "Non decidere a caldo. Torna al piano, verifica obiettivo e orizzonte temporale e aspetta il prossimo controllo prima di trarre conclusioni."
+        : pick(pools.pacMissing, 15);
+      note = pick([...pools.antiPanic, ...pools.marketHistory, ...pools.prudentNotes], 16);
+      rebalanceGuidance = absModelDeviation >= 12 && isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 17) : pick(pools.rebalanceYoung, 17);
+    } else if (deltaPercent < -1) {
+      title = "Flessione da osservare, non da inseguire";
+      reading = pick(pools.visibleNegativeReading, 18);
+      explanation = isBondPressure ? pick(pools.bonds, 19) : isEquityPressure ? pick(pools.equities, 19) : pick([...pools.demandOffer, ...pools.geopolitics, ...pools.pacDuringDrops], 19);
+      action = currentMonthCompleted
+        ? "Continua con il PAC programmato e usa il prossimo controllo per verificare se lo scostamento resta o rientra naturalmente."
+        : pick(pools.pacMissing, 20);
+      note = pick([...pools.pacDuringDrops, ...pools.antiPanic, ...pools.finalNotes], 21);
+      rebalanceGuidance = absModelDeviation >= 8 ? (isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 22) : pick(pools.rebalanceYoung, 22)) : pick(pools.rebalanceWithPac, 22);
+    } else if (deltaPercent < -0.25) {
+      title = "Normale oscillazione negativa";
+      reading = isVeryYoungPac ? pick(pools.youngPac, 23) : pick(pools.mildNegativeReading, 23);
+      explanation = isBondPressure ? pick(pools.bonds, 24) : pick([...pools.demandOffer, ...pools.pacDuringDrops], 24);
+      action = currentMonthCompleted
+        ? "Continua con il PAC programmato. Una piccola flessione non richiede modifiche alla strategia."
+        : pick(pools.pacMissing, 25);
+      note = isYoungPac ? pick(pools.youngPac, 26) : pick(pools.finalNotes, 26);
+      rebalanceGuidance = absModelDeviation >= 5 ? pick(pools.rebalanceWithPac, 27) : pick(pools.rebalanceNone, 27);
+    } else if (deltaPercent >= 8) {
+      title = "Fase positiva da gestire con disciplina";
+      reading = pick(pools.strongPositiveReading, 28);
+      explanation = pick([...pools.antiEuphoria, ...pools.marketHistory], 29);
+      action = currentMonthCompleted
+        ? "Continua con il PAC senza aumentare il rischio solo perché il portafoglio è salito. Mantieni la ripartizione prevista."
+        : pick(pools.pacMissing, 30);
+      note = pick([...pools.antiEuphoria, ...pools.prudentNotes], 31);
+      rebalanceGuidance = absModelDeviation >= 8 ? (isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 32) : pick(pools.rebalanceWithPac, 32)) : pick(pools.rebalanceNone, 32);
+    } else if (deltaPercent > 0.25) {
+      title = "In linea, con lieve vantaggio";
+      reading = pick(pools.positiveReading, 33);
+      explanation = pick([...pools.demandOffer, ...pools.diversification], 34);
+      action = currentMonthCompleted
+        ? "Continua con il PAC senza inseguire il rendimento. Il piano serve a evitare decisioni prese sull'entusiasmo del momento."
+        : pick(pools.pacMissing, 35);
+      note = pick(pools.antiEuphoria, 36);
+      rebalanceGuidance = absModelDeviation >= 5 ? pick(pools.rebalanceWithPac, 37) : pick(pools.rebalanceNone, 37);
+    } else if (isVeryYoungPac) {
+      title = "Percorso appena iniziato";
+      reading = pick(pools.youngPac, 38);
+      explanation = hasRecentMovement ? pick(pools.recentMovement, 39) : "Con pochi mesi di dati, una variazione piccola può sembrare più importante di quanto sia. Il PAC ha bisogno di tempo per diventare davvero leggibile.";
+      action = currentMonthCompleted
+        ? "Concentrati sul prossimo PAC. Non serve ottimizzare tutto: serve ripetere bene il gesto."
+        : pick(pools.pacMissing, 40);
+      note = "Il primo risultato importante non è il rendimento: è aver iniziato.";
+      rebalanceGuidance = pick(pools.rebalanceYoung, 41);
+    } else if (absModelDeviation >= 8) {
+      title = isMatureEnoughForRebalance ? "Ripartizione da valutare" : "Ripartizione da guidare coi prossimi PAC";
+      reading = `La ripartizione si è allontanata dal modello, soprattutto su ${strongestModelDeviation.category}. Non è automaticamente un problema, ma merita una lettura ordinata.`;
+      explanation = pick(pools.diversification, 42);
+      action = isMatureEnoughForRebalance
+        ? "Prima di vendere strumenti, verifica se i prossimi PAC possono riequilibrare gradualmente. Se lo scostamento resta significativo, valuta un ribilanciamento ragionato."
+        : "Usa i prossimi versamenti per rafforzare le categorie più sotto peso. In questa fase evita correzioni frequenti.";
+      note = pick(pools.finalNotes, 43);
+      rebalanceGuidance = isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 44) : pick(pools.rebalanceYoung, 44);
+    }
+
+    if (status !== "Da configurare" && absModelDeviation >= 3 && !reading.toLowerCase().includes("ripartizione")) {
+      rebalanceGuidance = absModelDeviation >= 8
+        ? (isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 45) : pick(pools.rebalanceYoung, 45))
+        : pick(pools.rebalanceWithPac, 45);
+    }
+
+    const ageLabel = monthsFromFirstMovement === null
+      ? "In avvio"
+      : monthsFromFirstMovement < 1
+        ? "Primo mese"
+        : `${monthsFromFirstMovement} ${monthsFromFirstMovement === 1 ? "mese" : "mesi"}`;
+    const ripartizioneLabel = absModelDeviation < 3
+      ? "Coerente"
+      : absModelDeviation < 8
+        ? "Da guidare coi PAC"
+        : isMatureEnoughForRebalance
+          ? "Da valutare"
+          : "PAC giovane";
+
+    return {
+      status,
+      tone,
+      title,
+      reading,
+      explanation,
+      action,
+      note,
+      rebalanceGuidance,
+      metrics: [
+        { label: "Scostamento totale", value: `${formatSignedEuroCents(deltaValue)} · ${formatSignedPercent(deltaPercent, 2)}` },
+        { label: "Ripartizione", value: ripartizioneLabel },
+        { label: "Percorso", value: ageLabel },
+      ],
+    };
+  }, [
+    currentMonthCompleted,
+    currentMonthLabel,
+    currentStreak,
+    activeHoldings.length,
+    monitorDisplayedInitialCapital,
+    monitorDisplayedTotalValue,
+    monitorMovementRows,
+    monitorPremiumAssetRows,
+    setupCompleted,
+  ]);
   const awarenessActionsCompleted = completedAwarenessList.length;
   const fraudChecksCompleted = Object.values(fraudAnswers).filter(Boolean).length;
   const vehicleAnalysisUsed = safeNumber(vehiclePrice) > 0 && (safeNumber(vehicleMonthlyPayment) > 0 || safeNumber(vehicleTaeg) > 0) && safeNumber(vehicleDurationMonths) > 0;
@@ -6993,6 +9771,7 @@ const [authReady, setAuthReady] = useState(false);
         downPayment: mortgageDownPayment,
         principal: mortgagePrincipal,
         rate: mortgageRate,
+        taeg: mortgageTaeg,
         years: mortgageYears,
         rateType: mortgageRateType,
         capRate: mortgageCapRate,
@@ -7050,6 +9829,7 @@ const [authReady, setAuthReady] = useState(false);
     if (typeof data.downPayment === "string") setMortgageDownPayment(data.downPayment);
     if (typeof data.principal === "string") setMortgagePrincipal(data.principal);
     if (typeof data.rate === "string") setMortgageRate(data.rate);
+    if (typeof data.taeg === "string") setMortgageTaeg(data.taeg);
     if (typeof data.years === "string") setMortgageYears(data.years);
     if (typeof data.rateType === "string") setMortgageRateType(data.rateType);
     if (typeof data.capRate === "string") setMortgageCapRate(data.capRate);
@@ -7108,7 +9888,7 @@ const [authReady, setAuthReady] = useState(false);
       });
       setMortgageSaveStatus("saved");
       setMortgageLastSavedAt(data.updated_at || null);
-      setMortgageSaveMessage("Dati mutuo recuperati da Supabase.");
+      setMortgageSaveMessage("Dati mutuo recuperati.");
     } catch (error) {
       console.warn("Mutuo caricato solo in locale: errore non bloccante.", getErrorMessage(error));
     }
@@ -7147,7 +9927,7 @@ const [authReady, setAuthReady] = useState(false);
           console.warn("Mutuo salvato solo in locale: errore Supabase.", error.message);
         }
         setMortgageSaveStatus("local");
-        setMortgageSaveMessage("Salvato sul dispositivo. Controlla la tabella user_mortgage_checks/RLS su Supabase.");
+        setMortgageSaveMessage("Salvato su questo dispositivo. Il salvataggio online non è al momento disponibile.");
         return false;
       }
 
@@ -7176,21 +9956,43 @@ const [authReady, setAuthReady] = useState(false);
   async function saveHoldingToDb(item: Holding) {
     if (!user) return;
 
-    const { error } = await supabase
+    const activeMode = item.modelMode || dynamicModel.mode;
+    const scopedHoldingKey = inferModelModeFromScopedId(item.id) ? item.id : `${activeMode}-${item.id}`;
+
+    // Compatibilità Supabase: alcune installazioni hanno ancora la tabella user_holdings
+    // senza colonne model_mode/ticker_api. L'ambito app/custom viene quindi salvato nel
+    // prefisso di holding_key (app-... / custom-...), evitando errori di schema e mantenendo
+    // separati i due mondi anche senza migrazione DB.
+    const basePayload = {
+      user_id: user.id,
+      holding_key: scopedHoldingKey,
+      asset_name: item.strumentiName || getStrumentiNameFromHolding(item.category, item.isin),
+      category: item.category,
+      // Compatibilità Supabase: in alcune installazioni la colonna isin è NOT NULL.
+      // Se l'utente usa solo il Ticker API, salviamo stringa vuota invece di null.
+      isin: item.isin || "",
+      amount: item.amount,
+      updated_at: new Date().toISOString(),
+    };
+
+    let result = await supabase
       .from("user_holdings")
       .upsert({
-        user_id: user.id,
-        holding_key: item.id,
-        asset_name: item.strumentiName || getStrumentiNameFromHolding(item.category, item.isin),
-        category: item.category,
-        isin: item.isin,
-        amount: item.amount,
-        updated_at: new Date().toISOString(),
+        ...basePayload,
+        ticker_api: normalizeTickerApi(item.tickerApi) || null,
       })
       .select();
 
-    if (error) {
-      console.error("Errore salvataggio holding:", error.message);
+    if (result.error && /ticker_api|column|schema cache/i.test(getErrorMessage(result.error))) {
+      console.warn("Colonna ticker_api non disponibile su user_holdings: salvo l'investimento senza ticker API su Supabase.", getErrorMessage(result.error));
+      result = await supabase
+        .from("user_holdings")
+        .upsert(basePayload)
+        .select();
+    }
+
+    if (result.error) {
+      console.error("Errore salvataggio holding:", getErrorMessage(result.error));
     }
   }
 
@@ -7208,8 +10010,576 @@ const [authReady, setAuthReady] = useState(false);
     }
   }
 
+
+  async function saveDynamicModelToDb(nextState: DynamicModelState) {
+    if (!user) return false;
+
+    const incomingAssets = Array.isArray(nextState.assets) ? nextState.assets : [];
+    const existingPersonalAssets = Array.isArray(dynamicModel.assets) ? dynamicModel.assets : [];
+    const backupPersonalAssets = readPersonalModelAssetsBackup(user.id);
+    const preservedPersonalAssets = incomingAssets.length > 0
+      ? incomingAssets
+      : existingPersonalAssets.length > 0
+        ? existingPersonalAssets
+        : backupPersonalAssets;
+
+    const stateToSave = {
+      ...nextState,
+      assets: preservedPersonalAssets,
+      movements: nextState.movements.map((movement) => normalizeMovementScope(movement, nextState.mode)),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (stateToSave.assets.length > 0) {
+      savePersonalModelAssetsBackup(user.id, stateToSave.assets);
+    }
+
+    localStorage.setItem(getDynamicModelStorageKey(user.id), JSON.stringify(stateToSave));
+
+    const payload = {
+      user_id: user.id,
+      model_mode: stateToSave.mode,
+      assets: stateToSave.assets,
+      movements: stateToSave.movements,
+      last_manual_alignment_at: stateToSave.lastManualAlignmentAt || null,
+      updated_at: stateToSave.updatedAt,
+    };
+
+    try {
+      // Primo tentativo: upsert classico. Funziona se user_dynamic_models ha vincolo unico su user_id.
+      const upsertResult = await supabase.from("user_dynamic_models").upsert(payload, { onConflict: "user_id" });
+
+      if (!upsertResult.error) {
+        setDynamicModelMessage("Modello dinamico salvato online.");
+        return true;
+      }
+
+      console.warn("Upsert modello dinamico non riuscito, provo update/insert manuale.", upsertResult.error.message);
+
+      // Fallback robusto: utile se la tabella non ha il vincolo unico richiesto da onConflict.
+      // Prima aggiorniamo l'eventuale riga già esistente dell'utente.
+      const updateResult = await supabase
+        .from("user_dynamic_models")
+        .update(payload)
+        .eq("user_id", user.id)
+        .select("user_id")
+        .maybeSingle();
+
+      if (!updateResult.error && updateResult.data) {
+        setDynamicModelMessage("Modello dinamico salvato online.");
+        return true;
+      }
+
+      if (updateResult.error) {
+        console.warn("Update modello dinamico non riuscito, provo insert.", updateResult.error.message);
+      }
+
+      // Se non esiste ancora nessuna riga, la creiamo.
+      const insertResult = await supabase.from("user_dynamic_models").insert(payload);
+
+      if (insertResult.error) {
+        console.warn("Modello dinamico salvato solo in locale: tabella user_dynamic_models/RLS da verificare.", insertResult.error.message);
+        setDynamicModelMessage("Salvato su questo dispositivo. Il salvataggio online non è al momento disponibile.");
+        return false;
+      }
+
+      setDynamicModelMessage("Modello dinamico salvato online.");
+      return true;
+    } catch (error) {
+      console.warn("Modello dinamico salvato solo in locale:", getErrorMessage(error));
+      setDynamicModelMessage("Salvato sul dispositivo. Sincronizzazione online non disponibile ora.");
+      return false;
+    }
+  }
+
+  async function loadDynamicModelFromDb(currentUser: User) {
+    const saved = localStorage.getItem(getDynamicModelStorageKey(currentUser.id));
+    let localDynamicModel: DynamicModelState | null = null;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as DynamicModelState;
+        const parsedMode = normalizeDynamicModelMode(parsed.mode);
+        const backupAssets = readPersonalModelAssetsBackup(currentUser.id);
+        const parsedAssets = Array.isArray(parsed.assets) ? parsed.assets : [];
+        localDynamicModel = {
+          ...buildEmptyDynamicModelState(),
+          ...parsed,
+          mode: parsedMode,
+          assets: parsedAssets.length > 0 ? parsedAssets : backupAssets,
+          movements: Array.isArray(parsed.movements) ? parsed.movements.map((movement) => normalizeMovementScope(movement, parsedMode)) : [],
+        };
+        setDynamicModel(localDynamicModel);
+      } catch {
+        setDynamicModel(buildEmptyDynamicModelState());
+      }
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("user_dynamic_models")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn("Caricamento modello dinamico da Supabase non disponibile:", error.message);
+        return;
+      }
+
+      if (data) {
+        const loadedMode = data.model_mode === "custom" ? "custom" : "app";
+        const onlineAssets = Array.isArray(data.assets) ? data.assets : [];
+        const localAssets = Array.isArray(localDynamicModel?.assets) ? localDynamicModel.assets : [];
+        const backupAssets = readPersonalModelAssetsBackup(currentUser.id);
+        const safeAssets = onlineAssets.length > 0 ? onlineAssets : localAssets.length > 0 ? localAssets : backupAssets;
+        const loaded: DynamicModelState = {
+          mode: loadedMode,
+          assets: safeAssets,
+          movements: Array.isArray(data.movements) ? data.movements.map((movement: DynamicModelMovement) => normalizeMovementScope(movement, loadedMode)) : [],
+          lastManualAlignmentAt: data.last_manual_alignment_at || undefined,
+          updatedAt: data.updated_at || undefined,
+        };
+        setDynamicModel(loaded);
+        if (loaded.assets.length > 0) savePersonalModelAssetsBackup(currentUser.id, loaded.assets);
+        localStorage.setItem(getDynamicModelStorageKey(currentUser.id), JSON.stringify(loaded));
+      }
+    } catch (error) {
+      console.warn("Caricamento modello dinamico rimandato:", getErrorMessage(error));
+    }
+  }
+
+  function updateDynamicModel(next: DynamicModelState) {
+    const incomingAssets = Array.isArray(next.assets) ? next.assets : [];
+    const existingPersonalAssets = Array.isArray(dynamicModel.assets) ? dynamicModel.assets : [];
+    const backupPersonalAssets = user ? readPersonalModelAssetsBackup(user.id) : [];
+    const safeAssets = incomingAssets.length > 0
+      ? incomingAssets
+      : existingPersonalAssets.length > 0
+        ? existingPersonalAssets
+        : backupPersonalAssets;
+    const normalized = {
+      ...next,
+      assets: safeAssets,
+      updatedAt: new Date().toISOString(),
+    };
+    if (user && normalized.assets.length > 0) savePersonalModelAssetsBackup(user.id, normalized.assets);
+    setDynamicModel(normalized);
+    void saveDynamicModelToDb(normalized);
+  }
+
+  function addDynamicModelAsset() {
+    const isPro = purchase.plan === "pro" && purchase.unlocked;
+    if (!isPro && dynamicModelDraft.kind === "api") {
+      setDynamicModelMessage("Gli strumenti collegati tramite ticker sono disponibili nel piano Pro.");
+      return;
+    }
+
+    const initialValue = parseCurrencyInput(dynamicModelDraft.initialValue);
+    const weight = normalizePercent(parseCurrencyInput(dynamicModelDraft.weight));
+    const grossRate = parseCurrencyInput(dynamicModelDraft.grossRate);
+    const apiCount = dynamicModel.assets.filter((asset) => asset.apiEnabled && asset.kind === "api").length;
+
+    if (!dynamicModelDraft.name.trim()) {
+      setDynamicModelMessage("Inserisci un nome per lo strumento o la componente del modello.");
+      return;
+    }
+    if (initialValue <= 0) {
+      setDynamicModelMessage("Inserisci un valore iniziale maggiore di zero.");
+      return;
+    }
+    if (weight <= 0) {
+      setDynamicModelMessage("Inserisci un peso maggiore di zero.");
+      return;
+    }
+    if (dynamicModelDraft.kind === "api" && !dynamicModelDraft.ticker.trim()) {
+      setDynamicModelMessage("Per collegare uno strumento tramite dati di mercato serve il ticker.");
+      return;
+    }
+    if (dynamicModelDraft.kind === "api" && apiCount >= 10) {
+      setDynamicModelMessage("Nel Pro puoi collegare fino a 10 strumenti tramite API. Liquidità e conti deposito manuali non contano nel limite.");
+      return;
+    }
+
+    const normalizedTicker = dynamicModelDraft.ticker.trim().toUpperCase();
+    const cachedPrice = normalizedTicker ? marketPriceCache[normalizedTicker] : undefined;
+
+    const nextAsset: DynamicModelAsset = {
+      id: `model-asset-${Date.now()}`,
+      holdingId: dynamicModelDraft.holdingId || undefined,
+      name: dynamicModelDraft.name.trim(),
+      category: dynamicModelDraft.category,
+      ticker: normalizedTicker,
+      weight,
+      initialValue,
+      currentManualValue: initialValue,
+      grossRate: dynamicModelDraft.kind === "deposit" ? grossRate : undefined,
+      kind: dynamicModelDraft.kind,
+      apiEnabled: dynamicModelDraft.kind === "api",
+      basePrice: cachedPrice?.price,
+      lastPrice: cachedPrice?.price,
+      lastPriceAt: cachedPrice?.fetchedAt,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const nextState = {
+      ...dynamicModel,
+      mode: isPro ? "custom" : dynamicModel.mode,
+      assets: [...dynamicModel.assets, nextAsset],
+    };
+    updateDynamicModel(nextState);
+    setDynamicModelDraft({
+      name: "",
+      ticker: "",
+      category: "Azioni Globali",
+      weight: "",
+      initialValue: "",
+      kind: "api",
+      grossRate: "",
+      holdingId: "",
+    });
+  }
+
+  function removeDynamicModelAsset(assetId: string) {
+    updateDynamicModel({
+      ...dynamicModel,
+      assets: dynamicModel.assets.filter((asset) => asset.id !== assetId),
+      movements: dynamicModel.movements.filter((movement) => movement.assetId !== assetId),
+    });
+  }
+
+  function saveDynamicMovement() {
+    const amount = parseCurrencyInput(dynamicMovementDraft.amount);
+    if (activeHoldings.length === 0) {
+      setDynamicModelMessage("Prima inserisci almeno uno strumento nel Portafoglio: poi potrai assegnargli versamenti o prelievi.");
+      return;
+    }
+
+    if (!dynamicMovementDraft.assetId) {
+      setDynamicModelMessage("Scegli lo strumento del Portafoglio a cui assegnare il movimento.");
+      return;
+    }
+
+    if (amount <= 0) {
+      setDynamicModelMessage("Inserisci un importo maggiore di zero.");
+      return;
+    }
+
+    if (dynamicMovementDraft.type === "correction" || dynamicMovementDraft.type === "alignment") {
+      setDynamicModelMessage("Per rettificare rivalutazioni o svalutazioni usa il box 'Rettifica valore attuale'. Qui registra solo versamenti o prelievi reali.");
+      return;
+    }
+
+    const selectedHolding = activeHoldings.find((item) => item.id === dynamicMovementDraft.assetId);
+    if (!selectedHolding) {
+      setDynamicModelMessage("Lo strumento selezionato non è più presente nel Portafoglio. Scegline uno aggiornato.");
+      return;
+    }
+
+    const movementDate = dynamicMovementDraft.movementDate || new Date().toISOString().slice(0, 10);
+    const nextMovement: DynamicModelMovement = {
+      id: `${dynamicModel.mode}-model-movement-${Date.now()}`,
+      modelMode: dynamicModel.mode,
+      assetId: selectedHolding.id,
+      type: dynamicMovementDraft.type,
+      amount,
+      movementDate,
+      insertedAt: new Date().toISOString(),
+      allocationMode: "single_asset",
+      note: `${selectedHolding.strumentiName} - ${selectedHolding.category}${dynamicMovementDraft.note.trim() ? ` | ${dynamicMovementDraft.note.trim()}` : ""}`,
+    };
+
+    updateDynamicModel({ ...dynamicModel, movements: [...dynamicModel.movements, nextMovement] });
+    setDynamicMovementDraft({
+      type: "deposit",
+      amount: "",
+      movementDate: new Date().toISOString().slice(0, 10),
+      assetId: "",
+      allocationMode: "single_asset",
+      note: "",
+    });
+    setDynamicModelMessage(`Movimento registrato su ${selectedHolding.strumentiName}. Il Monitor aggiornerà il capitale inserito e il grafico senza sommare due volte lo stesso importo.`);
+  }
+
+  function deleteDynamicMovement(movementId: string) {
+    const movement = dynamicModel.movements.find((item) => item.id === movementId);
+    if (!movement) return;
+    const confirmed = window.confirm("Vuoi eliminare questo movimento? Questa azione aggiornerà il grafico e non potrà essere annullata.");
+    if (!confirmed) return;
+    updateDynamicModel({
+      ...dynamicModel,
+      movements: dynamicModel.movements.filter((item) => item.id !== movementId),
+    });
+    setDynamicModelMessage("Movimento eliminato. Il Monitor userà i dati aggiornati.");
+  }
+
+  function saveDynamicAlignment() {
+    const value = parseCurrencyInput(dynamicAlignmentDraft.value);
+    const invested = parseCurrencyInput(dynamicAlignmentDraft.investedCapital);
+    if (activeHoldings.length === 0) {
+      setDynamicModelMessage("Prima inserisci almeno uno strumento nel Portafoglio: poi potrai rettificarne valore attuale e capitale versato.");
+      return;
+    }
+
+    if (!dynamicAlignmentDraft.assetId) {
+      setDynamicModelMessage("Scegli lo strumento del Portafoglio da aggiornare.");
+      return;
+    }
+
+    const selectedHolding = activeHoldings.find((item) => item.id === dynamicAlignmentDraft.assetId);
+    if (!selectedHolding) {
+      setDynamicModelMessage("Lo strumento selezionato non è più presente nel Portafoglio. Scegline uno aggiornato.");
+      return;
+    }
+
+    if (value <= 0) {
+      setDynamicModelMessage("Inserisci il valore attuale dello strumento selezionato.");
+      return;
+    }
+
+    const nextMovement: DynamicModelMovement = {
+      id: `${dynamicModel.mode}-model-alignment-${Date.now()}`,
+      modelMode: dynamicModel.mode,
+      assetId: selectedHolding.id,
+      type: "alignment",
+      amount: value,
+      movementDate: new Date().toISOString().slice(0, 10),
+      insertedAt: new Date().toISOString(),
+      allocationMode: "single_asset",
+      note: invested > 0
+        ? `${selectedHolding.strumentiName} - ${selectedHolding.category} | Rettifica valore attuale | Capitale versato indicato: ${invested}`
+        : `${selectedHolding.strumentiName} - ${selectedHolding.category} | Rettifica valore attuale.`,
+    };
+
+    updateDynamicModel({
+      ...dynamicModel,
+      movements: [...dynamicModel.movements, nextMovement],
+      lastManualAlignmentAt: new Date().toISOString(),
+    });
+    setDynamicAlignmentDraft({ assetId: "", value: "", investedCapital: "" });
+    setManualValueCorrectionOpen(false);
+    setDynamicModelMessage(invested > 0
+      ? `Rettifica salvata per ${selectedHolding.strumentiName}: il Monitor userà valore attuale e capitale versato per calcolare rivalutazione o svalutazione.`
+      : `Rettifica salvata per ${selectedHolding.strumentiName}: il Monitor userà il capitale già registrato per leggere rivalutazione o svalutazione.`);
+  }
+
+  function toggleDynamicModelMode(mode: DynamicModelMode) {
+    if (mode === "custom" && !(purchase.plan === "pro" && purchase.unlocked)) {
+      setDynamicModelMessage("Il modello personalizzato è disponibile per il piano Pro.");
+      return;
+    }
+    updateDynamicModel({ ...dynamicModel, mode });
+    setDynamicMovementDraft((prev) => ({ ...prev, assetId: "" }));
+    setDynamicAlignmentDraft((prev) => ({ ...prev, assetId: "", value: "", investedCapital: "" }));
+    setDynamicModelMessage(mode === "custom"
+      ? "Stai usando il modello personale: investimenti e movimenti sono separati dal modello app."
+      : "Stai usando il modello app: investimenti e movimenti del modello personale restano salvati separatamente.");
+  }
+
+  function buildDynamicAssetFromProgramCategory(category: StrumentiCategory, weight: number): DynamicModelAsset {
+    const defaultAsset = getDefaultMarketAssetForCategory(category);
+    const normalizedTicker = defaultAsset?.ticker ? defaultAsset.ticker.toUpperCase() : "";
+    const cachedPrice = normalizedTicker ? marketPriceCache[normalizedTicker] : undefined;
+    const now = new Date().toISOString();
+
+    if (category === "Liquidita" || !defaultAsset) {
+      return {
+        id: `custom-category-${category}-${Date.now()}`,
+        name: category === "Liquidita" ? "Liquidità / conto deposito" : category,
+        category,
+        ticker: "",
+        weight,
+        initialValue: 0,
+        currentManualValue: 0,
+        grossRate: 0,
+        kind: "deposit",
+        apiEnabled: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+
+    return {
+      id: `custom-category-${category}-${Date.now()}`,
+      name: defaultAsset.name,
+      category,
+      ticker: normalizedTicker,
+      weight,
+      initialValue: 0,
+      currentManualValue: 0,
+      kind: "api",
+      apiEnabled: true,
+      basePrice: cachedPrice?.price,
+      lastPrice: cachedPrice?.price,
+      lastPriceAt: cachedPrice?.fetchedAt,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  function setCustomModelCategoryWeight(category: StrumentiCategory, rawValue: string) {
+    if (!(purchase.plan === "pro" && purchase.unlocked)) {
+      setDynamicModelMessage("La modifica delle percentuali del modello è disponibile per il piano Pro.");
+      return;
+    }
+
+    const nextWeight = Math.max(0, Math.min(100, Math.round(parseCurrencyInput(rawValue) * 10) / 10));
+    const categoryAssets = dynamicModel.assets.filter((asset) => asset.category === category);
+    const otherAssets = dynamicModel.assets.filter((asset) => asset.category !== category);
+    let nextCategoryAssets: DynamicModelAsset[] = [];
+
+    if (nextWeight > 0) {
+      if (categoryAssets.length === 0) {
+        nextCategoryAssets = [buildDynamicAssetFromProgramCategory(category, nextWeight)];
+      } else {
+        const currentTotal = categoryAssets.reduce((sum, asset) => sum + Number(asset.weight || 0), 0);
+        nextCategoryAssets = categoryAssets.map((asset, index) => {
+          const proportionalWeight = currentTotal > 0
+            ? (Number(asset.weight || 0) / currentTotal) * nextWeight
+            : index === 0
+              ? nextWeight
+              : 0;
+          return {
+            ...asset,
+            weight: Math.round(proportionalWeight * 10) / 10,
+            updatedAt: new Date().toISOString(),
+          };
+        }).filter((asset) => asset.weight > 0);
+      }
+    }
+
+    updateDynamicModel({
+      ...dynamicModel,
+      mode: "custom",
+      assets: [...otherAssets, ...nextCategoryAssets],
+    });
+  }
+
+  function getCompositionWeight(composition: { category: StrumentiCategory; percentage: number }[], category: StrumentiCategory) {
+    return composition
+      .filter((item) => item.category === category)
+      .reduce((sum, item) => sum + Number(item.percentage || 0), 0);
+  }
+
+  function setPersonalModelDraftFromComposition(composition: { category: StrumentiCategory; percentage: number }[]) {
+    const nextDraft: Partial<Record<StrumentiCategory, string>> = {};
+    (Object.keys(strumentiLibrary) as StrumentiCategory[]).forEach((category) => {
+      const weight = getCompositionWeight(composition, category);
+      nextDraft[category] = weight > 0 ? String(Math.round(weight * 10) / 10) : "";
+    });
+    setCustomModelDraftWeights(nextDraft);
+  }
+
+  function startPersonalModelFromAppModel() {
+    if (!(purchase.plan === "pro" && purchase.unlocked)) {
+      setDynamicModelMessage("Il modello personale è disponibile per il piano Pro.");
+      return;
+    }
+    if (personalModelHasSavedModel) {
+      const confirmed = window.confirm("Hai già un modello personale salvato. Se ne crei uno nuovo, quello precedente verrà sostituito. Vuoi continuare?");
+      if (!confirmed) return;
+    }
+    setPersonalModelDraftFromComposition(selectedPortfolio.composition);
+    updateDynamicModel({ ...dynamicModel, mode: "custom" });
+    setCustomModelDraftNotice("Bozza creata partendo dal modello Soldi Semplici. Modifica le percentuali e poi salva il modello personale.");
+  }
+
+  function startEmptyPersonalModel() {
+    if (!(purchase.plan === "pro" && purchase.unlocked)) {
+      setDynamicModelMessage("Il modello personale è disponibile per il piano Pro.");
+      return;
+    }
+    if (personalModelHasSavedModel) {
+      const confirmed = window.confirm("Hai già un modello personale salvato. Creandone uno nuovo perderai quello precedente. Vuoi continuare?");
+      if (!confirmed) return;
+    }
+    const emptyDraft: Partial<Record<StrumentiCategory, string>> = {};
+    (Object.keys(strumentiLibrary) as StrumentiCategory[]).forEach((category) => {
+      emptyDraft[category] = "";
+    });
+    setCustomModelDraftWeights(emptyDraft);
+    updateDynamicModel({ ...dynamicModel, mode: "custom" });
+    setCustomModelDraftNotice("Bozza vuota creata. Inserisci le percentuali delle categorie: il totale deve essere 100%.");
+  }
+
+  function setPersonalModelDraftWeight(category: StrumentiCategory, rawValue: string) {
+    const normalized = rawValue.replace(",", ".");
+    if (normalized === "") {
+      setCustomModelDraftWeights((previous) => ({ ...previous, [category]: "" }));
+      return;
+    }
+    const numeric = Math.max(0, Math.min(100, Math.round(parseCurrencyInput(normalized) * 10) / 10));
+    setCustomModelDraftWeights((previous) => ({ ...previous, [category]: String(numeric) }));
+  }
+
+  function addPersonalModelDraftCategory() {
+    if (!(purchase.plan === "pro" && purchase.unlocked)) {
+      setDynamicModelMessage("Il modello personale è disponibile per il piano Pro.");
+      return;
+    }
+
+    const numeric = Math.max(0, Math.min(100, Math.round(parseCurrencyInput(personalModelPercentageToAdd) * 10) / 10));
+    if (numeric <= 0) {
+      setCustomModelDraftNotice("Inserisci una percentuale maggiore di zero per aggiungere la categoria al modello personale.");
+      return;
+    }
+
+    setPersonalModelDraftWeight(personalModelCategoryToAdd, String(numeric));
+    setPersonalModelPercentageToAdd("");
+    setCustomModelDraftNotice("Categoria aggiornata. Quando il totale arriva a 100%, salva il modello personale.");
+  }
+
+  function removePersonalModelDraftCategory(category: StrumentiCategory) {
+    setCustomModelDraftWeights((previous) => ({ ...previous, [category]: "" }));
+    setCustomModelDraftNotice("Categoria rimossa dalla bozza del modello personale.");
+  }
+
+  async function savePersonalModelDraft() {
+    if (!(purchase.plan === "pro" && purchase.unlocked)) {
+      setDynamicModelMessage("Il modello personale è disponibile per il piano Pro.");
+      return;
+    }
+
+    const categories = Object.keys(strumentiLibrary) as StrumentiCategory[];
+    const weights = categories.map((category) => ({ category, weight: Math.round(Number((customModelDraftWeights[category] ?? "") || 0) * 10) / 10 }));
+    const total = weights.reduce((sum, item) => sum + Number(item.weight || 0), 0);
+
+    if (Math.abs(total - 100) > 0.2) {
+      setCustomModelDraftNotice(`Il totale deve essere 100%. Ora è ${total.toFixed(1).replace(".", ",")}% .`);
+      return;
+    }
+
+    const nextAssets = weights
+      .filter((item) => item.weight > 0)
+      .map((item) => buildDynamicAssetFromProgramCategory(item.category, item.weight));
+
+    const nextState = {
+      ...dynamicModel,
+      mode: "custom" as DynamicModelMode,
+      assets: nextAssets,
+    };
+
+    if (user) savePersonalModelAssetsBackup(user.id, nextAssets);
+    setDynamicModel(nextState);
+    const savedOnline = await saveDynamicModelToDb(nextState);
+    setCustomModelDraftNotice(savedOnline
+      ? "Modello personale salvato online. Da ora la pagina Modello e il Monitor useranno questa struttura aggregata."
+      : "Modello personale salvato su questo dispositivo. Verifica tabella/RLS Supabase per la sincronizzazione online.");
+  }
+
+  function resetCustomModelFromAppModel() {
+    startPersonalModelFromAppModel();
+  }
+
+  function getCustomModelCategoryWeight(category: StrumentiCategory) {
+    return dynamicModel.assets
+      .filter((asset) => asset.category === category)
+      .reduce((sum, asset) => sum + Number(asset.weight || 0), 0);
+  }
+
   async function loadHoldingsFromDb(currentUser: User) {
     const loadKey = currentUser.id;
+    const fallbackMode = getSavedDynamicModelMode(localStorage.getItem(getDynamicModelStorageKey(currentUser.id)));
 
     // In sviluppo React/Next può rieseguire gli effetti e far partire due fetch identici.
     // Evitiamo richieste sovrapposte: Supabase può interromperne una con AbortError/lock broken.
@@ -7241,9 +10611,11 @@ const [authReady, setAuthReady] = useState(false);
       if (data && data.length > 0) {
         const mapped: Holding[] = data.map((row: any) => ({
           id: row.holding_key,
+          modelMode: normalizeDynamicModelMode(row.model_mode || inferModelModeFromScopedId(row.holding_key) || fallbackMode),
           category: row.category,
           strumentiName: row.asset_name || row.strumenti_name || getStrumentiNameFromHolding(row.category, row.isin),
-          isin: row.isin,
+          isin: row.isin || "",
+          tickerApi: row.ticker_api || row.tickerApi || row.api_ticker || "",
           amount: Number(row.amount || 0),
         }));
         setHoldings(mapped);
@@ -7288,18 +10660,23 @@ const [authReady, setAuthReady] = useState(false);
           console.warn("Caricamento strumenti personali rimandato: richiesta Supabase sovrapposta.", message);
         } else {
           console.error("Errore caricamento strumenti personali:", message);
-          setCustomInstrumentMessage("Non riesco a caricare gli strumenti personali. Controlla la tabella Supabase user_custom_instruments.");
+          setCustomInstrumentMessage("Non riesco a caricare gli strumenti personali. Riprova tra poco.");
         }
         return;
       }
 
-      const mapped: CustomInstrument[] = (data || []).map((row: any) => ({
-        id: String(row.id),
-        category: row.category as StrumentiCategory,
-        name: row.name || row.asset_name || "Strumento personale",
-        isin: row.isin || "",
-        note: row.note || "",
-      }));
+      const mapped: CustomInstrument[] = (data || []).map((row: any) => {
+        const parsedNote = parseCustomInstrumentStoredNote(row.note || "");
+        return {
+          id: String(row.id),
+          category: row.category as StrumentiCategory,
+          name: row.name || row.asset_name || "Strumento personale",
+          isin: row.isin || "",
+          tickerApi: row.ticker_api || row.tickerApi || row.api_ticker || "",
+          note: parsedNote.publicNote,
+          incomeConfig: normalizeIncomeConfig(row.income_config) || getStoredIncomeConfigForInstrument(currentUser.id, String(row.id)) || parsedNote.incomeConfig,
+        };
+      });
 
       setCustomInstruments(mapped);
     } catch (error) {
@@ -7310,7 +10687,7 @@ const [authReady, setAuthReady] = useState(false);
         console.warn("Caricamento strumenti personali rimandato: richiesta Supabase sovrapposta.", message);
       } else {
         console.error("Errore caricamento strumenti personali:", message);
-        setCustomInstrumentMessage("Non riesco a caricare gli strumenti personali. Controlla la tabella Supabase user_custom_instruments.");
+        setCustomInstrumentMessage("Non riesco a caricare gli strumenti personali. Riprova tra poco.");
       }
     } finally {
       if (customInstrumentsLoadKeyRef.current === loadKey) {
@@ -7319,50 +10696,311 @@ const [authReady, setAuthReady] = useState(false);
     }
   }
 
-  async function addCustomInstrument() {
-    if (!user) return;
 
+  async function ensureTickerRegisteredForMarketUpdates(params: {
+    tickerApi: string;
+    name: string;
+    category: StrumentiCategory;
+    isin?: string;
+  }): Promise<{ ok: boolean; message?: string }> {
+    const ticker = normalizeTickerApi(params.tickerApi);
+    if (!ticker || !isLikelyTickerApi(ticker)) return { ok: false, message: "Ticker API non valido." };
+
+    const payload = {
+      ticker,
+      api_symbol: ticker,
+      display_symbol: ticker,
+      isin: params.isin || null,
+      name: params.name,
+      category: params.category,
+      currency: "USD",
+      status: "active",
+      source_note: "Ticker aggiunto da uno strumento personale Pro. Riga condivisa: se più utenti usano lo stesso ticker, l'aggiornamento prezzi resta unico.",
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      const { error } = await supabase
+        .from("market_assets")
+        .upsert(payload, { onConflict: "ticker" });
+
+      if (!error) return { ok: true };
+
+      const message = getErrorMessage(error);
+      // Se RLS o schema impediscono alla UI di registrare il ticker, non blocchiamo lo strumento:
+      // l'Edge Function v262 legge anche user_custom_instruments con service role e registrerà/salverà i prezzi al run successivo.
+      console.warn("Ticker API salvato nello strumento, ma non registrato da UI in market_assets:", message);
+      return { ok: false, message };
+    } catch (error) {
+      const message = getErrorMessage(error);
+      console.warn("Registrazione ticker API rimandata:", message);
+      return { ok: false, message };
+    }
+  }
+
+  function buildIncomeConfigFromDraft(): IncomeConfig {
+    const type = customInstrumentDraft.incomeEnabled ? normalizeIncomeType(customInstrumentDraft.incomeType) : "none";
+    const referenceDate = customInstrumentDraft.nextPaymentDate || customInstrumentDraft.nextExDate || customInstrumentDraft.maturityDate;
+    return {
+      enabled: customInstrumentDraft.incomeEnabled && type !== "none",
+      type,
+      frequency: type === "maturity_yield" ? "at_maturity" : normalizeIncomeFrequency(customInstrumentDraft.incomeFrequency),
+      nextExDate: referenceDate,
+      nextPaymentDate: referenceDate,
+      maturityDate: type === "maturity_yield" ? referenceDate : "",
+      notes: customInstrumentDraft.incomeNotes.trim(),
+      currency: "EUR",
+    };
+  }
+
+  function resetCustomInstrumentDraft(overrides: Partial<typeof customInstrumentDraft> = {}) {
+    setCustomInstrumentDraft({
+      category: "Azioni Globali",
+      name: "",
+      isin: "",
+      tickerApi: "",
+      note: "",
+      incomeEnabled: false,
+      incomeType: "none",
+      incomeFrequency: "quarterly",
+      grossAmountPerUnit: "",
+      referenceUnitPrice: "",
+      annualRate: "",
+      nextExDate: "",
+      nextPaymentDate: "",
+      maturityDate: "",
+      expectedMaturityValue: "",
+      taxRate: "26",
+      stampDutyMode: "ignore",
+      currency: "EUR",
+      exchangeRateToEur: "1",
+      incomeNotes: "",
+      ...overrides,
+    });
+  }
+
+  function startEditCustomInstrument(instrument: CustomInstrument) {
+    const config = normalizeIncomeConfig(instrument.incomeConfig);
+    setEditingCustomInstrumentId(instrument.id);
+    resetCustomInstrumentDraft({
+      category: instrument.category,
+      name: instrument.name,
+      isin: instrument.isin || "",
+      tickerApi: instrument.tickerApi || "",
+      note: instrument.note || "",
+      incomeEnabled: !!config?.enabled,
+      incomeType: config?.type || "none",
+      incomeFrequency: config?.frequency || "quarterly",
+      grossAmountPerUnit: config?.grossAmountPerUnit != null ? String(config.grossAmountPerUnit) : "",
+      referenceUnitPrice: config?.referenceUnitPrice != null ? String(config.referenceUnitPrice) : "",
+      annualRate: config?.annualRate != null ? String(config.annualRate) : "",
+      nextExDate: config?.nextExDate || "",
+      nextPaymentDate: config?.nextPaymentDate || "",
+      maturityDate: config?.maturityDate || "",
+      expectedMaturityValue: config?.expectedMaturityValue != null ? String(config.expectedMaturityValue) : "",
+      taxRate: config?.taxRate != null ? String(config.taxRate) : "26",
+      stampDutyMode: config?.stampDutyMode || "ignore",
+      currency: config?.currency || "EUR",
+      exchangeRateToEur: config?.exchangeRateToEur != null ? String(config.exchangeRateToEur) : ((config?.currency || "EUR") === "EUR" ? "1" : ""),
+      incomeNotes: config?.notes || "",
+    });
+    setCustomInstrumentMessage("Modifica attiva: cambia i dati e premi Salva modifiche in fondo al riquadro.");
+    window.setTimeout(() => {
+      customInstrumentFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
+  function cancelCustomInstrumentEdit() {
+    setEditingCustomInstrumentId(null);
+    resetCustomInstrumentDraft();
+    setCustomInstrumentMessage("");
+  }
+
+  async function saveCustomInstrument() {
+    if (!user) return;
+    const userId = user.id;
+
+    const isPro = purchase.plan === "pro" && purchase.unlocked;
     const name = customInstrumentDraft.name.trim();
     const isin = customInstrumentDraft.isin.trim().toUpperCase();
+    const tickerApi = isPro ? normalizeTickerApi(customInstrumentDraft.tickerApi) : "";
     const note = customInstrumentDraft.note.trim();
+    const incomeConfig = isPro ? buildIncomeConfigFromDraft() : undefined;
+    const currentEditingId = editingCustomInstrumentId;
+    const apiInstrumentCount = customInstruments
+      .filter((instrument) => instrument.id !== currentEditingId)
+      .filter((instrument) => !!normalizeTickerApi(instrument.tickerApi)).length;
 
-    if (!name || !isin) {
-      setCustomInstrumentMessage("Inserisci almeno nome strumento e ISIN / ticker.");
+    if (!name) {
+      setCustomInstrumentMessage("Inserisci almeno il nome dello strumento. ISIN e ticker API sono facoltativi.");
       return;
+    }
+
+    if (customInstrumentDraft.tickerApi.trim() && !isPro) {
+      setCustomInstrumentMessage("Il ticker API per i prezzi automatici è disponibile solo con il piano Pro.");
+      return;
+    }
+
+    if (customInstrumentDraft.incomeEnabled && !isPro) {
+      setCustomInstrumentMessage("I promemoria entrate sono disponibili solo con il piano Pro.");
+      return;
+    }
+
+    if (tickerApi && !isLikelyTickerApi(tickerApi)) {
+      setCustomInstrumentMessage("Il ticker API non sembra valido. Usa simboli come VT, AGG, SXR8.DE o VWCE.DE, non l'ISIN.");
+      return;
+    }
+
+    if (tickerApi && apiInstrumentCount >= 10) {
+      setCustomInstrumentMessage("Nel piano Pro puoi collegare fino a 10 strumenti tramite ticker API. Gli strumenti senza ticker restano comunque salvabili.");
+      return;
+    }
+
+    if (incomeConfig?.enabled) {
+      const requiresDate = incomeConfig.type === "maturity_yield" ? incomeConfig.maturityDate : incomeConfig.nextPaymentDate || incomeConfig.nextExDate;
+      if (!requiresDate) {
+        setCustomInstrumentMessage("Per il promemoria inserisci almeno una data di riferimento. Può essere anche l'ultima data nota: l'app calcola la prossima ricorrenza futura.");
+        return;
+      }
     }
 
     setCustomInstrumentMessage("");
 
-    const { data, error } = await supabase
-      .from("user_custom_instruments")
-      .insert({
-        user_id: user.id,
-        category: customInstrumentDraft.category,
-        name,
-        isin,
-        note: note || null,
-        created_at: new Date().toISOString(),
-      })
-      .select("*")
-      .single();
+    const storedNote = buildCustomInstrumentStoredNote(note, incomeConfig);
+    const basePayload = {
+      user_id: userId,
+      category: customInstrumentDraft.category,
+      name,
+      // Compatibilità Supabase: se la colonna isin è NOT NULL, non inviare null.
+      isin: isin || "",
+      note: storedNote,
+    };
 
-    if (error) {
-      console.error("Errore salvataggio strumento personale:", error.message);
-      setCustomInstrumentMessage("Errore nel salvataggio. Verifica la tabella Supabase user_custom_instruments e le policy RLS.");
+    const savePayload = {
+      ...basePayload,
+      ticker_api: tickerApi || null,
+      api_enabled: !!tickerApi,
+      income_config: incomeConfig?.enabled ? incomeConfig : null,
+    };
+
+    const isSchemaError = (error: any) => /income_config|ticker_api|api_ticker|api_enabled|column|schema cache/i.test(getErrorMessage(error));
+
+    async function persistCustomInstrument(payload: Record<string, unknown>, includeCreatedAt = false) {
+      if (currentEditingId) {
+        return await supabase
+          .from("user_custom_instruments")
+          .update(payload)
+          .eq("id", currentEditingId)
+          .eq("user_id", userId)
+          .select("*")
+          .maybeSingle();
+      }
+
+      return await supabase
+        .from("user_custom_instruments")
+        .insert(includeCreatedAt ? { ...payload, created_at: new Date().toISOString() } : payload)
+        .select("*")
+        .maybeSingle();
+    }
+
+    let { data: savedData, error: saveError } = await persistCustomInstrument(savePayload, !currentEditingId);
+
+    // Alcune installazioni potrebbero non avere ancora le colonne ticker_api/api_enabled.
+    // In quel caso salviamo comunque lo strumento e il promemoria entrate nella nota, senza bloccare modifica/creazione.
+    if (saveError && isSchemaError(saveError)) {
+      console.warn("Fallback salvataggio strumento senza colonne ticker_api/api_enabled:", getErrorMessage(saveError));
+      const fallbackResult = await persistCustomInstrument(basePayload, !currentEditingId);
+      savedData = fallbackResult.data;
+      saveError = fallbackResult.error;
+    }
+
+    if (saveError) {
+      console.error("Errore salvataggio strumento personale:", getErrorMessage(saveError));
+
+      // Se Supabase blocca l'UPDATE ma stiamo modificando uno strumento già caricato,
+      // non facciamo perdere il lavoro all'utente: salviamo almeno la configurazione Pro in locale
+      // e aggiorniamo subito l'interfaccia. In produzione va comunque allineata la tabella Supabase.
+      if (currentEditingId) {
+        saveStoredIncomeConfigForInstrument(userId, currentEditingId, incomeConfig);
+        setCustomInstruments((prev) => prev.map((item) => item.id === currentEditingId ? {
+          ...item,
+          category: customInstrumentDraft.category,
+          name,
+          isin,
+          tickerApi: tickerApi || item.tickerApi,
+          note,
+          incomeConfig,
+        } : item));
+        setEditingCustomInstrumentId(null);
+        resetCustomInstrumentDraft();
+        setCustomInstrumentMessage(`Modifiche applicate in questa sessione, ma Supabase non ha salvato la riga: ${getErrorMessage(saveError)}. Controlla colonne e policy della tabella user_custom_instruments.`);
+        return;
+      }
+
+      setCustomInstrumentMessage(`Errore nel salvataggio dello strumento: ${getErrorMessage(saveError)}. Se è un problema di Supabase, controlla che la tabella user_custom_instruments permetta insert/update per user_id.`);
       return;
     }
 
-    const created: CustomInstrument = {
-      id: String(data.id),
-      category: data.category as StrumentiCategory,
-      name: data.name || name,
-      isin: data.isin || isin,
-      note: data.note || "",
+    if (!savedData) {
+      // Se la policy Supabase consente update/insert ma non ritorna la riga con select,
+      // non blocchiamo l'utente: ricostruiamo localmente lo strumento dai dati appena salvati.
+      savedData = {
+        id: currentEditingId || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        category: customInstrumentDraft.category,
+        name,
+        isin,
+        ticker_api: tickerApi || "",
+        note: storedNote,
+      };
+    }
+
+    let marketRegistration: { ok: boolean; message?: string } = { ok: true };
+    if (tickerApi) {
+      marketRegistration = await ensureTickerRegisteredForMarketUpdates({
+        tickerApi,
+        name,
+        category: customInstrumentDraft.category,
+        isin,
+      });
+    }
+
+    const parsedNote = parseCustomInstrumentStoredNote(savedData.note || storedNote || "");
+    const savedIncomeConfig = normalizeIncomeConfig(savedData.income_config) || parsedNote.incomeConfig || incomeConfig;
+    const saved: CustomInstrument = {
+      id: String(savedData.id),
+      category: savedData.category as StrumentiCategory,
+      name: savedData.name || name,
+      isin: savedData.isin || isin,
+      tickerApi: savedData.ticker_api || tickerApi || "",
+      note: parsedNote.publicNote,
+      incomeConfig: savedIncomeConfig,
     };
 
-    setCustomInstruments((prev) => [...prev, created]);
-    setCustomInstrumentDraft((prev) => ({ ...prev, name: "", isin: "", note: "" }));
-    setCustomInstrumentMessage("Strumento personale aggiunto. Ora lo trovi anche nella Dashboard, dentro Aggiungi investimento.");
+    saveStoredIncomeConfigForInstrument(userId, saved.id, saved.incomeConfig);
+
+    if (currentEditingId) {
+      setCustomInstruments((prev) => prev.map((item) => item.id === currentEditingId ? saved : item));
+      setEditingCustomInstrumentId(null);
+      resetCustomInstrumentDraft();
+      setCustomInstrumentMessage(tickerApi && !marketRegistration.ok
+        ? "Strumento aggiornato. Il ticker API resta salvato, ma l'aggancio ai prezzi automatici potrebbe richiedere il prossimo aggiornamento."
+        : "Strumento aggiornato. I movimenti già registrati restano collegati allo strumento.");
+      return;
+    }
+
+    setCustomInstruments((prev) => [...prev, saved]);
+    resetCustomInstrumentDraft();
+    setCustomInstrumentMessage(tickerApi
+      ? marketRegistration.ok
+        ? "Strumento personale aggiunto con ticker API. Il ticker è registrato nella lista condivisa: gli aggiornamenti Supabase scaricheranno un solo prezzo anche se più utenti usano lo stesso simbolo."
+        : "Strumento personale aggiunto con ticker API. Se non vedi subito i prezzi, verranno agganciati al prossimo aggiornamento oppure verifica le policy RLS di market_assets."
+      : incomeConfig?.enabled
+        ? "Strumento personale aggiunto con promemoria entrate. Lo trovi nel Monitor nelle prossime scadenze utili."
+        : "Strumento personale aggiunto. Ora lo trovi nella Dashboard, dentro Aggiungi investimento.");
+  }
+
+  async function addCustomInstrument() {
+    await saveCustomInstrument();
   }
 
   async function deleteCustomInstrument(id: string) {
@@ -7382,7 +11020,7 @@ const [authReady, setAuthReady] = useState(false);
 
     if (error) {
       console.error("Errore eliminazione strumento personale:", error.message);
-      setCustomInstrumentMessage("Non riesco a eliminare lo strumento. Controlla le policy RLS su Supabase.");
+      setCustomInstrumentMessage("Non riesco a eliminare lo strumento. Riprova tra poco.");
       return;
     }
 
@@ -7437,7 +11075,7 @@ const [authReady, setAuthReady] = useState(false);
           console.warn("Caricamento lista spesa rimandato: richiesta Supabase sovrapposta.", message);
         } else {
           console.error("Errore caricamento lista spesa:", message);
-          setShoppingMessage("Non riesco a caricare la lista spesa. Controlla la tabella Supabase user_shopping_items.");
+          setShoppingMessage("Non riesco a caricare la lista spesa. Riprova tra poco.");
         }
         return;
       }
@@ -7451,7 +11089,7 @@ const [authReady, setAuthReady] = useState(false);
         console.warn("Caricamento lista spesa rimandato: richiesta Supabase sovrapposta.", message);
       } else {
         console.error("Errore caricamento lista spesa:", message);
-        setShoppingMessage("Non riesco a caricare la lista spesa. Controlla la tabella Supabase user_shopping_items.");
+        setShoppingMessage("Non riesco a caricare la lista spesa. Riprova tra poco.");
       }
     } finally {
       if (shoppingItemsLoadKeyRef.current === loadKey) {
@@ -7492,7 +11130,7 @@ const [authReady, setAuthReady] = useState(false);
 
     if (error) {
       console.error("Errore salvataggio prodotto spesa:", error.message);
-      setShoppingMessage("Errore nel salvataggio. Verifica la tabella Supabase user_shopping_items e le policy RLS.");
+      setShoppingMessage("Errore nel salvataggio della lista spesa. Riprova tra poco.");
       return;
     }
 
@@ -7962,12 +11600,14 @@ const [authReady, setAuthReady] = useState(false);
   async function saveGoalUpdateFromDashboard() {
     setGoalSaveStatus("saving");
 
+    const automaticCurrentValue = String(Math.max(0, Number(monitorDisplayedTotalValue || 0)));
+
     const nextGoal = {
       title: draftGoalTitleRef.current?.value ?? draftGoalTitle,
       target: draftGoalTargetRef.current?.value ?? draftGoalTarget,
-      currentValue: draftGoalCurrentValueRef.current?.value ?? draftGoalCurrentValue,
-      previousValue: draftGoalPreviousValueRef.current?.value ?? draftGoalPreviousValue,
-      reason: (draftGoalReasonRef.current?.value as GoalChangeReason | undefined) ?? draftGoalReason,
+      currentValue: automaticCurrentValue,
+      previousValue: goalCurrentValue || automaticCurrentValue,
+      reason: "stabile" as GoalChangeReason,
       endYear: draftGoalEndYearRef.current?.value ?? draftGoalEndYear,
       monthly: portMonthly,
     };
@@ -8548,6 +12188,7 @@ const [authReady, setAuthReady] = useState(false);
       category,
       strumentiName: firstStrumenti.name,
       isin: firstStrumenti.isin,
+      tickerApi: firstStrumenti.tickerApi || "",
       amount: newHolding.amount,
     });
   }
@@ -8555,20 +12196,41 @@ const [authReady, setAuthReady] = useState(false);
   function addHolding() {
     const amount = Number(newHolding.amount.replace(",", "."));
     if (!amount || amount <= 0) return;
+    const now = new Date();
     const item: Holding = {
-      id: `${Date.now()}`,
+      id: `${dynamicModel.mode}-${Date.now()}`,
+      modelMode: dynamicModel.mode,
       category: newHolding.category,
       strumentiName: newHolding.strumentiName,
       isin: newHolding.isin,
+      tickerApi: newHolding.tickerApi || undefined,
       amount,
     };
+    const movementDate = now.toISOString().slice(0, 10);
+    const automaticMovement: DynamicModelMovement = {
+      id: `${dynamicModel.mode}-model-movement-${item.id}`,
+      modelMode: dynamicModel.mode,
+      assetId: item.id,
+      type: "deposit",
+      amount,
+      movementDate,
+      insertedAt: now.toISOString(),
+      allocationMode: "single_asset",
+      note: `${item.strumentiName} - ${item.category} | Movimento automatico da Aggiungi investimento`,
+    };
+
     setHoldings((prev) => [...prev, item]);
     saveHoldingToDb(item);
+    updateDynamicModel({ ...dynamicModel, movements: [...dynamicModel.movements, automaticMovement] });
     setNewHolding((prev) => ({ ...prev, amount: "" }));
   }
 
   function removeHolding(id: string) {
     setHoldings((prev) => prev.filter((item) => item.id !== id));
+    updateDynamicModel({
+      ...dynamicModel,
+      movements: dynamicModel.movements.filter((movement) => movement.assetId !== id),
+    });
     deleteHoldingFromDb(id);
   }
 
@@ -8612,21 +12274,66 @@ const [authReady, setAuthReady] = useState(false);
     }, 80);
   }
 
-  function goToDashboardSection(sectionId: string) {
+  function getDashboardTabForSection(sectionId: string): DashboardTab {
     const monitorSections = new Set(["azione-del-mese", "storico-pac", "validità-piano"]);
     const guideSections = new Set(["prima-volta-qui"]);
-    const tab: DashboardTab = guideSections.has(sectionId)
-      ? "guida"
-      : monitorSections.has(sectionId)
-      ? "monitor"
-      : "portafoglio";
 
-    setStep("dashboard");
-    setDashboardActiveTab(tab);
-    window.setTimeout(() => {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 160);
+    if (guideSections.has(sectionId)) return "guida";
+    if (monitorSections.has(sectionId)) return "monitor";
+    return "portafoglio";
   }
+
+  function scrollToDashboardSection(sectionId: string) {
+    const target = document.getElementById(sectionId);
+    if (!target) return false;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    return true;
+  }
+
+  function goToDashboardSection(sectionId: string) {
+    const tab = getDashboardTabForSection(sectionId);
+
+    setPendingDashboardSection(sectionId);
+    setDashboardActiveTab(tab);
+    setStep("dashboard");
+
+    // Dopo il cambio pagina/tab la sezione viene montata in ritardo.
+    // Riproviamo più volte e, soprattutto, ribadiamo la tab corretta: questo evita
+    // che il pulsante dal Modello resti fermo su Monitor invece di aprire Portafoglio.
+    [80, 180, 360, 700, 1100].forEach((delay) => {
+      window.setTimeout(() => {
+        setDashboardActiveTab(tab);
+        scrollToDashboardSection(sectionId);
+      }, delay);
+    });
+  }
+
+  useEffect(() => {
+    if (step !== "dashboard" || !pendingDashboardSection) return;
+
+    const expectedTab = getDashboardTabForSection(pendingDashboardSection);
+    if (dashboardActiveTab !== expectedTab) {
+      setDashboardActiveTab(expectedTab);
+      return;
+    }
+
+    let cancelled = false;
+    const delays = [60, 180, 360, 700, 1100, 1600];
+    const timers = delays.map((delay) =>
+      window.setTimeout(() => {
+        if (cancelled) return;
+        const found = scrollToDashboardSection(pendingDashboardSection);
+        if (found) {
+          setPendingDashboardSection(null);
+        }
+      }, delay)
+    );
+
+    return () => {
+      cancelled = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [step, dashboardActiveTab, pendingDashboardSection]);
 
   function goBackToGuideFromDashboard() {
     openDashboardTab("guida");
@@ -8717,14 +12424,14 @@ const [authReady, setAuthReady] = useState(false);
     try {
       const { data, error } = await supabase.rpc("admin_get_overview");
       if (error) {
-        setAdminMessage("Impossibile caricare la plancia admin. Controlla di aver eseguito lo script SQL admin su Supabase.");
+        setAdminMessage("Impossibile caricare la plancia admin. Riprova o verifica la configurazione admin.");
         console.warn("Admin overview non disponibile:", error.message);
         return;
       }
 
       setAdminOverview((data || null) as AdminOverview | null);
     } catch (error) {
-      setAdminMessage("Errore nel caricamento della plancia admin. Riprova o controlla Supabase.");
+      setAdminMessage("Errore nel caricamento della plancia admin. Riprova tra poco.");
       console.warn("Admin overview errore:", error);
     } finally {
       setAdminLoading(false);
@@ -8745,7 +12452,7 @@ const [authReady, setAuthReady] = useState(false);
     try {
       const { data, error } = await supabase.rpc("admin_reset_test_data");
       if (error) {
-        setAdminMessage("Reset non eseguito. Controlla policy/funzioni admin su Supabase.");
+        setAdminMessage("Reset non eseguito. Riprova o verifica la configurazione admin.");
         console.warn("Reset admin non riuscito:", error.message);
         return;
       }
@@ -8755,7 +12462,7 @@ const [authReady, setAuthReady] = useState(false);
       void trackEvent("admin_reset_test_data", { admin_email: user.email || "", result: data || null });
       await loadAdminOverview();
     } catch (error) {
-      setAdminMessage("Errore durante il reset admin. Riprova o controlla Supabase.");
+      setAdminMessage("Errore durante il reset admin. Riprova tra poco.");
       console.warn("Reset admin errore:", error);
     } finally {
       setAdminResetLoading(false);
@@ -9856,20 +13563,52 @@ const [authReady, setAuthReady] = useState(false);
         {step === "portfolio" && (
           <section className="space-y-6">
             <div className="overflow-hidden rounded-[2rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-slate-50 p-8 shadow-sm">
-              <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-                <div className="max-w-3xl">
-                  <div>
-                    <p className="inline-flex rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 shadow-sm">
-                      Modello assegnato gratuitamente
-                    </p>
-                    <h2 className="mt-4 text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">{selectedPortfolio.title}</h2>
-                    <p className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800">
-                      {selectedPortfolio.shortTitle} - {selectedPortfolio.badge}
-                    </p>
+              <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+                <div className="max-w-3xl self-start">
+                  <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                      <p className="inline-flex rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 shadow-sm">
+                        {dynamicModel.mode === "custom" ? "Modello personale Pro" : "Modello assegnato gratuitamente"}
+                      </p>
+                      <h2 className="mt-4 text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">
+                        {dynamicModel.mode === "custom" ? "Il tuo modello personale" : selectedPortfolio.title}
+                      </h2>
+                      <p className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800">
+                        {dynamicModel.mode === "custom" ? "Personalizzato per categorie" : `${selectedPortfolio.shortTitle} - ${selectedPortfolio.badge}`}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-200 bg-white/90 p-2 shadow-sm">
+                      <p className="px-2 pb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Modello attivo</p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleDynamicModelMode("app")}
+                          className={`rounded-xl px-4 py-2 text-sm font-bold transition ${dynamicModel.mode === "app" ? "bg-emerald-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+                        >
+                          Usa modello app
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleDynamicModelMode("custom")}
+                          className={`rounded-xl px-4 py-2 text-sm font-bold transition ${dynamicModel.mode === "custom" ? "bg-emerald-600 text-white shadow-sm" : "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100 hover:bg-emerald-100"}`}
+                        >
+                          Usa modello personale
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <p className="mt-6 text-lg leading-8 text-slate-700">{selectedPortfolio.intro}</p>
-                  <p className="mt-4 text-base leading-7 text-slate-600">{selectedPortfolio.whyItFits}</p>
+                  <p className="mt-6 text-lg leading-8 text-slate-700">
+                    {dynamicModel.mode === "custom"
+                      ? "Hai scelto un modello personale: le percentuali sono definite da te e il grafico mostra la struttura aggregata del tuo piano."
+                      : selectedPortfolio.intro}
+                  </p>
+                  <p className="mt-4 text-base leading-7 text-slate-600">
+                    {dynamicModel.mode === "custom"
+                      ? "Puoi sempre tornare al modello generato dall'app. Il modello personale sostituisce la struttura, ma non trasforma l'app in una consulenza: resta una guida educativa per seguire il metodo."
+                      : selectedPortfolio.whyItFits}
+                  </p>
 
                   <div className="mt-6 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-2xl border border-emerald-100 bg-white/80 p-4 shadow-sm">
@@ -9885,33 +13624,164 @@ const [authReady, setAuthReady] = useState(false);
                       <p className="mt-1 text-sm font-bold text-slate-950">Non improvvisare</p>
                     </div>
                   </div>
+
+                  {dynamicModel.mode === "custom" && (
+                    <div className={`mt-4 rounded-2xl border p-4 shadow-sm ${personalModelReadyForPortfolio ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white/85"}`}>
+                      <p className={`text-xs font-black uppercase tracking-[0.18em] ${personalModelReadyForPortfolio ? "text-emerald-700" : "text-slate-500"}`}>
+                        Passaggio successivo
+                      </p>
+                      <h3 className="mt-2 text-lg font-bold tracking-tight text-slate-950">Porta il modello nel Portafoglio</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Dopo aver definito le percentuali, vai nel Portafoglio e inserisci gli strumenti concreti da usare per coprire le varie quote del modello.
+                      </p>
+                      {!personalModelReadyForPortfolio && (
+                        <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-600 ring-1 ring-slate-100">
+                          Completa la torta al 100%: quando il modello è completo, questo pulsante diventa l'azione principale.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => goToDashboardSection("aggiungi-investimento")}
+                        className={`mt-4 rounded-xl px-5 py-3 text-sm font-bold transition active:scale-95 ${personalModelReadyForPortfolio ? "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 hover:shadow-md" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+                      >
+                        Vai al Portafoglio e inserisci gli strumenti
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-[2rem] border border-white bg-white/80 p-5 shadow-sm">
-                  <PortfolioPieChart composition={selectedPortfolio.composition} />
+                  <PortfolioPieChart composition={displayedModelComposition} />
+
+                  {dynamicModel.mode === "custom" && (
+                    <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Modello personale Pro</p>
+                          <p className="mt-1 text-sm leading-6 text-emerald-950">
+                            Aggiungi una categoria alla volta: scegli la categoria, inserisci il peso e guarda la torta colorarsi progressivamente.
+                          </p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${Math.abs(personalModelDraftWeightTotal - 100) <= 0.2 ? "bg-white text-emerald-700 ring-1 ring-emerald-200" : "bg-amber-50 text-amber-800 ring-1 ring-amber-200"}`}>
+                          Totale {personalModelDraftWeightTotal.toFixed(1).replace(".", ",")}%
+                        </span>
+                      </div>
+
+                      {purchase.plan === "pro" && purchase.unlocked ? (
+                        <div className="mt-4 space-y-4">
+                          <div className="grid gap-3 sm:grid-cols-[1fr_120px_auto]">
+                            <select
+                              value={personalModelCategoryToAdd}
+                              onChange={(e) => setPersonalModelCategoryToAdd(e.target.value as StrumentiCategory)}
+                              className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-emerald-300"
+                            >
+                              {(Object.keys(strumentiLibrary) as StrumentiCategory[]).map((category) => (
+                                <option key={`personal-model-select-${category}`} value={category}>
+                                  {category}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              value={personalModelPercentageToAdd}
+                              onChange={(e) => setPersonalModelPercentageToAdd(e.target.value)}
+                              placeholder="%"
+                              inputMode="decimal"
+                              className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-300"
+                            />
+                            <button
+                              type="button"
+                              onClick={addPersonalModelDraftCategory}
+                              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                            >
+                              Aggiungi
+                            </button>
+                          </div>
+
+                          <div className="space-y-2">
+                            {displayedModelComposition.length ? displayedModelComposition.map((item) => (
+                              <div key={`personal-model-current-${item.category}`} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-emerald-100">
+                                <span className="flex items-center gap-2 font-semibold text-slate-800">
+                                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: getAssetColor(item.category) }} />
+                                  {item.label}
+                                </span>
+                                <span className="flex items-center gap-3">
+                                  <strong className="text-slate-950">{item.percentage}%</strong>
+                                  <button
+                                    type="button"
+                                    onClick={() => removePersonalModelDraftCategory(item.category)}
+                                    className="text-xs font-bold text-slate-400 transition hover:text-red-600"
+                                  >
+                                    Rimuovi
+                                  </button>
+                                </span>
+                              </div>
+                            )) : (
+                              <p className="rounded-xl bg-white px-3 py-3 text-sm leading-6 text-slate-600 ring-1 ring-emerald-100">
+                                Nessuna categoria inserita: la torta grigia indica che il modello personale è ancora da costruire.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                            <button
+                              type="button"
+                              onClick={savePersonalModelDraft}
+                              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                            >
+                              Salva modello personale
+                            </button>
+                            <button
+                              type="button"
+                              onClick={startEmptyPersonalModel}
+                              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Nuovo modello
+                            </button>
+                          </div>
+
+                          {(customModelDraftNotice || dynamicModelMessage) && (
+                            <p className="rounded-xl bg-white p-3 text-sm font-semibold leading-6 text-emerald-900 ring-1 ring-emerald-100">
+                              {customModelDraftNotice || dynamicModelMessage}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-4 rounded-xl bg-white p-4 text-sm leading-6 text-slate-600 ring-1 ring-emerald-100">
+                          Il modello personale è disponibile con il piano Pro. Con il Core continui a usare il modello generato dall'app.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Cosa ricevi gratis</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Dati del modello</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Un modello educativo completo: composizione, rischio storico, punti di attenzione e simulazione del percorso.
+                  {dynamicModel.mode === "custom"
+                    ? "Stima educativa ricavata dai pesi che hai inserito. I dati sono espressi in intervalli perché servono a orientarti sul rapporto tra crescita potenziale e oscillazioni, non a prevedere il futuro."
+                    : "Un modello educativo completo: composizione, rischio storico, punti di attenzione e simulazione del percorso."}
                 </p>
                 <div className="mt-5 grid gap-4 md:grid-cols-3">
-                  <MetricCard label="Rendimento medio" value={selectedPortfolio.historical.average} />
-                  <MetricCard label="Peggior drawdown" value={selectedPortfolio.historical.maxDrawdown} />
-                  <MetricCard label="Tempo recupero" value={selectedPortfolio.historical.recovery} />
+                  <MetricCard label="Rendimento medio" value={displayedModelStats.average} />
+                  <MetricCard label="Peggior drawdown" value={displayedModelStats.maxDrawdown} />
+                  <MetricCard label="Tempo recupero" value={displayedModelStats.recovery} />
                 </div>
+                {dynamicModel.mode === "custom" && (
+                  <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-medium leading-5 text-amber-900">
+                    Dati educativi stimati: non sono una previsione e non rappresentano lo storico reale del tuo portafoglio. Servono solo a orientarti sul rapporto tra crescita potenziale, oscillazioni e tempo necessario per recuperare eventuali cali. I risultati futuri possono essere molto diversi.
+                  </p>
+                )}
               </div>
 
               <div className="mt-8 grid gap-4 lg:grid-cols-2">
-                <ContentPanel title="Struttura del modello" items={selectedPortfolio.structureSummary} />
-                <ContentPanel title="A cosa fare attenzione" items={selectedPortfolio.attention} />
+                <ContentPanel title="Struttura del modello" items={displayedStructureSummary} />
+                <ContentPanel title="A cosa fare attenzione" items={displayedAttentionItems} />
               </div>
 
               <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Ribilanciamento annuale</h3>
-                <p className="mt-2 text-sm leading-7 text-slate-700">{selectedPortfolio.annualRebalanceNote}</p>
+                <p className="mt-2 text-sm leading-7 text-slate-700">{displayedAnnualRebalanceNote}</p>
               </div>
 
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -9920,6 +13790,7 @@ const [authReady, setAuthReady] = useState(false);
                   Il modello e le categorie mostrate hanno finalità informative. Gli eventuali strumenti indicati sono esempi e non costituiscono raccomandazioni operative.
                 </p>
               </div>
+
 
 
             </div>
@@ -10025,9 +13896,9 @@ const [authReady, setAuthReady] = useState(false);
               </p>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <MetricCard label="20 anni" value={selectedPortfolio.growthProjection.twenty} />
-                <MetricCard label="25 anni" value={selectedPortfolio.growthProjection.twentyFive} />
-                <MetricCard label="30 anni" value={selectedPortfolio.growthProjection.thirty} />
+                <MetricCard label="20 anni" value={dynamicModel.mode === "custom" ? formatEuro(calculatePAC(200, 20, displayedPortfolioRate)) : selectedPortfolio.growthProjection.twenty} />
+                <MetricCard label="25 anni" value={dynamicModel.mode === "custom" ? formatEuro(calculatePAC(200, 25, displayedPortfolioRate)) : selectedPortfolio.growthProjection.twentyFive} />
+                <MetricCard label="30 anni" value={dynamicModel.mode === "custom" ? formatEuro(calculatePAC(200, 30, displayedPortfolioRate)) : selectedPortfolio.growthProjection.thirty} />
               </div>
             </div>
 
@@ -10206,10 +14077,10 @@ const [authReady, setAuthReady] = useState(false);
                   </p>
                 </div>
                 <button
-                  onClick={() => openDashboardTab("guida")}
+                  onClick={() => setStep("portfolio")}
                   className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700"
                 >
-                  Torna alla guida operativa
+                  Torna al Modello
                 </button>
               </div>
 
@@ -10235,74 +14106,259 @@ const [authReady, setAuthReady] = useState(false);
               </div>
             </div>
 
-            <div className="rounded-3xl border border-indigo-200 bg-white p-6 shadow-sm ring-1 ring-indigo-100">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm ring-1 ring-slate-100">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700">Strumento personale</p>
-                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Aggiungi uno strumento</h3>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Strumenti</p>
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Aggiungi o modifica uno strumento</h3>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    Inserisci solo strumenti che conosci e che appartengono alla categoria corretta. Questa funzione serve per personalizzare il piano, non per ricevere raccomandazioni di acquisto.
+                    Salva gli strumenti personali da usare nel Portafoglio. Con Pro puoi aggiungere ticker API e promemoria per scadenze, cedole, dividendi o interessi.
                   </p>
                 </div>
-                <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-200">
-                  {customInstruments.length} personali
-                </span>
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 ring-1 ring-indigo-200">
+                    {customInstruments.length} personali
+                  </span>
+                  {purchase.plan === "pro" && purchase.unlocked ? (
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+                      Pro attivo
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+                      API con Pro
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.2fr_0.9fr_1.2fr_auto] lg:items-end">
-                <div>
-                  <label className="text-sm font-medium text-slate-700">Categoria</label>
-                  <select
-                    value={customInstrumentDraft.category}
-                    onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, category: e.target.value as StrumentiCategory }))}
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
+              <div ref={customInstrumentFormRef} className="mt-6 scroll-mt-24 space-y-4">
+                {editingCustomInstrumentId ? (
+                  <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-black">Stai modificando: {customInstrumentDraft.name || "strumento personale"}</p>
+                      <p className="mt-1 text-xs leading-5 text-amber-800">Cambia solo i dati necessari e salva in fondo.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={cancelCustomInstrumentEdit}
+                      className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100"
+                    >
+                      Annulla modifica
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-700">Dati strumento</p>
+                      <h4 className="mt-1 text-lg font-black text-slate-950">Informazioni principali</h4>
+                    </div>
+                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 ring-1 ring-indigo-100">
+                      Core e Pro
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.25fr_1fr_1fr_1.15fr] lg:items-end">
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">Categoria</label>
+                      <select
+                        value={customInstrumentDraft.category}
+                        onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, category: e.target.value as StrumentiCategory }))}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
+                      >
+                        {Object.keys(strumentiLibrary).map((category) => (
+                          <option key={category} value={category}>{category}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">Nome strumento</label>
+                      <input
+                        value={customInstrumentDraft.name}
+                        onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Es. NVIDIA, BTP Italia, conto deposito"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">ISIN <span className="text-slate-400">facoltativo</span></label>
+                      <input
+                        value={customInstrumentDraft.isin}
+                        onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, isin: e.target.value }))}
+                        placeholder="Es. US67066G1040"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">Ticker API <span className="text-slate-400">Pro</span></label>
+                      <input
+                        value={customInstrumentDraft.tickerApi}
+                        onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, tickerApi: e.target.value }))}
+                        placeholder="Es. NVDA, VT, SXR8.DE"
+                        disabled={!(purchase.plan === "pro" && purchase.unlocked)}
+                        className={`mt-2 w-full rounded-xl border px-4 py-3 outline-none transition ${purchase.plan === "pro" && purchase.unlocked ? "border-slate-200 bg-white focus:border-indigo-300" : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">Nota opzionale</label>
+                      <input
+                        value={customInstrumentDraft.note}
+                        onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, note: e.target.value }))}
+                        placeholder="Es. broker, motivo, TER"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
+                      />
+                    </div>
+                  </div>
+
+                  <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    <summary className="cursor-pointer font-bold text-slate-800">Cos'è il ticker API?</summary>
+                    <p className="mt-2 leading-6">
+                      È il simbolo usato dalla fonte dati per recuperare i prezzi automatici. Non è l'ISIN. Esempi: <span className="font-mono font-semibold">NVDA</span>, <span className="font-mono font-semibold">VT</span>, <span className="font-mono font-semibold">VWCE.DE</span>. Per conti deposito o liquidità puoi lasciarlo vuoto.
+                    </p>
+                  </details>
+                </div>
+
+                <div className={`rounded-2xl border p-5 shadow-sm ${
+                  purchase.plan === "pro" && purchase.unlocked
+                    ? "border-emerald-200 bg-emerald-50/50"
+                    : "border-slate-200 bg-slate-50"
+                }`}>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className={`text-xs font-bold uppercase tracking-[0.18em] ${purchase.plan === "pro" && purchase.unlocked ? "text-emerald-700" : "text-slate-500"}`}>
+                        Promemoria entrate · Pro
+                      </p>
+                      <h4 className="mt-1 text-lg font-black text-slate-950">Scadenze da ricordare</h4>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        Usa questa parte solo per ricordare date importanti. Non vengono calcolati importi, tasse o cambi valuta.
+                      </p>
+                    </div>
+                    {purchase.plan === "pro" && purchase.unlocked ? (
+                      <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">Pro attivo</span>
+                    ) : (
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-500 ring-1 ring-slate-200">Bloccato</span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+                    <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={customInstrumentDraft.incomeEnabled}
+                        disabled={!(purchase.plan === "pro" && purchase.unlocked)}
+                        onChange={(e) => setCustomInstrumentDraft((prev) => ({
+                          ...prev,
+                          incomeEnabled: e.target.checked,
+                          incomeType: e.target.checked && prev.incomeType === "none" ? "dividend" : prev.incomeType,
+                        }))}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed"
+                      />
+                      <span>
+                        Attiva promemoria per questo strumento
+                        <span className="mt-1 block text-xs font-medium leading-5 text-slate-500">
+                          Comparirà nel Monitor se la prossima scadenza rientra nei 90 giorni successivi.
+                        </span>
+                      </span>
+                    </label>
+
+                    {customInstrumentDraft.incomeEnabled ? (
+                      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                        <div>
+                          <label className="text-sm font-medium text-slate-700">Tipo promemoria</label>
+                          <select
+                            value={customInstrumentDraft.incomeType}
+                            onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, incomeType: e.target.value as IncomeType }))}
+                            disabled={!(purchase.plan === "pro" && purchase.unlocked)}
+                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-300 disabled:bg-slate-100 disabled:text-slate-400"
+                          >
+                            <option value="dividend">Dividendo azione</option>
+                            <option value="distribution">Distribuzione ETF/fondo</option>
+                            <option value="bond_coupon">Cedola obbligazionaria/BTP</option>
+                            <option value="deposit_interest">Interesse conto deposito</option>
+                            <option value="remunerated_cash">Liquidità remunerata</option>
+                            <option value="maturity_yield">Scadenza / rendimento a scadenza</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium text-slate-700">Frequenza</label>
+                          <select
+                            value={customInstrumentDraft.incomeType === "maturity_yield" ? "at_maturity" : customInstrumentDraft.incomeFrequency}
+                            onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, incomeFrequency: e.target.value as IncomeFrequency }))}
+                            disabled={!(purchase.plan === "pro" && purchase.unlocked) || customInstrumentDraft.incomeType === "maturity_yield"}
+                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-300 disabled:bg-slate-100 disabled:text-slate-400"
+                          >
+                            <option value="monthly">Mensile</option>
+                            <option value="quarterly">Trimestrale</option>
+                            <option value="semiannual">Semestrale</option>
+                            <option value="annual">Annuale</option>
+                            <option value="at_maturity">A scadenza</option>
+                            <option value="irregular">Irregolare / da verificare</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium text-slate-700">Data di riferimento</label>
+                          <input
+                            type="date"
+                            value={customInstrumentDraft.nextPaymentDate || customInstrumentDraft.nextExDate || customInstrumentDraft.maturityDate}
+                            onChange={(e) => setCustomInstrumentDraft((prev) => ({
+                              ...prev,
+                              nextPaymentDate: e.target.value,
+                              nextExDate: e.target.value,
+                              maturityDate: prev.incomeType === "maturity_yield" ? e.target.value : prev.maturityDate,
+                            }))}
+                            disabled={!(purchase.plan === "pro" && purchase.unlocked)}
+                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-300 disabled:bg-slate-100 disabled:text-slate-400"
+                          />
+                          <p className="mt-1 text-xs leading-5 text-slate-500">Può essere anche l'ultima data nota già passata.</p>
+                        </div>
+
+                        <div className="lg:col-span-3">
+                          <label className="text-sm font-medium text-slate-700">Nota promemoria</label>
+                          <input
+                            value={customInstrumentDraft.incomeNotes}
+                            onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, incomeNotes: e.target.value }))}
+                            placeholder="Es. controllare accredito sulla piattaforma"
+                            disabled={!(purchase.plan === "pro" && purchase.unlocked)}
+                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-300 disabled:bg-slate-100 disabled:text-slate-400"
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex flex-col-reverse gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-end">
+                  {editingCustomInstrumentId ? (
+                    <button
+                      type="button"
+                      onClick={cancelCustomInstrumentEdit}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Annulla
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={saveCustomInstrument}
+                    className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700"
                   >
-                    {Object.keys(strumentiLibrary).map((category) => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
+                    {editingCustomInstrumentId ? "Salva modifiche" : "Aggiungi strumento"}
+                  </button>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700">Nome strumento</label>
-                  <input
-                    value={customInstrumentDraft.name}
-                    onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Es. ETF personale"
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700">ISIN / ticker</label>
-                  <input
-                    value={customInstrumentDraft.isin}
-                    onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, isin: e.target.value }))}
-                    placeholder="Es. IE00..."
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700">Nota opzionale</label>
-                  <input
-                    value={customInstrumentDraft.note}
-                    onChange={(e) => setCustomInstrumentDraft((prev) => ({ ...prev, note: e.target.value }))}
-                    placeholder="Es. broker, TER, motivo"
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-indigo-300"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={addCustomInstrument}
-                  className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700"
-                >
-                  Aggiungi
-                </button>
-              </div>
 
-              {customInstrumentMessage ? (
-                <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
-                  {customInstrumentMessage}
-                </p>
-              ) : null}
+                {customInstrumentMessage ? (
+                  <p className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-700 ring-1 ring-indigo-100">
+                    {customInstrumentMessage}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
             <div className="grid gap-4">
@@ -10326,8 +14382,10 @@ const [authReady, setAuthReady] = useState(false);
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-50">
                           <th className="px-4 py-3 text-left font-semibold">Strumento</th>
-                          <th className="px-4 py-3 text-left font-semibold">ISIN / ticker</th>
+                          <th className="px-4 py-3 text-left font-semibold">ISIN</th>
+                          <th className="px-4 py-3 text-left font-semibold">Ticker API</th>
                           <th className="px-4 py-3 text-left font-semibold">Origine</th>
+                          <th className="px-4 py-3 text-left font-semibold">Entrate</th>
                           <th className="px-4 py-3 text-left font-semibold">Nota</th>
                           <th className="px-4 py-3 text-right font-semibold">Azioni</th>
                         </tr>
@@ -10338,7 +14396,8 @@ const [authReady, setAuthReady] = useState(false);
                           return (
                             <tr key={`${row.source}-${row.id || row.isin}-${row.name}`} className="border-b border-slate-100">
                               <td className="px-4 py-3 font-medium text-slate-900">{row.name}</td>
-                              <td className="px-4 py-3 font-mono text-xs text-slate-600">{row.isin}</td>
+                              <td className="px-4 py-3 font-mono text-xs text-slate-600">{row.isin || "—"}</td>
+                              <td className="px-4 py-3 font-mono text-xs text-slate-600">{row.tickerApi ? row.tickerApi : <span className="font-sans text-slate-400">—</span>}</td>
                               <td className="px-4 py-3">
                                 <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ring-1 ${
                                   isCustom
@@ -10348,16 +14407,37 @@ const [authReady, setAuthReady] = useState(false);
                                   {isCustom ? "Personale" : "Programma"}
                                 </span>
                               </td>
+                              <td className="px-4 py-3">
+                                {hasIncomeConfig(row) ? (
+                                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+                                    {getIncomeTypeLabel(row.incomeConfig!.type)}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-medium text-slate-400">—</span>
+                                )}
+                              </td>
                               <td className="px-4 py-3 text-slate-500">{row.note || "—"}</td>
                               <td className="px-4 py-3 text-right">
                                 {isCustom && row.id ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteCustomInstrument(row.id!)}
-                                    className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
-                                  >
-                                    Elimina
-                                  </button>
+                                  <div className="flex flex-wrap justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const instrument = customInstruments.find((item) => item.id === row.id);
+                                        if (instrument) startEditCustomInstrument(instrument);
+                                      }}
+                                      className="rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50"
+                                    >
+                                      Modifica
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteCustomInstrument(row.id!)}
+                                      className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
+                                    >
+                                      Elimina
+                                    </button>
+                                  </div>
                                 ) : (
                                   <span className="text-xs font-medium text-slate-400">Bloccato</span>
                                 )}
@@ -11289,8 +15369,9 @@ const [authReady, setAuthReady] = useState(false);
                             ["Anticipo", mortgageDownPayment, setMortgageDownPayment, "Soldi che metti subito. Non consumare tutta la liquidità solo per aumentare l'anticipo."],
                             ["Importo mutuo", mortgagePrincipal, setMortgagePrincipal, "Se hai già il preventivo della banca, inserisci l'importo esatto. Se lo lasci vuoto, lo stimiamo da prezzo casa meno anticipo."],
                             ["Durata mutuo (anni)", mortgageYears, setMortgageYears, "Durate più lunghe abbassano la rata, ma di solito aumentano gli interessi totali pagati nel tempo."],
-                            ["Tasso / TAN (%)", mortgageRate, setMortgageRate, "Inserisci il tasso nominale indicato nel preventivo o nel PIES."],
-                            ["Rata dichiarata dalla banca", mortgageDeclaredPayment, setMortgageDeclaredPayment, "Se la banca ti ha dato una rata, inseriscila qui: l'app la usa come dato principale."],
+                            ["Tasso / TAN (%)", mortgageRate, setMortgageRate, "Serve a stimare la rata tecnica del piano di ammortamento: quota capitale + interessi."],
+                            ["TAEG (%)", mortgageTaeg, setMortgageTaeg, "Se lo trovi nel PIES, inseriscilo qui: aiuta a stimare il costo reale complessivo del mutuo, inclusi costi collegati."],
+                            ["Rata dichiarata dalla banca", mortgageDeclaredPayment, setMortgageDeclaredPayment, "Se la banca ti ha dato una rata, inseriscila qui: l'app la usa come dato principale per la rata contrattuale."],
                             ["Reddito netto mensile", mortgageMonthlyIncome, setMortgageMonthlyIncome, "Usa il reddito familiare netto stabile, non entrate occasionali."],
                             ["Altre rate/debiti mensili", mortgageOtherDebtsMonthly, setMortgageOtherDebtsMonthly, "Prestiti, finanziamenti, cessioni, carte rateali: servono per capire il peso totale dei debiti."],
                           ].map(([label, value, setter, help]) => (
@@ -11371,16 +15452,25 @@ const [authReady, setAuthReady] = useState(false);
                           {mortgagePrincipalForCalc <= 0
                             ? "Inserisci almeno prezzo casa e anticipo, oppure direttamente l'importo del mutuo, per vedere una stima più utile."
                             : mortgageUsesDeclaredPayment
-                            ? "Stiamo usando la rata che hai inserito. La stima del tasso resta utile come controllo, ma il dato dichiarato e quello più concreto."
-                            : "Non hai inserito una rata dichiarata: la rata viene stimata usando importo, tasso e durata."}
+                            ? "Stiamo usando la rata che hai inserito come rata tecnica. Il TAEG, se presente, viene usato per stimare un costo mensile più prudente e vicino al peso reale complessivo del mutuo."
+                            : "Non hai inserito una rata dichiarata: la rata viene stimata con il TAN. Se inserisci anche il TAEG, l'app mostra una lettura più prudente del costo reale."}
                         </p>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
-                          <PremiumStatCard eyebrow={mortgageUsesDeclaredPayment ? "Rata dichiarata" : "Rata stimata"} value={formatEuro(mortgageMonthlyPayment)} note="Quello che paghi alla banca ogni mese" />
-                          <PremiumStatCard eyebrow="Costo reale mensile" value={formatEuro(mortgageRealMonthlyHomeCost)} note="Rata + costi ricorrenti della casa" />
-                          <PremiumStatCard eyebrow="Totale rimborsato stimato" value={formatEuro(mortgageTotalPaid)} note={`Rate mutuo per ${mortgageMonths} mesi, esclusi costi casa separati`} />
-                          <PremiumStatCard eyebrow="Interessi stimati" value={formatEuro(mortgageTotalInterest)} note="Totale rimborsato meno capitale richiesto" />
-                          <PremiumStatCard eyebrow="Peso rata/reddito" value={`${Math.round(mortgagePaymentIncomeRatio * 100)}%`} note="Solo rata mutuo" />
-                          <PremiumStatCard eyebrow="Debiti/reddito" value={`${Math.round(mortgageDebtIncomeRatio * 100)}%`} note="Rata mutuo + altre rate" />
+                          <PremiumStatCard eyebrow={mortgageUsesDeclaredPayment ? "Rata dichiarata" : "Rata stimata TAN"} value={formatEuro(mortgageMonthlyPayment)} note="Rata tecnica: quota capitale + interessi" />
+                          <PremiumStatCard eyebrow="Costo mutuo stimato TAEG" value={mortgageHasTaeg ? formatEuro(mortgageEstimatedPaymentFromTaeg) : "Da inserire"} note="Indicatore prudente del costo finanziario mensile" />
+                          <PremiumStatCard eyebrow="Costo reale mensile" value={formatEuro(mortgageRealMonthlyHomeCost)} note="Costo mutuo prudente + costi ricorrenti casa" />
+                          <PremiumStatCard eyebrow="Totale rimborsato stimato" value={formatEuro(mortgageTotalPaid)} note={`Rata tecnica per ${mortgageMonths} mesi, esclusi costi casa separati`} />
+                          <PremiumStatCard eyebrow="Interessi stimati TAN" value={formatEuro(mortgageTotalInterest)} note="Totale rate tecniche meno capitale richiesto" />
+                          <PremiumStatCard eyebrow="Peso costo/reddito" value={`${Math.round(mortgagePrudentialPaymentIncomeRatio * 100)}%`} note={mortgageHasTaeg ? "Usa il costo TAEG se più prudente" : "Solo rata mutuo"} />
+                        </div>
+                        <div className={`mt-4 rounded-2xl border p-4 ${mortgageHasTaeg ? "border-indigo-200 bg-indigo-50" : "border-slate-200 bg-slate-50"}`}>
+                          <p className="text-sm font-bold text-slate-950">TAN e TAEG: come leggerli</p>
+                          <p className="mt-1 text-sm leading-6 text-slate-700">{mortgageTaegReading}</p>
+                          {mortgageHasTaeg && mortgageTaegMonthlyExtra > 0 && (
+                            <p className="mt-2 text-sm leading-6 text-slate-700">
+                              Con i dati inseriti, il TAEG produce un costo finanziario mensile prudente di circa <strong>{formatEuro(mortgageEstimatedPaymentFromTaeg)}</strong>, cioè circa <strong>{formatEuro(mortgageTaegMonthlyExtra)}</strong> in più rispetto alla rata stimata con il solo TAN. Non è necessariamente la rata che vedrai sul piano di ammortamento, ma aiuta a capire il peso reale dell'offerta.
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -12233,21 +16323,24 @@ const [authReady, setAuthReady] = useState(false);
 
                   <div className="mt-5 flex flex-wrap gap-3">
                     <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-200">
-                      Profilo: {selectedPortfolio.shortTitle}
+                      {dashboardActiveModelSummary.profileLabel}
                     </span>
                     <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-                      {selectedPortfolio.badge}
+                      {dashboardActiveModelSummary.profileBadge}
                     </span>
                   </div>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+                    {dashboardActiveModelSummary.modeNote}
+                  </p>
                 </div>
 
                 <div className="border-t border-slate-200 bg-slate-50 p-6 md:p-8 lg:border-l lg:border-t-0">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Riepilogo rapido</p>
                   <div className="mt-5 grid gap-4 sm:grid-cols-3">
                     <PremiumStatCard
-                      eyebrow="Capitale"
-                      value={formatEuro(totalInvested)}
-                      note="Totale registrato"
+                      eyebrow="Valore portafoglio"
+                      value={formatEuro(monitorDisplayedTotalValue)}
+                      note="Stimato dal Monitor"
                     />
                     <PremiumStatCard
                       eyebrow="Percorso"
@@ -12288,7 +16381,7 @@ const [authReady, setAuthReady] = useState(false);
                   eyebrow: "Operativo",
                   title: "Portafoglio",
                   text: "Registra investimenti, controlla la ripartizione e gestisci gli strumenti.",
-                  badge: holdings.length ? `${holdings.length} investimenti` : "Da compilare",
+                  badge: activeHoldings.length ? `${activeHoldings.length} investimenti` : "Da compilare",
                 },
                 {
                   id: "progressi",
@@ -12336,111 +16429,412 @@ const [authReady, setAuthReady] = useState(false);
 
             {dashboardActiveTab === "monitor" && (
               <div className="space-y-6">
-            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-6 shadow-sm md:p-8">
-              <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-center">
+            <div className="relative overflow-hidden rounded-[2.2rem] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-slate-50 p-5 text-slate-950 shadow-xl shadow-emerald-900/10 md:p-7">
+              <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-emerald-300/30 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-28 left-1/4 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
+
+              <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Prossimo passo consigliato</p>
-                  <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">{dashboardNextActionTitle}</h3>
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">
-                    {dashboardNextActionText}
-                  </p>
-                  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                    <button
-                      type="button"
-                      disabled={currentMonthCompleted && setupCompleted && holdings.length > 0}
-                      onClick={() => {
-                        if (currentMonthCompleted && setupCompleted && holdings.length > 0) {
-                          return;
-                        }
-
-                        if (!setupCompleted) {
-                          openDashboardTab("guida");
-                          return;
-                        }
-
-                        if (holdings.length === 0) {
-                          goToDashboardSection("aggiungi-investimento");
-                          return;
-                        }
-
-                        goToDashboardSection("azione-del-mese");
-                      }}
-                      className={`rounded-xl px-6 py-3 text-sm font-semibold shadow-sm transition ${
-                        currentMonthCompleted && setupCompleted && holdings.length > 0
-                          ? "cursor-not-allowed bg-emerald-600/35 text-white/80 shadow-none"
-                          : "bg-emerald-600 text-white hover:bg-emerald-700"
-                      }`}
-                    >
-                      {dashboardNextActionLabel}
-                    </button>
-                    <button
-                      onClick={() => setStep("portfolio")}
-                      className="rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Rivedi il modello
-                    </button>
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">Percorso completato</p>
-                      <p className="mt-1 text-xs leading-5 text-slate-500">Setup, investimenti, PAC mensile e continuita.</p>
-                    </div>
-                    <p className="text-3xl font-bold tracking-tight text-emerald-700">{dashboardOverallProgress}%</p>
-                  </div>
-                  <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200">
-                    <div
-                      className="h-full rounded-full bg-emerald-600 transition-all duration-1000 ease-out"
-                      style={{ width: `${dashboardOverallProgress}%` }}
-                    />
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-slate-600">
-                    {setupCompleted
-                      ? "La base è pronta. Ora conta mantenere il gesto mensile e aggiornare i dati senza ossessionarsi."
-                      : `Ti mancano ${Math.max(0, initialChecklistItems.length - completedInitialChecklist)} passaggi per completare la guida iniziale.`}
+                  <p className="text-xs font-black uppercase tracking-[0.26em] text-emerald-700">Monitor premium</p>
+                  <h3 className="mt-2 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">Il tuo modello nel tempo</h3>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                    Il grafico parte dal primo valore inserito e cresce nel tempo con gli aggiornamenti prezzi disponibili. Non ricostruisce il passato: mostra solo il percorso reale costruito da quando inizi a usare il Monitor. Le aree colorate evidenziano quali categorie pesano di più nel modello in questo momento.
                   </p>
                 </div>
               </div>
-            </div>
 
-            <div className="grid gap-4 lg:grid-cols-4">
-              <button
-                onClick={() => setStep("awareness")}
-                className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Core</p>
-                <h3 className="mt-3 text-lg font-bold text-slate-950">Consapevolezza</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Evita errori costosi prima di investire meglio.</p>
-              </button>
+              <div className="relative z-10 mt-6 grid gap-3 md:grid-cols-4">
+                <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Valore stimato</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">{formatEuroCents(monitorDisplayedTotalValue)}</p>
+                  <p className="mt-1 text-xs text-slate-500">Modello aggregato</p>
+                </div>
+                <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Capitale inserito</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">{formatEuroCents(monitorDisplayedInitialCapital)}</p>
+                  <p className="mt-1 text-xs text-slate-500">Base + movimenti</p>
+                </div>
+                <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Variazione</p>
+                  <p className={`mt-2 text-2xl font-black ${monitorDisplayedDeltaPercent >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{formatSignedPercent(monitorDisplayedDeltaPercent, 2)}</p>
+                  <p className="mt-1 text-xs text-slate-500">Da inizio monitoraggio</p>
+                </div>
+                <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Aggiornamento</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">{activeMonitorApiAssetCount ? `${activeMonitorApiAssetCount} ticker` : "Manuale"}</p>
+                  <p className="mt-1 text-xs text-slate-500">{monitorPremiumUpdateFrequencyLabel}</p>
+                </div>
+              </div>
 
-              <button
-                onClick={() => setDashboardActiveTab("portafoglio")}
-                className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Portafoglio</p>
-                <h3 className="mt-3 text-lg font-bold text-slate-950">Investimenti</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Registra capitale e controlla la ripartizione.</p>
-              </button>
+              <div className="relative z-10 mt-6 overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-4 shadow-lg shadow-slate-900/5 md:p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Andamento aggregato · {monitorRangeLabels[monitorRange]}</p>
+                    <h4 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Grafico del modello</h4>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                      Una lettura visiva più pulita: linea totale sopra, composizione del modello sotto.
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
+                    {(["day", "week", "month", "year"] as const).map((range) => (
+                      <button
+                        key={range}
+                        type="button"
+                        onClick={() => setMonitorRange(range)}
+                        className={`rounded-xl px-3 py-2 text-xs font-black transition ${monitorRange === range ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/15" : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-800"}`}
+                      >
+                        {monitorRangeLabels[range]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <button
-                onClick={() => setDashboardActiveTab("portafoglio")}
-                className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">PAC</p>
-                <h3 className="mt-3 text-lg font-bold text-slate-950">Guida mensile</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Distribuisci la cifra secondo il modello.</p>
-              </button>
+                <div className="mt-5 rounded-[2rem] border border-[#143d7b] bg-[radial-gradient(circle_at_top,rgba(69,154,255,0.28),transparent_32%),linear-gradient(180deg,#153f86_0%,#0c2a5d_100%)] p-4 shadow-[0_18px_50px_rgba(15,47,102,0.28)] md:p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-white">Valore nel tempo</p>
+                      <p className="mt-1 text-xs font-medium text-blue-100/78">{monitorHistoryStatusText}</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] font-bold text-white/88">
+                      <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1.5"><span className="h-2 w-6 rounded-full bg-white" />Valore totale</span>
+                      <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1.5"><span className="h-0.5 w-6 border-t border-dashed border-white/70" />Capitale inserito</span>
+                    </div>
+                  </div>
 
-              <button
-                onClick={() => setDashboardActiveTab("guida")}
-                className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/40 hover:shadow-md"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Checklist</p>
-                <h3 className="mt-3 text-lg font-bold text-slate-950">Passi guidati</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Segui l'ordine giusto, uno step alla volta.</p>
-              </button>
+                  <div className="relative mt-4 h-[620px] overflow-hidden rounded-[1.55rem] border border-white/12 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_30%),linear-gradient(180deg,rgba(8,20,52,0.72),rgba(10,27,64,0.98))] shadow-inner md:h-[700px]">
+                    <span className="pointer-events-none absolute left-4 top-4 z-30 h-9 w-9 rounded-tl-[1rem] border-l-[5px] border-t-[5px] border-white/90"></span>
+                    <span className="pointer-events-none absolute right-4 top-4 z-30 h-9 w-9 rounded-tr-[1rem] border-r-[5px] border-t-[5px] border-white/90"></span>
+                    <span className="pointer-events-none absolute bottom-4 left-4 z-30 h-9 w-9 rounded-bl-[1rem] border-b-[5px] border-l-[5px] border-white/90"></span>
+                    <span className="pointer-events-none absolute bottom-4 right-4 z-30 h-9 w-9 rounded-br-[1rem] border-b-[5px] border-r-[5px] border-white/90"></span>
+
+                    {monitorHasEnoughHistory ? (
+                      <>
+                        <div className="pointer-events-none absolute inset-y-14 left-3 z-20 flex w-12 flex-col justify-between text-[12px] font-semibold text-white/76 md:left-4 md:w-14 md:text-[13px]">
+                          {monitorYAxisTicks.map((tick) => (
+                            <span key={`y-label-${tick.label}`} className="tabular-nums">{tick.label}</span>
+                          ))}
+                        </div>
+                        <div className="pointer-events-none absolute bottom-6 left-[4.2rem] right-5 z-20 flex justify-between text-[12px] font-semibold text-white/76 md:left-[4.8rem] md:right-6 md:text-[13px]">
+                          {monitorXAxisTicks.map((tick) => (
+                            <span key={`x-label-${tick.index}`} className="tabular-nums">{tick.label}</span>
+                          ))}
+                        </div>
+
+                        <div className="absolute bottom-14 left-[3.8rem] right-4 top-10 md:bottom-14 md:left-[4.4rem] md:right-5 md:top-10">
+                          <svg viewBox="0 0 120 110" preserveAspectRatio="none" className="h-full w-full">
+                            <defs>
+                              <clipPath id="monitorPlotClip">
+                                <rect x={monitorPlot.left} y={monitorPlot.top} width={monitorPlotWidth} height={monitorPlotHeight} rx="4" />
+                              </clipPath>
+                              <linearGradient id="monitorTopAreaFill" x1="0" x2="0" y1="0" y2="1">
+                                <stop offset="0%" stopColor="rgba(255,255,255,0.16)" />
+                                <stop offset="100%" stopColor="rgba(255,255,255,0.02)" />
+                              </linearGradient>
+                              <filter id="monitorLineGlow" x="-25%" y="-25%" width="150%" height="150%">
+                                <feDropShadow dx="0" dy="0" stdDeviation="1.8" floodColor="rgba(255,255,255,0.72)" floodOpacity="0.48" />
+                              </filter>
+                              {monitorStackedAreas.map((area, index) => (
+                                <linearGradient key={`monitor-area-gradient-${area.id}`} id={`monitorAreaFill-${index}`} x1="0" x2="0" y1="0" y2="1">
+                                  <stop offset="0%" stopColor={area.color} stopOpacity="0.34" />
+                                  <stop offset="100%" stopColor={area.color} stopOpacity="0.13" />
+                                </linearGradient>
+                              ))}
+                            </defs>
+
+                            {monitorYAxisTicks.map((tick, index) => (
+                              <line key={`y-grid-${index}`} x1={monitorPlot.left} x2={monitorPlot.right} y1={tick.y} y2={tick.y} stroke="rgba(255,255,255,0.11)" strokeWidth="0.48" strokeDasharray="2.8 4.2" vectorEffect="non-scaling-stroke" />
+                            ))}
+                            {monitorXAxisTicks.map((tick) => (
+                              <line key={`x-grid-${tick.index}`} x1={tick.x} x2={tick.x} y1={monitorPlot.top} y2={monitorPlot.bottom} stroke="rgba(255,255,255,0.07)" strokeWidth="0.42" strokeDasharray="2.2 5.5" vectorEffect="non-scaling-stroke" />
+                            ))}
+
+                            <line x1={monitorPlot.left} x2={monitorPlot.left} y1={monitorPlot.top} y2={monitorPlot.bottom} stroke="rgba(255,255,255,0.58)" strokeWidth="0.9" vectorEffect="non-scaling-stroke" />
+                            <line x1={monitorPlot.left} x2={monitorPlot.right} y1={monitorPlot.bottom} y2={monitorPlot.bottom} stroke="rgba(255,255,255,0.58)" strokeWidth="0.9" vectorEffect="non-scaling-stroke" />
+
+                            <g clipPath="url(#monitorPlotClip)">
+                              <path
+                                d={`${monitorTopLinePath} L ${monitorPlot.right} ${monitorPlot.bottom} L ${monitorPlot.left} ${monitorPlot.bottom} Z`}
+                                fill="url(#monitorTopAreaFill)"
+                                opacity="0.75"
+                              />
+                              {monitorStackedAreas.map((area, index) => (
+                                <path
+                                  key={`${area.id}-${index}`}
+                                  d={area.path}
+                                  fill={`url(#monitorAreaFill-${index})`}
+                                  stroke="rgba(255,255,255,0.12)"
+                                  strokeWidth="0.3"
+                                  vectorEffect="non-scaling-stroke"
+                                />
+                              ))}
+                            </g>
+
+                            <path d={monitorInvestedPath} fill="none" stroke="rgba(255,255,255,0.42)" strokeWidth="1.05" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+                            <path d={monitorTopLinePath} fill="none" stroke="rgba(255,255,255,0.98)" strokeWidth="2.2" vectorEffect="non-scaling-stroke" filter="url(#monitorLineGlow)" />
+
+                          </svg>
+                          {monitorPointMarkers.map((point) => (
+                            <span
+                              key={point.id}
+                              className="pointer-events-none absolute z-20 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.55)] ring-1 ring-white/45"
+                              style={{ left: point.left, top: point.top }}
+                            />
+                          ))}
+                        </div>
+
+                        {monitorChartPoints.length > 0 ? (() => {
+                          const lastPoint = monitorChartPoints[monitorChartPoints.length - 1];
+                          return (
+                            <div className="absolute right-12 top-10 z-30 rounded-full border border-white/20 bg-white/16 px-4 py-1.5 text-sm font-black text-white shadow-lg backdrop-blur tabular-nums">
+                              {formatEuroCents(lastPoint.value)}
+                            </div>
+                          );
+                        })() : null}
+                      </>
+                    ) : (
+                      <div className="flex h-full items-center justify-center p-6 text-center">
+                        <div className="max-w-xl rounded-[1.5rem] border border-white/15 bg-white/10 p-6 backdrop-blur-sm">
+                          <p className="text-2xl font-black text-white">Il monitoraggio parte da qui</p>
+                          <p className="mt-3 text-sm leading-6 text-blue-50/90">
+                            Inserisci i valori iniziali e registra i movimenti: lo storico si costruirà con i prossimi aggiornamenti prezzi, senza ricostruire il passato.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className={`mt-5 overflow-hidden rounded-[1.8rem] border ${monitorSituation.tone.border} bg-gradient-to-br ${monitorSituation.tone.background} p-5 shadow-sm ring-1 ring-slate-100 md:p-6`}>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="max-w-3xl">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Il punto della situazione</p>
+                        <span className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide ${monitorSituation.tone.badge}`}>
+                          {monitorSituation.status}
+                        </span>
+                      </div>
+                      <h4 className="mt-3 text-2xl font-black tracking-tight text-slate-950">{monitorSituation.title}</h4>
+                      <p className="mt-3 text-sm leading-6 text-slate-700">{monitorSituation.reading}</p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[26rem] lg:grid-cols-1">
+                      {monitorSituation.metrics.map((metric) => (
+                        <div key={metric.label} className="rounded-2xl border border-white/70 bg-white/80 p-3 shadow-sm ring-1 ring-slate-100">
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{metric.label}</p>
+                          <p className="mt-1 text-sm font-black text-slate-900">{metric.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                    <div className={`group relative overflow-hidden rounded-[1.6rem] border ${monitorSituation.tone.border} bg-white p-5 shadow-sm ring-1 ring-white transition hover:-translate-y-0.5 hover:shadow-md`}>
+                      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${monitorSituation.tone.background}`} />
+                      <div className="flex items-center gap-3">
+                        <span className={`flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br ${monitorSituation.tone.background} text-base shadow-sm ring-1 ring-white`} aria-hidden="true">↔</span>
+                        <p className={`text-xs font-black uppercase tracking-[0.18em] ${monitorSituation.tone.accent}`}>Cosa significa</p>
+                      </div>
+                      <p className="mt-4 text-sm leading-6 text-slate-700">{monitorSituation.explanation}</p>
+                    </div>
+                    <div className={`group relative overflow-hidden rounded-[1.6rem] border ${monitorSituation.tone.border} bg-white p-5 shadow-sm ring-1 ring-white transition hover:-translate-y-0.5 hover:shadow-md`}>
+                      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${monitorSituation.tone.background}`} />
+                      <div className="flex items-center gap-3">
+                        <span className={`flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br ${monitorSituation.tone.background} text-base shadow-sm ring-1 ring-white`} aria-hidden="true">✓</span>
+                        <p className={`text-xs font-black uppercase tracking-[0.18em] ${monitorSituation.tone.accent}`}>Cosa fare ora</p>
+                      </div>
+                      <p className="mt-4 text-sm font-semibold leading-6 text-slate-800">{monitorSituation.action}</p>
+                    </div>
+                    <div className={`group relative overflow-hidden rounded-[1.6rem] border ${monitorSituation.tone.border} bg-white p-5 shadow-sm ring-1 ring-white transition hover:-translate-y-0.5 hover:shadow-md`}>
+                      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${monitorSituation.tone.background}`} />
+                      <div className="flex items-center gap-3">
+                        <span className={`flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br ${monitorSituation.tone.background} text-base shadow-sm ring-1 ring-white`} aria-hidden="true">⟳</span>
+                        <p className={`text-xs font-black uppercase tracking-[0.18em] ${monitorSituation.tone.accent}`}>Ribilanciamento</p>
+                      </div>
+                      <p className="mt-4 text-sm leading-6 text-slate-700">{monitorSituation.rebalanceGuidance}</p>
+                    </div>
+                  </div>
+                  <div className={`mt-4 relative overflow-hidden rounded-[1.6rem] border ${monitorSituation.tone.border} bg-white p-5 shadow-sm ring-1 ring-white`}>
+                    <div className={`absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b ${monitorSituation.tone.background}`} />
+                    <div className="flex items-start gap-3 pl-2">
+                      <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${monitorSituation.tone.background} text-sm shadow-sm ring-1 ring-white`} aria-hidden="true">i</span>
+                      <div>
+                        <p className={`text-xs font-black uppercase tracking-[0.18em] ${monitorSituation.tone.accent}`}>Nota utile</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-700">{monitorSituation.note}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {monitorPremiumAssetRows.map((asset) => {
+                    const displayDeltaValue = roundToDecimals(asset.deltaValue, 2);
+                    const isDeltaPositive = displayDeltaValue >= 0;
+                    const hasMeaningfulDelta = Math.abs(displayDeltaValue) >= 0.01;
+                    return (
+                      <div key={asset.id} className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                        <div className="h-1.5 rounded-full" style={{ background: `linear-gradient(90deg, ${asset.color}, rgba(16,185,129,0.18))` }} />
+                        <div className="mt-4 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: asset.color }} />
+                              <p className="truncate text-sm font-black text-slate-950">{asset.category}</p>
+                            </div>
+                            <p className="mt-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Valore attuale</p>
+                            <p className="mt-1 text-2xl font-black text-slate-950">{formatEuroCents(asset.value)}</p>
+                            <p className="mt-1 truncate text-xs text-slate-500">{asset.ticker || asset.name}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-right">
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Quota</p>
+                            <p className="mt-1 text-sm font-black text-slate-900">{formatPercent(asset.percentage, 2)}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p className="text-[9px] font-black uppercase tracking-[0.12em] leading-4 text-slate-400 whitespace-normal">Capitale versato</p>
+                            <p className="mt-1 text-base font-black text-slate-950">{formatEuroCents(asset.investedCapital)}</p>
+                          </div>
+                          <div className={`rounded-2xl border px-3 py-3 ${isDeltaPositive ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.12em] leading-4 whitespace-normal ${isDeltaPositive ? "text-emerald-700" : "text-rose-700"}`}>Scostamento</p>
+                            <p className={`mt-1 text-base font-black ${isDeltaPositive ? "text-emerald-700" : "text-rose-700"}`}>
+                              {formatSignedEuroCents(displayDeltaValue)}
+                            </p>
+                            <p className={`mt-1 text-xs font-semibold ${isDeltaPositive ? "text-emerald-700/80" : "text-rose-700/80"}`}>
+                              {hasMeaningfulDelta ? formatSignedPercent(asset.deltaPercent, 2) : "In linea"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {isProPlanActive && monitorIncomeRows.length > 0 ? (
+                <div className="relative z-10 mt-5 rounded-[1.6rem] border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-sm font-black text-slate-950">Scadenze da ricordare</p>
+                      <p className="mt-1 text-xs leading-5 text-emerald-900">
+                        Promemoria operativi dei prossimi 90 giorni, solo per strumenti presenti nel portafoglio. L'app ricorda la data; importi e accrediti vanno verificati sulla piattaforma.
+                      </p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-emerald-100">
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-emerald-700">30 giorni</p>
+                        <p className="mt-1 text-lg font-black text-slate-950">{monitorIncome30DaysCount}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-emerald-100">
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-emerald-700">90 giorni</p>
+                        <p className="mt-1 text-lg font-black text-slate-950">{monitorIncome90DaysCount}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto rounded-2xl bg-white ring-1 ring-emerald-100">
+                    <table className="min-w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-emerald-100 bg-emerald-50">
+                          <th className="px-4 py-3 text-left font-black text-emerald-950">Data</th>
+                          <th className="px-4 py-3 text-left font-black text-emerald-950">Strumento</th>
+                          <th className="px-4 py-3 text-left font-black text-emerald-950">Tipo</th>
+                          <th className="px-4 py-3 text-left font-black text-emerald-950">Frequenza</th>
+                          <th className="px-4 py-3 text-left font-black text-emerald-950">Nota</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {monitorIncomeRows.slice(0, 10).map((row) => (
+                          <tr key={row.id} className="border-b border-emerald-50 last:border-b-0">
+                            <td className="px-4 py-3 font-semibold text-slate-900">{row.dateLabel}</td>
+                            <td className="px-4 py-3 font-semibold text-slate-900">{row.instrumentName}</td>
+                            <td className="px-4 py-3 text-slate-600">{row.typeLabel}</td>
+                            <td className="px-4 py-3 text-slate-600">{row.frequencyLabel}</td>
+                            <td className="px-4 py-3 text-slate-500">{row.note || "Controlla accredito/importo sulla piattaforma"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p className="mt-3 text-xs leading-5 text-emerald-950">
+                    Gli importi effettivi possono variare in base a quantità possedute, cambio valuta, tassazione e condizioni dell'intermediario. Questa sezione serve solo come promemoria operativo.
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="relative z-10 mt-5 rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMonitorMovementsOpen((value) => {
+                      if (value) setMonitorMovementsShowAll(false);
+                      return !value;
+                    });
+                  }}
+                  className="flex w-full items-center justify-between gap-4 text-left"
+                >
+                  <div>
+                    <p className="text-sm font-black text-slate-950">Movimenti registrati</p>
+                    <p className="mt-1 text-xs text-slate-500">Versamenti, prelievi, correzioni e riallineamenti collegati al modello.</p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">
+                    {monitorMovementsOpen ? "Chiudi" : `Apri · ${monitorMovementRows.length}`}
+                  </span>
+                </button>
+                {monitorMovementsOpen && (
+                  <div className="mt-4">
+                    {monitorMovementRows.length === 0 ? (
+                      <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600 ring-1 ring-slate-200">
+                        Nessun movimento registrato. Quando aggiungi un versamento o un prelievo dal Portafoglio, comparirà qui.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-xs leading-5 text-slate-600">
+                            {monitorMovementsShowAll
+                              ? `Stai consultando tutti i ${monitorMovementRows.length} movimenti salvati.`
+                              : monitorMovementRows.length > 5
+                                ? `Mostrati gli ultimi 5 di ${monitorMovementRows.length} movimenti salvati.`
+                                : `Movimenti salvati: ${monitorMovementRows.length}.`}
+                          </p>
+                          {monitorMovementRows.length > 5 ? (
+                            <button
+                              type="button"
+                              onClick={() => setMonitorMovementsShowAll((value) => !value)}
+                              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700"
+                            >
+                              {monitorMovementsShowAll ? "Mostra solo ultimi 5" : "Mostra tutti"}
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <div className={`${monitorMovementsShowAll && monitorMovementRows.length > 5 ? "max-h-[28rem] overflow-y-auto pr-2 scrollbar-thin" : ""} space-y-2`}> 
+                          {(monitorMovementsShowAll ? monitorMovementRows : monitorMovementRows.slice(0, 5)).map((movement) => (
+                            <div key={movement.id} className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 md:flex-row md:items-center md:justify-between">
+                              <div className="min-w-0">
+                                <p className="text-sm font-black text-slate-950">{movement.assetName}</p>
+                                <p className="mt-1 text-xs leading-5 text-slate-500">
+                                  {formatItalianDate(movement.movementDate)} · {movement.type === "deposit" ? "Versamento" : movement.type === "withdrawal" ? "Prelievo" : movement.type === "alignment" ? "Rettifica valore" : "Rettifica"} · {formatEuro(movement.amount)}
+                                </p>
+                                {movement.note ? <p className="mt-1 text-xs leading-5 text-slate-500">{movement.note}</p> : null}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => deleteDynamicMovement(movement.id)}
+                                className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                              >
+                                Elimina
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <p className="relative z-10 mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500 ring-1 ring-slate-200">
+                Dati indicativi aggiornati periodicamente. Il grafico usa lo storico disponibile e non ricostruisce il passato: parte dal primo valore inserito o dal primo aggiornamento prezzi utile. Questa lettura non è una raccomandazione di acquisto o vendita.
+              </p>
             </div>
 
             {!setupCompleted && (
@@ -12468,7 +16862,7 @@ const [authReady, setAuthReady] = useState(false);
                   {
                     number: "4",
                     title: "Guarda gli strumenti",
-                    done: checklistState.strumenti || holdings.length > 0,
+                    done: checklistState.strumenti || activeHoldings.length > 0,
                     onClick: () => {
                       completeChecklistItem("strumenti");
                       setDashboardActiveTab("portafoglio");
@@ -12477,7 +16871,7 @@ const [authReady, setAuthReady] = useState(false);
                   {
                     number: "5",
                     title: "Registra il primo PAC",
-                    done: holdings.length > 0,
+                    done: activeHoldings.length > 0,
                     onClick: () => goToDashboardSection("aggiungi-investimento"),
                   },
                   {
@@ -12522,401 +16916,184 @@ const [authReady, setAuthReady] = useState(false);
             </div>
             )}
 
-
-            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-              <div className={`rounded-3xl border p-6 shadow-sm ${
-                currentMonthCompleted
-                  ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white"
-                  : "border-amber-200 bg-gradient-to-br from-amber-50 to-white"
-              }`}>
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Ritorno mensile
-                </p>
-                <h3 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
-                  {monthlyReturnTitle}
-                </h3>
-                <p className="mt-2 text-lg font-semibold text-slate-900">
-                  {monthlyReturnAction}
-                </p>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  {monthlyReturnMessage}
-                </p>
-                <div className="mt-5 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200">
-                  {monthlyReturnStatus}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Capitale attuale
-                </p>
-                <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
-                  {formatEuro(goalCurrentNumber || 0)}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Questo è il valore che hai inserito in “Aggiorna obiettivo”. Serve come riferimento operativo per capire dove sei oggi rispetto al tuo obiettivo.
-                </p>
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-slate-700">
-                  <span>Obiettivo: {formatEuro(goalTargetNumber || 0)}</span>
-                  <span>{goalProgressPercent.toFixed(1)}%</span>
-                </div>
-                <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200">
-                  <div
-                    className="h-full rounded-full bg-emerald-600 transition-all duration-1000 ease-out"
-                    style={{
-                      width: `${goalProgressPercent}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div id="azione-del-mese" className={`relative scroll-mt-6 overflow-hidden rounded-3xl border p-6 shadow-sm transition-all duration-700 ${
+            <div id="azione-del-mese" className={`relative scroll-mt-6 overflow-hidden rounded-3xl border p-5 shadow-sm transition-all duration-700 ${
               currentMonthCompleted
                 ? "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white"
                 : "border-slate-200 bg-white"
             }`}>
               {currentMonthCompleted && (
-                <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-100 blur-3xl" />
+                <div className="pointer-events-none absolute -right-16 -top-16 h-36 w-36 rounded-full bg-emerald-100 blur-3xl" />
               )}
               {pacJustCompleted && (
-                <div className="pointer-events-none absolute inset-x-6 top-6 z-10 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
+                <div className="pointer-events-none absolute inset-x-5 top-5 z-10 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm">
                   <p className="text-sm font-semibold text-emerald-900">🎉 Catena protetta. Mese chiuso.</p>
                   <p className="mt-1 text-xs leading-5 text-emerald-700">
                     +{formatEuro(monthlyPacAmount || 0)} · +{pacImpactPercent.toFixed(1)}% verso {goalTitle || "il tuo obiettivo"}
                   </p>
                 </div>
               )}
-              <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
-                <div>
+
+              <div className="relative z-0 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-3">
                     <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${
                       currentMonthCompleted ? "text-emerald-700" : "text-slate-500"
-                    }`}>
-                      Azione del mese
-                    </p>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      Livello: {userLevel}
+                    }`}>PAC mensile</p>
+                    <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
+                      {currentMonthLabel}
                     </span>
                   </div>
 
-                  <h3 className="mt-3 text-4xl font-bold tracking-tight text-slate-900">
+                  <h3 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
                     {currentMonthCompleted
-                      ? `✅ PAC di ${currentMonthLabel} completato`
+                      ? `PAC di ${currentMonthLabel} completato`
                       : hasStartedPac
-                      ? `Non spezzare la catena di ${currentMonthLabel}`
-                      : "Completa il tuo primo mese di PAC"}
+                      ? `PAC di ${currentMonthLabel} da chiudere`
+                      : "Segna il primo mese di PAC"}
                   </h3>
 
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                    {pacPerfectMessage}
-                  </p>
-
-                  <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                    <button
-                      onClick={() => togglePacMonth(currentMonthKey)}
-                      className={`rounded-2xl px-6 py-4 text-base font-semibold shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
-                        currentMonthCompleted
-                          ? "bg-white text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-50"
-                          : "bg-emerald-600 text-white hover:bg-emerald-700"
-                      }`}
-                    >
-                      {currentMonthCompleted
-                        ? "Modifica stato mese"
-                        : hasStartedPac
-                        ? "Proteggi la catena"
-                        : "Segna primo mese completato"}
-                    </button>
-
-                    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Impatto stimato</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
-                        +{formatEuro(monthlyPacAmount || 0)} · +{pacImpactPercent.toFixed(1)}% verso il target
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`rounded-3xl border p-5 ${
-                  currentMonthCompleted
-                    ? "border-emerald-200 bg-white"
-                    : hasStartedPac
-                    ? "border-amber-200 bg-amber-50"
-                    : "border-slate-200 bg-slate-50"
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-900">🔥 Catena PAC</p>
-                    <p className="text-sm font-bold text-slate-900">{currentStreak}/{nextChainTarget}</p>
-                  </div>
-
-                  <div className="mt-4 h-5 overflow-hidden rounded-full bg-slate-200">
-                    <div
-                      className={`h-full rounded-full transition-all duration-1000 ease-out ${
-                        currentMonthCompleted ? "bg-emerald-600" : hasStartedPac ? "bg-amber-500" : "bg-slate-900"
-                      }`}
-                      style={{ width: `${chainProgressPercent}%` }}
-                    />
-                  </div>
-
-                  <p className="mt-4 text-sm font-semibold leading-6 text-slate-900">
-                    {chainTitle}
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    {chainMessage}
-                  </p>
-                  <p className="mt-3 rounded-2xl bg-white px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    {chainNextStep}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Non spezzare la catena</p>
-                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-                    {hasStartedPac ? `${currentStreak} ${currentStreak === 1 ? "mese" : "mesi"} consecutivi` : "Parti dal primo mese"}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Il PAC è un Piano di Accumulo mensile: il risultato non nasce da un singolo investimento, ma dalla ripetizione del gesto nel tempo.
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-900">Prossimo traguardo</p>
-                    <p className="text-sm font-bold text-slate-900">{nextChainTarget} mesi</p>
-                  </div>
-                  <div className="mt-4 grid grid-cols-12 gap-1">
-                    {Array.from({ length: 12 }).map((_, index) => {
-                      const active = index < currentStreak;
-                      const target = index < nextChainTarget;
-
-                      return (
-                        <div
-                          key={`chain-${index}`}
-                          className={`h-3 rounded-full transition ${
-                            active
-                              ? "bg-emerald-600"
-                              : target
-                              ? "bg-slate-300"
-                              : "bg-slate-200"
-                          }`}
-                        />
-                      );
-                    })}
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-slate-600">
-                    {hasStartedPac
-                      ? "Ogni mese completato mantiene viva la catena. Non serve fare di più: serve non interromperla."
-                      : "Completa il primo mese per accendere la catena e iniziare la tua serie."}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Livello utente</p>
-                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-                    {userLevel}
-                  </h3>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    {userLevelMessage}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 lg:min-w-[260px]">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Prossimo livello</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">
-                    {nextUserLevelMessage}
-                  </p>
-                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
-                    <div
-                      className="h-full rounded-full bg-slate-900 transition-all duration-1000 ease-out"
-                      style={{ width: `${userLevelProgress}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Micro-spunti educativi</p>
-                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Prossimo passo</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Pochi suggerimenti, solo quando servono. L'obiettivo è ridurre dubbi e aiutarti a seguire il piano.
-                  </p>
-                </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                  {userLevel}
-                </span>
-              </div>
-
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                {smartTips.slice(0, 4).map((tip) => (
-                  <div key={tip.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-900">{tip.title}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">{tip.text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Mese</p>
-                <p className="mt-3 text-lg font-semibold text-slate-900">{currentMonthLabel}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {currentMonthCompleted ? "Completato e salvato." : "Ancora da chiudere."}
-                </p>
-              </div>
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Ricompensa</p>
-                <p className="mt-3 text-lg font-semibold text-slate-900">+{formatEuro(monthlyPacAmount || 0)}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Ogni mese chiuso rafforza il piano.
-                </p>
-              </div>
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Obiettivo</p>
-                <p className="mt-3 text-lg font-semibold text-slate-900">+{pacImpactPercent.toFixed(1)}%</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Impatto stimato del PAC mensile sul target.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-xl font-semibold">Reminder intelligenti</h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Suggerimenti dinamici basati sui tuoi dati reali, non messaggi generici uguali per tutti.
-                  </p>
-                </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                  {reminderCards.length} attivi
-                </span>
-              </div>
-
-              <div className="mt-5 grid gap-4 lg:grid-cols-3">
-                {reminderCards.map((reminder) => (
-                  <ReminderCard
-                    key={reminder.title}
-                    title={reminder.title}
-                    text={reminder.text}
-                    tone={reminder.tone}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Storico PAC</p>
-                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Controlla la continuità nel tempo</h3>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    Qui trovi gli ultimi 12 mesi. Puoi correggere un mese se serve: i dati restano salvati su Supabase.
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold text-slate-700">
                     {currentMonthCompleted
-                      ? `Mese corrente completato`
-                      : `Mese corrente da completare`}
-                  </div>
+                      ? `${monthlyReturnStatus}. Questa informazione resta qui solo come controllo operativo: la lettura completa è nel punto della situazione.`
+                      : pacPerfectMessage}
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row lg:flex-col lg:items-stretch">
                   <button
                     type="button"
-                    onClick={() => setShowPacHistoryMonths((value) => !value)}
-                    className="rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                    onClick={() => togglePacMonth(currentMonthKey)}
+                    className={`rounded-2xl px-5 py-3 text-sm font-semibold shadow-sm transition hover:scale-[1.02] active:scale-[0.98] ${
+                      currentMonthCompleted
+                        ? "bg-white text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-50"
+                        : "bg-emerald-600 text-white hover:bg-emerald-700"
+                    }`}
                   >
-                    {showPacHistoryMonths ? "Nascondi ultimi 12 mesi" : "Mostra ultimi 12 mesi"}
+                    {currentMonthCompleted
+                      ? "Modifica stato mese"
+                      : hasStartedPac
+                      ? "Segna mese completato"
+                      : "Segna primo mese"}
                   </button>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-4">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mesi completati</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">{pacCompletedMonths}/{pacHistory.length}</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Continuità attuale</p>
-                  <p className="mt-2 flex items-center gap-2 text-2xl font-bold text-slate-900">
-                    <span>🔥</span>
-                    <span>{currentStreak} {currentStreak === 1 ? "mese" : "mesi"}</span>
+              <div className="relative z-0 mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Stato</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {currentMonthCompleted ? "Mese completato" : "Da completare"}
                   </p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Avanzamento ultimi mesi</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">{pacCompletionPercent}%</p>
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Continuità</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    🔥 {currentStreak} {currentStreak === 1 ? "mese" : "mesi"}
+                  </p>
                 </div>
-                <div className="rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-100">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Impatto sul target</p>
-                  <p className="mt-2 text-2xl font-bold text-emerald-900">+{pacImpactPercent.toFixed(1)}%</p>
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Impatto stimato</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    +{formatEuro(monthlyPacAmount || 0)} · +{pacImpactPercent.toFixed(1)}%
+                  </p>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Serie verso 12 mesi</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">{streakMessage}</p>
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{nextMilestone}</p>
-                  </div>
-                  <p className="text-sm font-semibold text-slate-700">{currentStreak}/12 mesi</p>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Storico PAC</p>
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Continuità del piano</h3>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    Riepilogo compatto dei mesi completati. Aprilo solo quando vuoi controllare o correggere lo storico.
+                  </p>
                 </div>
-                <div className="mt-4 h-4 overflow-hidden rounded-full bg-slate-200">
-                  <div
-                    className="h-full rounded-full bg-emerald-600 transition-all duration-1000 ease-out"
-                    style={{ width: `${streakProgressPercent}%` }}
-                  />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPacHistoryMonths((value) => !value)}
+                  className="rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                >
+                  {showPacHistoryMonths ? "Nascondi storico" : "Mostra storico"}
+                </button>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-4">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mesi completati</p>
+                  <p className="mt-2 text-xl font-bold text-slate-900">{pacCompletedMonths}/{pacHistory.length}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Continuità</p>
+                  <p className="mt-2 text-xl font-bold text-slate-900">🔥 {currentStreak} {currentStreak === 1 ? "mese" : "mesi"}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ultimi mesi</p>
+                  <p className="mt-2 text-xl font-bold text-slate-900">{pacCompletionPercent}%</p>
+                </div>
+                <div className="rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-100">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Target</p>
+                  <p className="mt-2 text-xl font-bold text-emerald-900">+{pacImpactPercent.toFixed(1)}%</p>
                 </div>
               </div>
 
               {showPacHistoryMonths && (
-              <div className="mt-6">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-700">Ultimi 12 mesi</p>
-                  <p className="text-xs text-slate-500">Clicca un mese per cambiarne lo stato</p>
-                </div>
+                <div className="mt-6 space-y-5">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Serie verso 12 mesi</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">{streakMessage}</p>
+                        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{nextMilestone}</p>
+                      </div>
+                      <p className="text-sm font-semibold text-slate-700">{currentStreak}/12 mesi</p>
+                    </div>
+                    <div className="mt-4 h-4 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-emerald-600 transition-all duration-1000 ease-out"
+                        style={{ width: `${streakProgressPercent}%` }}
+                      />
+                    </div>
+                  </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {pacHistory.map((item) => (
-                    <button
-                      key={item.month}
-                      onClick={() => togglePacMonth(item.month)}
-                      className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
-                        item.completed
-                          ? "border-emerald-300 bg-emerald-50"
-                          : item.month === currentMonthKey
-                          ? "border-slate-400 bg-white hover:bg-slate-50"
-                          : "border-slate-200 bg-slate-50 hover:bg-slate-100"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-semibold text-slate-900">{getMonthLabel(item.month)}</span>
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                  <div>
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-sm font-semibold text-slate-700">Ultimi 12 mesi</p>
+                      <p className="text-xs text-slate-500">Clicca un mese per cambiarne lo stato</p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {pacHistory.map((item) => (
+                        <button
+                          key={item.month}
+                          type="button"
+                          onClick={() => togglePacMonth(item.month)}
+                          className={`rounded-2xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
                             item.completed
-                              ? "bg-emerald-600 text-white"
-                              : "bg-white text-slate-500 ring-1 ring-slate-200"
+                              ? "border-emerald-300 bg-emerald-50"
+                              : item.month === currentMonthKey
+                              ? "border-slate-400 bg-white hover:bg-slate-50"
+                              : "border-slate-200 bg-slate-50 hover:bg-slate-100"
                           }`}
                         >
-                          {item.completed ? "Fatto" : "Da fare"}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-semibold text-slate-900">{getMonthLabel(item.month)}</span>
+                            <span
+                              className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                                item.completed
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-white text-slate-500 ring-1 ring-slate-200"
+                              }`}
+                            >
+                              {item.completed ? "Fatto" : "Da fare"}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
               )}
             </div>
 
@@ -13060,7 +17237,149 @@ const [authReady, setAuthReady] = useState(false);
                   </button>
                 </div>
 
-            <div id="aggiungi-investimento" className="grid scroll-mt-6 gap-5 rounded-[2rem] border border-slate-200 bg-slate-50/80 p-4 shadow-sm md:p-5 xl:grid-cols-[1.08fr_1.18fr_0.92fr] xl:items-start">
+
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-700">Movimenti del modello</p>
+                      <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Versamenti, prelievi e rettifiche</h3>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                        Qui registri i movimenti reali del capitale: PAC, versamenti e prelievi. Le rettifiche del valore attuale restano separate, così il Monitor distingue capitale inserito e rivalutazione o svalutazione.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setStep("portfolio")}
+                        className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100"
+                      >
+                        Apri Modello
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStep("strumentis")}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Apri Strumenti
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 space-y-4">
+                    <div className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm ring-1 ring-emerald-100">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-black text-slate-950">Aggiungi movimento</p>
+                          <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">Flusso principale: usalo per registrare PAC, nuovi versamenti o prelievi reali su uno strumento già presente nel Portafoglio.</p>
+                        </div>
+                        <span className="inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700 ring-1 ring-emerald-100">Consigliato</span>
+                      </div>
+                      <div className="mt-4 grid gap-3 lg:grid-cols-[1.05fr_0.72fr_0.75fr_0.65fr_auto] lg:items-end">
+                        <div>
+                          <label className="mb-1 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Strumento del portafoglio</label>
+                          <select
+                            value={dynamicMovementDraft.assetId}
+                            onChange={(e) => setDynamicMovementDraft((prev) => ({ ...prev, assetId: e.target.value, allocationMode: "single_asset" }))}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                            disabled={activeHoldings.length === 0}
+                          >
+                            <option value="">{activeHoldings.length === 0 ? "Nessuno strumento inserito" : "Scegli uno strumento"}</option>
+                            {activeHoldings.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.strumentiName} · {item.category} · {formatEuro(item.amount)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Tipo movimento</label>
+                          <select value={dynamicMovementDraft.type} onChange={(e) => setDynamicMovementDraft((prev) => ({ ...prev, type: e.target.value as DynamicModelMovementType }))} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                            <option value="deposit">Versamento / PAC</option>
+                            <option value="withdrawal">Prelievo</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Importo</label>
+                          <input value={dynamicMovementDraft.amount} onChange={(e) => setDynamicMovementDraft((prev) => ({ ...prev, amount: e.target.value }))} placeholder="Importo €" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Data</label>
+                          <input type="date" value={dynamicMovementDraft.movementDate} onChange={(e) => setDynamicMovementDraft((prev) => ({ ...prev, movementDate: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                        </div>
+                        <button type="button" onClick={saveDynamicMovement} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md active:scale-95">Salva movimento</button>
+                      </div>
+                      <p className="mt-3 text-xs leading-5 text-slate-500">Compaiono solo gli strumenti che hai già aggiunto nel Portafoglio, non tutta la lista Strumenti. Per aggiornare rivalutazioni o svalutazioni usa la rettifica separata qui sotto.</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <button
+                        type="button"
+                        onClick={() => setManualValueCorrectionOpen((value) => !value)}
+                        className="flex w-full items-center justify-between gap-4 text-left"
+                      >
+                        <div>
+                          <p className="font-black text-slate-900">Rettifica valore attuale</p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">Funzione secondaria: usala solo se vuoi aggiornare il valore attuale di uno strumento senza registrare un nuovo versamento o prelievo.</p>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700">
+                          {manualValueCorrectionOpen ? "Chiudi" : "Apri"}
+                        </span>
+                      </button>
+
+                      {manualValueCorrectionOpen && (
+                        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                          <div className="rounded-2xl bg-white/70 p-4 text-xs font-semibold leading-5 text-amber-900 ring-1 ring-amber-100">
+                            Usa questa funzione quando il broker o la banca mostrano un valore diverso da quello stimato dall'app. Serve a registrare rivalutazione o svalutazione dello strumento: non aumenta e non riduce il capitale versato. Per nuovi versamenti o prelievi usa sempre “Aggiungi movimento”.
+                          </div>
+                          <div className="mt-3 grid gap-2 text-xs leading-5 text-amber-900 md:grid-cols-2">
+                            <div className="rounded-2xl bg-white/60 p-3 ring-1 ring-amber-100"><strong>Valore attuale</strong>: quanto vale oggi lo strumento.</div>
+                            <div className="rounded-2xl bg-white/60 p-3 ring-1 ring-amber-100"><strong>Capitale versato</strong>: quanto hai effettivamente investito. Se non lo sai, puoi lasciarlo vuoto.</div>
+                          </div>
+                          <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.7fr_0.7fr_auto] lg:items-end">
+                            <div>
+                              <label className="mb-1 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Strumento del portafoglio</label>
+                              <select
+                                value={dynamicAlignmentDraft.assetId}
+                                onChange={(e) => {
+                                  const selected = activeHoldings.find((item) => item.id === e.target.value);
+                                  setDynamicAlignmentDraft((prev) => ({
+                                    ...prev,
+                                    assetId: e.target.value,
+                                    investedCapital: prev.investedCapital || (selected ? String(selected.amount) : ""),
+                                  }));
+                                }}
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                                disabled={activeHoldings.length === 0}
+                              >
+                                <option value="">{activeHoldings.length === 0 ? "Nessuno strumento inserito" : "Scegli uno strumento"}</option>
+                                {activeHoldings.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.strumentiName} · {item.category} · {formatEuro(item.amount)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Valore attuale</label>
+                              <input value={dynamicAlignmentDraft.value} onChange={(e) => setDynamicAlignmentDraft((prev) => ({ ...prev, value: e.target.value }))} placeholder="Valore attuale €" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Capitale versato, se lo sai</label>
+                              <input value={dynamicAlignmentDraft.investedCapital} onChange={(e) => setDynamicAlignmentDraft((prev) => ({ ...prev, investedCapital: e.target.value }))} placeholder="Opzionale" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+                            </div>
+                            <button type="button" onClick={saveDynamicAlignment} className="rounded-xl border border-amber-300 bg-white px-5 py-3 text-sm font-black text-amber-800 shadow-sm transition hover:bg-amber-100 active:scale-95">Salva rettifica</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {dynamicModelMessage && (
+                    <p className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-900 ring-1 ring-emerald-100">{dynamicModelMessage}</p>
+                  )}
+                </div>
+
+            <div id="aggiungi-investimento" className="grid scroll-mt-28 gap-5 rounded-[2rem] border border-slate-200 bg-slate-50/80 p-4 shadow-sm md:p-5 xl:grid-cols-[1.08fr_1.18fr_0.92fr] xl:items-start">
               <div className="space-y-6">
                 <div className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-md shadow-emerald-100/60 ring-1 ring-emerald-100">
                   <div className="flex items-start justify-between gap-4">
@@ -13095,7 +17414,7 @@ const [authReady, setAuthReady] = useState(false);
                         onChange={(e) => {
                           const strumenti = allInstrumentsByCategory[newHolding.category].find((item) => item.name === e.target.value);
                           if (!strumenti) return;
-                          setNewHolding((prev) => ({ ...prev, strumentiName: strumenti.name, isin: strumenti.isin }));
+                          setNewHolding((prev) => ({ ...prev, strumentiName: strumenti.name, isin: strumenti.isin, tickerApi: strumenti.tickerApi || "" }));
                         }}
                         className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none"
                       >
@@ -13108,9 +17427,9 @@ const [authReady, setAuthReady] = useState(false);
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-slate-700">ISIN / esempi</label>
+                      <label className="text-sm font-medium text-slate-700">ISIN / Ticker API</label>
                       <input
-                        value={newHolding.isin}
+                        value={newHolding.tickerApi ? `${newHolding.isin || "Nessun ISIN"} · API: ${newHolding.tickerApi}` : (newHolding.isin || "Nessun ISIN")}
                         readOnly
                         className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 outline-none"
                       />
@@ -13237,15 +17556,15 @@ const [authReady, setAuthReady] = useState(false);
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Step 3</p>
                       <h3 id="i-tuoi-investimenti" className="mt-2 scroll-mt-6 text-xl font-bold tracking-tight text-slate-900">I tuoi investimenti</h3>
                     </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{holdings.length} inseriti</span>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{activeHoldings.length} inseriti</span>
                   </div>
-                  {holdings.length === 0 ? (
+                  {activeHoldings.length === 0 ? (
                     <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-500">
                       Nessun investimento inserito. Dopo il salvataggio, lo strumento apparira qui con categoria, ISIN e importo.
                     </div>
                   ) : (
                     <div className="mt-4 space-y-3">
-                      {holdings.map((item) => (
+                      {activeHoldings.map((item) => (
                         <div
                           key={item.id}
                           className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between"
@@ -13278,6 +17597,9 @@ const [authReady, setAuthReady] = useState(false);
                       <h3 className="mt-2 text-xl font-bold tracking-tight text-slate-900">Guida operativa del mese</h3>
                       <p className="mt-1 text-sm leading-6 text-slate-600">
                         Esegui le quote suggerite e spuntale una alla volta. Questa è la parte pratica del mese, non una registrazione contabile.
+                      </p>
+                      <p className="mt-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-100">
+                        Ripartizione calcolata sul {activeModelLabel}
                       </p>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -13380,7 +17702,7 @@ const [authReady, setAuthReady] = useState(false);
                       className="mt-2 w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-500"
                     />
                     <p className="mt-2 text-xs leading-5 text-emerald-800">
-                      La cifra viene salvata, resta dopo il refresh e viene divisa automaticamente secondo il modello. Non serve essere preciso al centesimo: segui le proporzioni.
+                      Questa cifra viene divisa automaticamente secondo il modello selezionato. Modificala quando cambia il PAC che vuoi distribuire questo mese.
                     </p>
                   </div>
                 </div>
@@ -13399,7 +17721,7 @@ const [authReady, setAuthReady] = useState(false);
                         {goalTitle || "Il tuo obiettivo"}
                       </h3>
                       <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                        Aggiorna manualmente il valore reale del tuo capitale: così la barra tiene conto anche di mercato, prelievi e variazioni non visibili negli holdings.
+                        Il progresso viene calcolato automaticamente dal valore stimato nella Dashboard. Tu imposti solo il target e l'orizzonte: l'app aggiorna la lettura usando i dati del portafoglio.
                       </p>
                     </div>
 
@@ -13422,7 +17744,7 @@ const [authReady, setAuthReady] = useState(false);
                     </div>
 
                     <div className="mt-3 flex flex-col gap-2 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
-                      <span>Valore aggiornato: {formatEuro(goalCurrentNumber || 0)}</span>
+                      <span>Valore dal Monitor: {formatEuroCents(goalCurrentNumber || 0)}</span>
                       <span>Target finale: {formatEuro(goalTargetNumber || 0)}</span>
                     </div>
                   </div>
@@ -13430,10 +17752,10 @@ const [authReady, setAuthReady] = useState(false);
                   <div className="mt-6 grid gap-4 sm:grid-cols-3">
                     <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Capitale aggiornato
+                        Valore dal Monitor
                       </p>
                       <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">
-                        {formatEuro(goalCurrentNumber || 0)}
+                        {formatEuroCents(goalCurrentNumber || 0)}
                       </p>
                     </div>
 
@@ -13464,7 +17786,7 @@ const [authReady, setAuthReady] = useState(false);
                       {goalMessage}
                     </p>
                     <p className="mt-2 text-xs leading-5 text-slate-500">
-                      La stima a fine piano usa solo PAC mensile, anno finale e rendimento stimato. Il capitale aggiornato serve invece per misurare il progresso reale verso il target.
+                      La stima a fine piano usa PAC mensile, anno finale e rendimento stimato. Il progresso reale verso il target viene invece letto automaticamente dal valore stimato nel Monitor.
                     </p>
                     {hasReachedPersonalGoal ? (
                       <button
@@ -13483,7 +17805,7 @@ const [authReady, setAuthReady] = useState(false);
                     Aggiorna obiettivo
                   </h4>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Inserisci manualmente il valore aggiornato del capitale. Questo dato può includere fluttuazioni di mercato, prelievi o variazioni che gli holdings non mostrano. Non serve aggiornarlo ogni giorno: usalo per avere consapevolezza, non per reagire al mercato.
+                    Imposta nome, target e anno finale dell'obiettivo. Il valore attuale non si inserisce più a mano: viene letto automaticamente dalla Dashboard, così eviti doppioni e dati incoerenti.
                   </p>
 
                   <div key={goalDraftFormKey} className="mt-5 space-y-4">
@@ -13500,32 +17822,16 @@ const [authReady, setAuthReady] = useState(false);
                       />
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="text-sm font-medium text-slate-700">
-                          Valore attuale aggiornato
-                        </label>
-                        <input
-                          ref={draftGoalCurrentValueRef}
-                          defaultValue={draftGoalCurrentValue}
-                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
-                          placeholder="Es. 12000"
-                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-slate-700">
-                          Valore precedente
-                        </label>
-                        <input
-                          ref={draftGoalPreviousValueRef}
-                          defaultValue={draftGoalPreviousValue}
-                          onFocus={() => goalSaveStatus !== "idle" && setGoalSaveStatus("idle")}
-                          placeholder="Es. 10000"
-                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
-                        />
-                      </div>
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                        Valore attuale automatico
+                      </p>
+                      <p className="mt-2 text-2xl font-black tracking-tight text-emerald-950">
+                        {formatEuroCents(goalCurrentNumber || 0)}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-emerald-900">
+                        Questo dato arriva dal Monitor della Dashboard. Se registri nuovi investimenti, prelievi o rettifiche, il progresso dell'obiettivo si aggiorna da quei dati.
+                      </p>
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -13575,25 +17881,8 @@ const [authReady, setAuthReady] = useState(false);
                         Salvataggio
                       </p>
                       <p className="mt-2 text-sm leading-6 text-emerald-900">
-                        I campi restano fluidi mentre scrivi. Quando hai finito, premi <strong>Salva aggiornamento</strong>: l'app aggiorna la Dashboard e salva su Supabase.
+                        Quando hai finito, premi <strong>Salva aggiornamento</strong>: l'app salva nome, target e anno finale su Supabase. Il valore attuale resta automatico e viene letto dal Monitor.
                       </p>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-slate-700">
-                        Motivo del cambiamento
-                      </label>
-                      <select
-                        ref={draftGoalReasonRef}
-                        defaultValue={draftGoalReason}
-                        onChange={() => setGoalSaveStatus("idle")}
-                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-slate-400"
-                      >
-                        <option value="stabile">Aggiornamento periodico</option>
-                        <option value="investimento">Nuovo investimento</option>
-                        <option value="prelievo">Ho usato parte dei soldi</option>
-                        <option value="mercato">Oscillazione di mercato</option>
-                      </select>
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -13976,6 +18265,10 @@ const [authReady, setAuthReady] = useState(false);
                         <strong className="text-slate-900">{formatEuro(rebalancePacNumber)}</strong>
                       </div>
                       <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500">Modello usato</span>
+                        <strong className="text-slate-900">{dynamicModel.mode === "custom" ? "Personale" : "App"}</strong>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-500">Scostamento totale</span>
                         <strong className={totalRebalanceAbsoluteDrift === 0 ? "text-emerald-700" : totalRebalanceAbsoluteDrift <= 8 ? "text-amber-700" : "text-red-700"}>{totalRebalanceAbsoluteDrift}%</strong>
                       </div>
@@ -14004,7 +18297,7 @@ const [authReady, setAuthReady] = useState(false);
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Dati di partenza</p>
                       <h3 className="mt-2 text-xl font-bold tracking-tight">Quanto hai oggi in ogni asset?</h3>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        Inserisci il valore attuale delle categorie del tuo modello. Il calcolo considera normale uno scostamento fino all'1% per asset, ma mostra comunque numeri precisi per orientare il PAC.
+                        Inserisci il valore attuale delle categorie del {rebalanceModelLabel}. Il calcolo considera normale uno scostamento fino all'1% per asset, ma mostra comunque numeri precisi per orientare il PAC.
                       </p>
                     </div>
 
@@ -14030,7 +18323,7 @@ const [authReady, setAuthReady] = useState(false);
                         <div>
                           <h4 className="text-base font-bold text-slate-900">Valori attuali per asset</h4>
                           <p className="mt-1 text-sm leading-6 text-slate-600">
-                            Inserisci gli importi in euro. Il target indica la percentuale che il tuo modello vorrebbe mantenere nel tempo. Uno scostamento fino all'1% viene considerato fisiologico, ma puoi comunque usare le quote sotto per riportarti al target preciso.
+                            Inserisci gli importi in euro. Il target indica la percentuale che il {rebalanceModelLabel} vorrebbe mantenere nel tempo. Uno scostamento fino all'1% viene considerato fisiologico, ma puoi comunque usare le quote sotto per riportarti al target preciso.
                           </p>
                         </div>
                         <button
@@ -14043,7 +18336,11 @@ const [authReady, setAuthReady] = useState(false);
                       </div>
 
                       <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                        {selectedPortfolio.composition.map((item) => (
+                        {rebalanceTargetComposition.length === 0 ? (
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 sm:col-span-2">
+                            Non hai ancora un modello personale completo da ribilanciare. Torna alla pagina Modello, inserisci le categorie e salva il modello personale.
+                          </div>
+                        ) : rebalanceTargetComposition.map((item) => (
                           <label key={item.category} className="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                             <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: getAssetColor(item.category) }} />
@@ -15335,14 +19632,19 @@ function NavButton({
 
 function PortfolioPieChart({ composition }: { composition: PortfolioTemplate["composition"] }) {
   let current = 0;
-  const gradient = composition
-    .map((item) => {
-      const start = current;
-      const end = current + item.percentage;
-      current = end;
-      return `${getAssetColor(item.category)} ${start}% ${end}%`;
-    })
-    .join(", ");
+  const total = composition.reduce((sum, item) => sum + Number(item.percentage || 0), 0);
+  const slices = composition.map((item) => {
+    const start = current;
+    const end = current + item.percentage;
+    current = end;
+    return `${getAssetColor(item.category)} ${start}% ${end}%`;
+  });
+
+  if (total < 99.8) {
+    slices.push(`#e5e7eb ${current}% 100%`);
+  }
+
+  const gradient = slices.length ? slices.join(", ") : "#e5e7eb 0% 100%";
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
@@ -15363,10 +19665,19 @@ function PortfolioPieChart({ composition }: { composition: PortfolioTemplate["co
               <span className="font-semibold text-slate-900">{item.percentage}%</span>
             </div>
           ))}
+          {total < 99.8 && (
+            <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm">
+              <span className="flex items-center gap-2 text-slate-500">
+                <span className="h-3 w-3 rounded-full bg-slate-200" />
+                Da completare
+              </span>
+              <span className="font-semibold text-slate-700">{Math.max(0, Math.round((100 - total) * 10) / 10)}%</span>
+            </div>
+          )}
         </div>
       </div>
       <p className="mt-5 text-xs leading-5 text-slate-500">
-        Colori: rosso azionario, blu obbligazioni, giallo oro, grigio materie prime, verde liquidità.
+        La torta mostra solo la struttura del modello. Nel modello personale la parte grigia indica la quota ancora da completare.
       </p>
     </div>
   );
@@ -15753,4 +20064,3 @@ function ChecklistGroup({
 // bg: emerald-50, border emerald-200
 // animazione: scale + fade
 // auto dismiss mantenuto
-
