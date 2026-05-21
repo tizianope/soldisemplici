@@ -671,6 +671,8 @@ type DynamicModelAllocationMode = "by_model" | "single_asset" | "manual";
 type DynamicModelAsset = {
   id: string;
   holdingId?: string;
+  customInstrumentId?: string;
+  isin?: string;
   name: string;
   category: StrumentiCategory;
   ticker: string;
@@ -691,6 +693,12 @@ type DynamicModelMovement = {
   id: string;
   modelMode?: DynamicModelMode;
   assetId?: string;
+  assetName?: string;
+  category?: StrumentiCategory;
+  isin?: string;
+  tickerApi?: string;
+  apiEnabled?: boolean;
+  customInstrumentId?: string;
   type: DynamicModelMovementType;
   amount: number;
   movementDate: string;
@@ -2845,6 +2853,10 @@ function getMovementCategoryFromNote(note?: string) {
     .find((category) => normalizedNote.includes(category.toLowerCase()));
 }
 
+function getMovementCategory(movement: DynamicModelMovement, holding?: Holding) {
+  return movement.category || holding?.category || getMovementCategoryFromNote(movement.note);
+}
+
 function getMovementInstrumentNameFromNote(note?: string, category?: StrumentiCategory) {
   if (!note || !category) return undefined;
   const marker = ` - ${category}`;
@@ -2852,6 +2864,10 @@ function getMovementInstrumentNameFromNote(note?: string, category?: StrumentiCa
   if (markerIndex <= 0) return undefined;
   const rawName = note.slice(0, markerIndex).trim();
   return rawName || undefined;
+}
+
+function getMovementInstrumentName(movement: DynamicModelMovement, category?: StrumentiCategory, holding?: Holding) {
+  return movement.assetName || holding?.strumentiName || getMovementInstrumentNameFromNote(movement.note, category);
 }
 
 function buildManualAssetFromMovementNote(note: string | undefined, category: StrumentiCategory): DynamicModelAsset {
@@ -2872,20 +2888,135 @@ function buildManualAssetFromMovementNote(note: string | undefined, category: St
   };
 }
 
+function normalizeInstrumentMatchText(value: string | undefined) {
+  return normalizeInstrumentText(value);
+}
+
+function findCustomInstrumentForHolding(holding: Holding | undefined, customInstruments: CustomInstrument[] = []) {
+  if (!holding) return undefined;
+
+  const holdingTicker = normalizeTickerApi(holding.tickerApi);
+  if (holdingTicker) {
+    const byTicker = customInstruments.find((instrument) => normalizeTickerApi(instrument.tickerApi) === holdingTicker);
+    if (byTicker) return byTicker;
+  }
+
+  const holdingIsin = normalizeInstrumentIsin(holding.isin);
+  if (holdingIsin) {
+    const byIsin = customInstruments.find((instrument) => normalizeInstrumentIsin(instrument.isin) === holdingIsin);
+    if (byIsin) return byIsin;
+  }
+
+  const holdingName = normalizeInstrumentMatchText(holding.strumentiName);
+  return customInstruments.find((instrument) =>
+    categoriesAreMonitorCompatible(instrument.category, holding.category) &&
+    normalizeInstrumentMatchText(instrument.name) === holdingName
+  );
+}
+
+function findCustomInstrumentForMovement(
+  movement: DynamicModelMovement,
+  customInstruments: CustomInstrument[] = [],
+  holding?: Holding
+) {
+  if (movement.customInstrumentId) {
+    const byId = customInstruments.find((instrument) => instrument.id === movement.customInstrumentId);
+    if (byId) return byId;
+  }
+
+  const movementTicker = normalizeTickerApi(movement.tickerApi || holding?.tickerApi);
+  if (movementTicker) {
+    const byTicker = customInstruments.find((instrument) => normalizeTickerApi(instrument.tickerApi) === movementTicker);
+    if (byTicker) return byTicker;
+  }
+
+  const movementIsin = normalizeInstrumentIsin(movement.isin || holding?.isin);
+  if (movementIsin) {
+    const byIsin = customInstruments.find((instrument) => normalizeInstrumentIsin(instrument.isin) === movementIsin);
+    if (byIsin) return byIsin;
+  }
+
+  const movementCategory = getMovementCategory(movement, holding);
+  const movementName = movementCategory ? getMovementInstrumentName(movement, movementCategory, holding) : undefined;
+  const normalizedName = normalizeInstrumentMatchText(movementName);
+
+  if (!movementCategory || !normalizedName) return findCustomInstrumentForHolding(holding, customInstruments);
+
+  return customInstruments.find((instrument) =>
+    categoriesAreMonitorCompatible(instrument.category, movementCategory) &&
+    normalizeInstrumentMatchText(instrument.name) === normalizedName
+  ) || findCustomInstrumentForHolding(holding, customInstruments);
+}
+
+function buildApiAssetFromCustomInstrument(
+  instrument: CustomInstrument,
+  movement?: DynamicModelMovement,
+  fallbackAmount = 0
+): DynamicModelAsset | null {
+  const ticker = normalizeTickerApi(instrument.tickerApi);
+  if (!isLikelyTickerApi(ticker)) return null;
+
+  const now = new Date().toISOString();
+  return {
+    id: `custom-instrument-api-${instrument.id}`,
+    holdingId: movement?.assetId,
+    customInstrumentId: instrument.id,
+    isin: instrument.isin,
+    name: instrument.name,
+    category: instrument.category,
+    ticker,
+    weight: 0,
+    initialValue: Math.max(0, Number(fallbackAmount || 0)),
+    currentManualValue: Math.max(0, Number(fallbackAmount || 0)),
+    kind: "api",
+    apiEnabled: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function buildApiAssetFromMovementMetadata(movement: DynamicModelMovement, fallbackAmount = 0): DynamicModelAsset | null {
+  const ticker = normalizeTickerApi(movement.tickerApi);
+  if (!isLikelyTickerApi(ticker)) return null;
+
+  const category = getMovementCategory(movement);
+  if (!category) return null;
+
+  const now = new Date().toISOString();
+  const name = getMovementInstrumentName(movement, category) || ticker;
+  const safeId = movement.customInstrumentId || movement.assetId || `${category}-${name}-${ticker}`;
+  return {
+    id: `movement-api-${safeId}`.replace(/[^a-zA-Z0-9_-]/g, "-"),
+    holdingId: movement.assetId,
+    customInstrumentId: movement.customInstrumentId,
+    isin: movement.isin,
+    name,
+    category,
+    ticker,
+    weight: 0,
+    initialValue: Math.max(0, Number(fallbackAmount || 0)),
+    currentManualValue: Math.max(0, Number(fallbackAmount || 0)),
+    kind: "api",
+    apiEnabled: movement.apiEnabled ?? true,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 function findHoldingForMovement(movement: DynamicModelMovement, holdings: Holding[]) {
   if (movement.assetId) {
     const direct = holdings.find((holding) => holding.id === movement.assetId);
     if (direct) return direct;
   }
 
-  const movementCategory = getMovementCategoryFromNote(movement.note);
-  const movementName = getMovementInstrumentNameFromNote(movement.note, movementCategory);
+  const movementCategory = getMovementCategory(movement);
+  const movementName = movementCategory ? getMovementInstrumentName(movement, movementCategory) : undefined;
   if (!movementCategory || !movementName) return undefined;
 
-  const normalizedName = movementName.trim().toLowerCase();
+  const normalizedName = normalizeInstrumentMatchText(movementName);
   return holdings.find((holding) =>
     categoriesAreMonitorCompatible(holding.category, movementCategory) &&
-    (holding.strumentiName || "").trim().toLowerCase() === normalizedName
+    normalizeInstrumentMatchText(holding.strumentiName) === normalizedName
   );
 }
 
@@ -3002,15 +3133,18 @@ function isLikelyTickerApi(value: string | undefined) {
   return /^[A-Z0-9.\-=^]{1,20}$/.test(normalized);
 }
 
-function buildApiAssetFromHolding(holding: Holding): DynamicModelAsset | null {
-  const ticker = normalizeTickerApi(holding.tickerApi);
+function buildApiAssetFromHolding(holding: Holding, customInstruments: CustomInstrument[] = []): DynamicModelAsset | null {
+  const customInstrument = findCustomInstrumentForHolding(holding, customInstruments);
+  const ticker = normalizeTickerApi(holding.tickerApi || customInstrument?.tickerApi);
   if (!isLikelyTickerApi(ticker)) return null;
   const now = new Date().toISOString();
   return {
-    id: `holding-api-${holding.id}`,
+    id: customInstrument ? `custom-instrument-api-${customInstrument.id}` : `holding-api-${holding.id}`,
     holdingId: holding.id,
-    name: holding.strumentiName,
-    category: holding.category,
+    customInstrumentId: customInstrument?.id,
+    isin: holding.isin || customInstrument?.isin,
+    name: customInstrument?.name || holding.strumentiName,
+    category: customInstrument?.category || holding.category,
     ticker,
     weight: 0,
     initialValue: Math.max(0, Number(holding.amount || 0)),
@@ -3115,7 +3249,8 @@ function buildLotsForCategory(
 function buildDynamicChartLots(
   state: DynamicModelState,
   fallbackCapital: number,
-  holdings: Holding[] = []
+  holdings: Holding[] = [],
+  customInstruments: CustomInstrument[] = []
 ) {
   const assetsByCategory = getAssetsByCategory(state.assets);
   const holdingById = new Map(holdings.map((holding) => [holding.id, holding]));
@@ -3129,11 +3264,14 @@ function buildDynamicChartLots(
     if (!movementAmount) return;
 
     const movementDate = getChartDateKey(movement.movementDate || movement.insertedAt);
-    const directAsset = state.assets.find((asset) => asset.id === movement.assetId);
-    if (directAsset) {
+
+    // Priorità 1: i movimenti nuovi salvano direttamente tickerApi/customInstrumentId.
+    // Questo evita di dipendere da una nota testuale o da un asset di categoria generico.
+    const movementApiAsset = buildApiAssetFromMovementMetadata(movement, movementAmount);
+    if (movementApiAsset) {
       lots.push({
-        id: `movement-${movement.id}-${directAsset.id}`,
-        asset: directAsset,
+        id: `movement-${movement.id}-${movementApiAsset.id}`,
+        asset: movementApiAsset,
         amount: movementAmount,
         startDate: movementDate,
         source: "movement",
@@ -3142,12 +3280,43 @@ function buildDynamicChartLots(
     }
 
     const holding = findHoldingForMovement(movement, holdings);
-    const holdingApiAsset = holding ? buildApiAssetFromHolding(holding) : null;
+
+    // Priorità 2: il movimento punta a una holding salvata in Portafoglio con ticker API.
+    const holdingApiAsset = holding ? buildApiAssetFromHolding(holding, customInstruments) : null;
     if (holdingApiAsset) {
       if (holding?.id) holdingIdsWithMovementLots.add(holding.id);
       lots.push({
         id: `movement-${movement.id}-${holdingApiAsset.id}`,
         asset: holdingApiAsset,
+        amount: movementAmount,
+        startDate: movementDate,
+        source: "movement",
+      });
+      return;
+    }
+
+    // Priorità 3: compatibilità con vecchi movimenti.
+    // Se il movimento non contiene tickerApi ma la nota dice "Nvidia - Azioni Globali",
+    // proviamo ad agganciarlo allo strumento personale omonimo con ticker API.
+    const customInstrument = findCustomInstrumentForMovement(movement, customInstruments, holding);
+    const customApiAsset = customInstrument ? buildApiAssetFromCustomInstrument(customInstrument, movement, movementAmount) : null;
+    if (customApiAsset) {
+      if (holding?.id) holdingIdsWithMovementLots.add(holding.id);
+      lots.push({
+        id: `movement-${movement.id}-${customApiAsset.id}`,
+        asset: customApiAsset,
+        amount: movementAmount,
+        startDate: movementDate,
+        source: "movement",
+      });
+      return;
+    }
+
+    const directAsset = state.assets.find((asset) => asset.id === movement.assetId);
+    if (directAsset) {
+      lots.push({
+        id: `movement-${movement.id}-${directAsset.id}`,
+        asset: directAsset,
         amount: movementAmount,
         startDate: movementDate,
         source: "movement",
@@ -3255,10 +3424,11 @@ function buildDynamicModelChartPoints(
   state: DynamicModelState,
   fallbackCapital: number,
   marketSnapshots: Record<string, MarketPriceSnapshotEntry[]> = {},
-  holdings: Holding[] = []
+  holdings: Holding[] = [],
+  customInstruments: CustomInstrument[] = []
 ): DynamicChartPoint[] {
   const now = new Date();
-  const lots = buildDynamicChartLots(state, fallbackCapital, holdings);
+  const lots = buildDynamicChartLots(state, fallbackCapital, holdings, customInstruments);
   const sortedSnapshotsByTicker = Object.fromEntries(
     Object.entries(marketSnapshots).map(([ticker, snapshots]) => [ticker.toUpperCase(), getSortedMarketSnapshots(snapshots)])
   ) as Record<string, MarketPriceSnapshotEntry[]>;
@@ -3372,7 +3542,8 @@ function buildMonitorEngine(
   fallbackCapital: number,
   marketSnapshots: Record<string, MarketPriceSnapshotEntry[]> = {},
   holdings: Holding[] = [],
-  activeComposition: Array<{ label: string; category: StrumentiCategory; percentage: number }> = []
+  activeComposition: Array<{ label: string; category: StrumentiCategory; percentage: number }> = [],
+  customInstruments: CustomInstrument[] = []
 ): MonitorEngineResult {
   const hasRealCapitalMovements = state.movements.some((movement) => {
     if (movement.type === "alignment") return false;
@@ -3399,10 +3570,10 @@ function buildMonitorEngine(
     };
   }
 
-  const chartPoints = buildDynamicModelChartPoints(state, fallbackCapital, marketSnapshots, holdings);
+  const chartPoints = buildDynamicModelChartPoints(state, fallbackCapital, marketSnapshots, holdings, customInstruments);
   const lastPoint = chartPoints[chartPoints.length - 1];
 
-  const lots = buildDynamicChartLots(state, fallbackCapital, holdings);
+  const lots = buildDynamicChartLots(state, fallbackCapital, holdings, customInstruments);
   const nowTime = new Date().getTime();
   const sortedSnapshotsByTicker = Object.fromEntries(
     Object.entries(marketSnapshots).map(([ticker, snapshots]) => [ticker.toUpperCase(), getSortedMarketSnapshots(snapshots)])
@@ -5169,7 +5340,11 @@ const [authReady, setAuthReady] = useState(false);
       .map((holding) => normalizeTickerApi(holding.tickerApi))
       .filter(isLikelyTickerApi);
 
-    const tickers = Array.from(new Set([...appModelTickers, ...customTickers, ...customInstrumentTickers, ...holdingTickers]));
+    const movementTickers = dynamicModel.movements
+      .map((movement) => normalizeTickerApi(movement.tickerApi))
+      .filter(isLikelyTickerApi);
+
+    const tickers = Array.from(new Set([...appModelTickers, ...customTickers, ...customInstrumentTickers, ...holdingTickers, ...movementTickers]));
     if (tickers.length === 0) return;
 
     let cancelled = false;
@@ -5238,7 +5413,7 @@ const [authReady, setAuthReady] = useState(false);
     return () => {
       cancelled = true;
     };
-  }, [customInstruments, dynamicModel.assets, holdings, selectedPortfolio.composition, user]);
+  }, [customInstruments, dynamicModel.assets, dynamicModel.movements, holdings, selectedPortfolio.composition, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -7693,8 +7868,8 @@ const [authReady, setAuthReady] = useState(false);
       }));
   }, [displayedModelComposition, dynamicModel.mode, selectedPortfolio.composition]);
   const monitorEngine = useMemo(
-    () => buildMonitorEngine(monitorDynamicModel, effectiveMonitorBaseCapital, marketSnapshotCache, activeHoldings, monitorActiveComposition),
-    [effectiveMonitorBaseCapital, activeHoldings, marketSnapshotCache, monitorActiveComposition, monitorDynamicModel]
+    () => buildMonitorEngine(monitorDynamicModel, effectiveMonitorBaseCapital, marketSnapshotCache, activeHoldings, monitorActiveComposition, customInstruments),
+    [effectiveMonitorBaseCapital, activeHoldings, customInstruments, marketSnapshotCache, monitorActiveComposition, monitorDynamicModel]
   );
   const dynamicChartPoints = monitorEngine.chartPoints;
 
@@ -10277,10 +10452,12 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     const movementDate = dynamicMovementDraft.movementDate || new Date().toISOString().slice(0, 10);
+    const movementInstrumentFields = buildMovementInstrumentFieldsFromHolding(selectedHolding);
     const nextMovement: DynamicModelMovement = {
       id: `${dynamicModel.mode}-model-movement-${Date.now()}`,
       modelMode: dynamicModel.mode,
       assetId: selectedHolding.id,
+      ...movementInstrumentFields,
       type: dynamicMovementDraft.type,
       amount,
       movementDate,
@@ -12193,6 +12370,20 @@ const [authReady, setAuthReady] = useState(false);
     });
   }
 
+  function buildMovementInstrumentFieldsFromHolding(holding: Holding) {
+    const matchedCustomInstrument = findCustomInstrumentForHolding(holding, customInstruments);
+    const tickerApi = normalizeTickerApi(holding.tickerApi || matchedCustomInstrument?.tickerApi);
+
+    return {
+      assetName: matchedCustomInstrument?.name || holding.strumentiName,
+      category: matchedCustomInstrument?.category || holding.category,
+      isin: holding.isin || matchedCustomInstrument?.isin || "",
+      tickerApi: isLikelyTickerApi(tickerApi) ? tickerApi : undefined,
+      apiEnabled: isLikelyTickerApi(tickerApi),
+      customInstrumentId: matchedCustomInstrument?.id,
+    };
+  }
+
   function addHolding() {
     const amount = Number(newHolding.amount.replace(",", "."));
     if (!amount || amount <= 0) return;
@@ -12207,10 +12398,12 @@ const [authReady, setAuthReady] = useState(false);
       amount,
     };
     const movementDate = now.toISOString().slice(0, 10);
+    const movementInstrumentFields = buildMovementInstrumentFieldsFromHolding(item);
     const automaticMovement: DynamicModelMovement = {
       id: `${dynamicModel.mode}-model-movement-${item.id}`,
       modelMode: dynamicModel.mode,
       assetId: item.id,
+      ...movementInstrumentFields,
       type: "deposit",
       amount,
       movementDate,
