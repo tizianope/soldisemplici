@@ -7906,11 +7906,98 @@ const [authReady, setAuthReady] = useState(false);
         .map((index) => ({ index, x: getMonitorX(index), label: monitorChartPoints[index]?.label || "" }))
     : [];
   const monitorLinePoints: SvgPoint[] = monitorChartPoints.map((point, index) => ({ x: getMonitorX(index), y: getMonitorY(point.value) }));
-  const monitorPointMarkers = monitorLinePoints.map((point, index) => ({
-    id: `monitor-point-${index}`,
-    left: `${(point.x / 120) * 100}%`,
-    top: `${(point.y / 110) * 100}%`,
-  }));
+  const monitorPointMarkers = useMemo(() => {
+    if (!monitorLinePoints.length || !monitorChartPoints.length) return [];
+
+    const toDayKey = (value?: string) => {
+      const time = getValidDateTime(value);
+      if (!Number.isFinite(time)) return "";
+      return new Date(time).toISOString().slice(0, 10);
+    };
+
+    const formatEventDate = (dayKey: string) => {
+      const time = getValidDateTime(`${dayKey}T12:00:00.000Z`);
+      if (!Number.isFinite(time)) return dayKey;
+      return new Date(time).toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+    };
+
+    const movementEventsByDay = new Map<string, string[]>();
+    activeDynamicMovements.forEach((movement) => {
+      const dayKey = toDayKey(movement.movementDate || movement.insertedAt);
+      if (!dayKey) return;
+
+      const category = movement.category || getMovementCategoryFromNote(movement.note);
+      const instrumentName = movement.assetName || getMovementInstrumentNameFromNote(movement.note, category) || "Movimento";
+      const amount = Number(movement.amount || 0);
+      const actionLabel = movement.type === "withdrawal"
+        ? "Prelievo"
+        : movement.type === "correction"
+          ? "Correzione"
+          : movement.type === "alignment"
+            ? "Rettifica"
+            : "Versamento";
+      const amountLabel = amount > 0 ? `: ${formatEuroCents(amount)}` : "";
+      const label = `${actionLabel} ${instrumentName}${amountLabel}`;
+      movementEventsByDay.set(dayKey, [...(movementEventsByDay.get(dayKey) || []), label]);
+    });
+
+    const markersByDay = new Map<string, {
+      id: string;
+      left: string;
+      top: string;
+      title: string;
+      kind: "movement" | "price";
+      score: number;
+      index: number;
+    }>();
+
+    monitorChartPoints.forEach((point, index) => {
+      const dayKey = toDayKey(point.fetchedAt);
+      if (!dayKey) return;
+
+      const currentLinePoint = monitorLinePoints[index];
+      if (!currentLinePoint) return;
+
+      const movementEvents = movementEventsByDay.get(dayKey) || [];
+      const previousPoint = monitorChartPoints[index - 1];
+      const investedChanged = previousPoint ? Math.abs(Number(point.invested || 0) - Number(previousPoint.invested || 0)) >= 0.01 : false;
+      const movementTriggered = movementEvents.length > 0 || investedChanged;
+      const previousValue = Number(previousPoint?.value || 0);
+      const valueDeltaPercent = previousValue > 0 ? ((Number(point.value || 0) - previousValue) / previousValue) * 100 : 0;
+      const priceTriggered = !movementTriggered && Math.abs(valueDeltaPercent) >= 0.5;
+
+      if (!movementTriggered && !priceTriggered) return;
+
+      const titleParts = [`${formatEventDate(dayKey)} · Valore totale ${formatEuroCents(point.value)}`];
+      if (movementEvents.length) {
+        titleParts.push(...movementEvents.slice(0, 4));
+        if (movementEvents.length > 4) titleParts.push(`Altri ${movementEvents.length - 4} movimenti`);
+      } else if (investedChanged) {
+        titleParts.push("Movimento registrato nel portafoglio");
+      } else {
+        titleParts.push(`Variazione prezzi rilevante: ${formatSignedPercent(valueDeltaPercent, 2)}`);
+      }
+
+      const nextMarker = {
+        id: `monitor-event-marker-${dayKey}`,
+        left: `${(currentLinePoint.x / 120) * 100}%`,
+        top: `${(currentLinePoint.y / 110) * 100}%`,
+        title: titleParts.join("\n"),
+        kind: movementTriggered ? "movement" as const : "price" as const,
+        score: movementTriggered ? 10 + Math.abs(valueDeltaPercent) : Math.abs(valueDeltaPercent),
+        index,
+      };
+
+      const existing = markersByDay.get(dayKey);
+      // Un solo pallino per giorno: se ci sono più aggiornamenti, teniamo quello più utile.
+      // I movimenti hanno priorità; a parità di priorità teniamo il punto più recente della giornata.
+      if (!existing || nextMarker.score > existing.score || nextMarker.index > existing.index) {
+        markersByDay.set(dayKey, nextMarker);
+      }
+    });
+
+    return Array.from(markersByDay.values()).sort((a, b) => a.index - b.index);
+  }, [activeDynamicMovements, monitorChartPoints, monitorLinePoints]);
   const monitorInvestedPoints: SvgPoint[] = monitorChartPoints.map((point, index) => ({ x: getMonitorX(index), y: getMonitorY(point.invested) }));
   const monitorInvestedPolyline = monitorInvestedPoints.map((point) => `${point.x},${point.y}`).join(" ");
   const monitorValuePolyline = monitorLinePoints.map((point) => `${point.x},${point.y}`).join(" ");
@@ -7928,32 +8015,74 @@ const [authReady, setAuthReady] = useState(false);
       : "1 aggiornamento al giorno: 22:30";
 
   const monitorStackedAreas = useMemo(() => {
-    const positiveRows = monitorPremiumAssetRows
-      .filter((asset) => Number(asset.shareRatio || 0) > 0)
-      .map((asset) => ({ ...asset, normalizedShare: Number(asset.shareRatio || 0) }));
-
-    const orderedRows = [...positiveRows].sort((a, b) => {
-      const valueDifference = Number(b.value || 0) - Number(a.value || 0);
-      if (Math.abs(valueDifference) > 0.01) return valueDifference;
-      return Number(b.normalizedShare || 0) - Number(a.normalizedShare || 0);
+    // Le card sotto il grafico restano per singolo strumento, ma l'area colorata del grafico
+    // deve essere aggregata per categoria. Se abbiamo VT e NVDA entrambi in "Azioni Globali",
+    // non dobbiamo disegnare due fasce arancioni separate: altrimenti una può coprire visivamente
+    // l'altra o far sparire categorie più piccole, come le Obbligazioni.
+    const categoriesFromRows = new Set<StrumentiCategory>();
+    monitorPremiumAssetRows.forEach((asset) => {
+      if (Number(asset.value || 0) > 0 || Number(asset.investedCapital || 0) > 0) {
+        categoriesFromRows.add(asset.category);
+      }
+    });
+    monitorChartPoints.forEach((point) => {
+      Object.entries(point.categoryValues || {}).forEach(([category, value]) => {
+        if (Number(value || 0) > 0) categoriesFromRows.add(category as StrumentiCategory);
+      });
     });
 
-    // Le aree colorate non usano più una quota fissa applicata a tutto il grafico.
+    const lastPoint = monitorChartPoints[monitorChartPoints.length - 1];
+    const totalValue = Math.max(0, Number(lastPoint?.value || monitorDisplayedTotalValue || 0));
+
+    const groupedRows = Array.from(categoriesFromRows).map((category) => {
+      const linkedRows = monitorPremiumAssetRows.filter((asset) => asset.category === category);
+      const explicitFinalValue = Number(lastPoint?.categoryValues?.[category] || 0);
+      const fallbackValue = linkedRows.reduce((sum, asset) => sum + Math.max(0, Number(asset.value || 0)), 0);
+      const value = explicitFinalValue > 0 ? explicitFinalValue : fallbackValue;
+      const investedCapital = linkedRows.reduce((sum, asset) => sum + Math.max(0, Number(asset.investedCapital || 0)), 0);
+
+      return {
+        id: `monitor-area-${category}`,
+        name: category,
+        category,
+        value,
+        investedCapital,
+        deltaValue: value - investedCapital,
+        deltaPercent: investedCapital > 0 ? ((value - investedCapital) / investedCapital) * 100 : 0,
+        weight: linkedRows.reduce((sum, asset) => sum + Number(asset.weight || 0), 0),
+        modelPercentage: linkedRows.reduce((sum, asset) => sum + Number(asset.modelPercentage || 0), 0),
+        color: getAssetColor(category),
+        ticker: linkedRows.map((asset) => asset.ticker).filter(Boolean).join(", "),
+        kind: linkedRows.some((asset) => asset.kind === "api") ? "api" as DynamicModelAssetKind : "manual" as DynamicModelAssetKind,
+        percentage: totalValue > 0 ? (value / totalValue) * 100 : 0,
+        shareRatio: totalValue > 0 ? value / totalValue : 0,
+      } satisfies MonitorEngineAssetRow;
+    }).filter((asset) => Number(asset.value || 0) > 0 || Number(asset.shareRatio || 0) > 0);
+
+    const orderedRows = groupedRows.sort((a, b) => {
+      const valueDifference = Number(b.value || 0) - Number(a.value || 0);
+      if (Math.abs(valueDifference) > 0.01) return valueDifference;
+      return String(a.category).localeCompare(String(b.category));
+    });
+
     // Ogni data usa i valori reali di categoria calcolati dal motore Monitor.
-    // Così nessuna fascia può uscire sopra la linea bianca del valore totale nei giorni di versamento.
+    // Le categorie sono uniche e aggregate: Azioni Globali = VT + NVDA, Obbligazioni = AGG, ecc.
+    // Così nessuna categoria viene disegnata due volte e le fasce piccole restano visibili sopra quelle grandi.
     const cumulativeByPoint = monitorChartPoints.map(() => 0);
 
     return orderedRows.map((asset, assetIndex) => {
-      const isLastArea = assetIndex === orderedRows.length - 1;
       const bottomValues = cumulativeByPoint.map((value) => value);
+      const isLastArea = assetIndex === orderedRows.length - 1;
       const categoryValues = monitorChartPoints.map((point, pointIndex) => {
         const explicitValue = point.categoryValues?.[asset.category];
-        const fallbackValue = Number(point.value || 0) * Number(asset.normalizedShare || 0);
+        const fallbackValue = Number(point.value || 0) * Number(asset.shareRatio || 0);
         const rawValue = Number.isFinite(Number(explicitValue)) ? Number(explicitValue || 0) : fallbackValue;
         const availableSpace = Math.max(0, Number(point.value || 0) - cumulativeByPoint[pointIndex]);
         return Math.min(availableSpace, Math.max(0, rawValue));
       });
 
+      // Piccole differenze di arrotondamento o categorie assenti in un punto non devono lasciare buchi.
+      // L'ultima categoria visibile chiude sempre esattamente fino alla linea del valore totale.
       if (isLastArea) {
         categoryValues.forEach((_, pointIndex) => {
           categoryValues[pointIndex] = Math.max(0, Number(monitorChartPoints[pointIndex]?.value || 0) - cumulativeByPoint[pointIndex]);
@@ -7971,14 +8100,14 @@ const [authReady, setAuthReady] = useState(false);
 
       return {
         ...asset,
-        share: Number(asset.normalizedShare || 0),
+        share: Number(asset.shareRatio || 0),
         topRatio: 0,
         bottomRatio: 0,
         points: `${topPoints.map((point) => `${point.x},${point.y}`).join(" ")} ${bottomPoints.map((point) => `${point.x},${point.y}`).join(" ")}`,
         path: buildStepClosedAreaPath(topPoints, bottomPoints),
       };
     });
-  }, [monitorPremiumAssetRows, monitorChartPoints, monitorChartRange, monitorChartMin]);
+  }, [monitorPremiumAssetRows, monitorChartPoints, monitorChartRange, monitorChartMin, monitorDisplayedTotalValue]);
 
   const monitorMovementRows = useMemo(() => {
     return [...activeDynamicMovements]
@@ -16665,7 +16794,7 @@ const [authReady, setAuthReady] = useState(false);
                     <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Andamento aggregato · {monitorRangeLabels[monitorRange]}</p>
                     <h4 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Grafico del modello</h4>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                      Una lettura visiva più pulita: linea totale sopra, composizione del modello sotto.
+                      La linea bianca mostra il valore complessivo del portafoglio. Le aree colorate aiutano a capire quanto pesano le diverse categorie nel tempo.
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
@@ -16769,7 +16898,9 @@ const [authReady, setAuthReady] = useState(false);
                           {monitorPointMarkers.map((point) => (
                             <span
                               key={point.id}
-                              className="pointer-events-none absolute z-20 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.55)] ring-1 ring-white/45"
+                              title={point.title}
+                              aria-label={point.title}
+                              className={`absolute z-30 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_14px_rgba(255,255,255,0.75)] ring-2 ${point.kind === "movement" ? "ring-emerald-300/80" : "ring-white/60"}`}
                               style={{ left: point.left, top: point.top }}
                             />
                           ))}
