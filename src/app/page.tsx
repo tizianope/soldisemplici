@@ -2128,6 +2128,948 @@ function formatSignedEuroCents(value: number): string {
   return `${normalized > 0 ? "+" : ""}${formatEuroCents(normalized)}`;
 }
 
+
+type ExpenseFileType = "csv" | "excel" | "pdf" | "manual";
+type ExpenseDirection = "income" | "expense";
+type ExpenseMacroType =
+  | "fixed_required"
+  | "variable_required"
+  | "discretionary"
+  | "investment"
+  | "emergency_fund"
+  | "internal_transfer"
+  | "bank_fee"
+  | "income"
+  | "excluded"
+  | "to_review";
+
+type ExpenseMovementKind =
+  | "income"
+  | "expense"
+  | "investment"
+  | "emergency_fund"
+  | "internal_transfer"
+  | "bank_fee"
+  | "excluded"
+  | "to_review";
+
+type ExpenseCategory =
+  | "Stipendio / entrate"
+  | "Entrate extra"
+  | "Rimborso"
+  | "Interessi"
+  | "Casa e bollette"
+  | "Mutuo / affitto / rate"
+  | "Spesa alimentare"
+  | "Ristoranti e bar"
+  | "Auto e carburante"
+  | "Salute"
+  | "Shopping"
+  | "Abbonamenti"
+  | "Svago"
+  | "Famiglia"
+  | "Tasse e burocrazia"
+  | "PAC"
+  | "Investimenti"
+  | "Broker / conto investimento"
+  | "Pensione integrativa"
+  | "Altro investimento"
+  | "Fondo emergenza"
+  | "Liquidità remunerata"
+  | "Conto deposito"
+  | "Altro accantonamento"
+  | "Trasferimenti interni"
+  | "Giroconto"
+  | "Ricarica carta"
+  | "Spostamento tra conti"
+  | "Altro trasferimento"
+  | "Commissioni bancarie"
+  | "Altro"
+  | "Da verificare";
+
+type ExpenseImportStatus = "confirmed" | "draft";
+
+type MonthlyExpenseImport = {
+  id: string;
+  userId: string;
+  month: string;
+  sourceFileType: ExpenseFileType;
+  sourceFileName?: string;
+  sourceBankName?: string;
+  status: ExpenseImportStatus;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type ExpenseTransaction = {
+  id: string;
+  userId?: string;
+  importId?: string;
+  month: string;
+  date: string;
+  description: string;
+  amount: number;
+  direction: ExpenseDirection;
+  category: ExpenseCategory;
+  macroType: ExpenseMacroType;
+  sourceType: "file" | "manual";
+  isExcluded: boolean;
+  confidence: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type ExpenseAnalysisMode = "month" | "3m" | "6m" | "12m";
+
+type ExpenseAnalysis = {
+  months: string[];
+  transactionCount: number;
+  incomeTotal: number;
+  realExpensesTotal: number;
+  fixedRequiredTotal: number;
+  variableRequiredTotal: number;
+  discretionaryTotal: number;
+  investmentTotal: number;
+  emergencyFundTotal: number;
+  internalTransferTotal: number;
+  bankFeeTotal: number;
+  excludedTotal: number;
+  marginBeforeFuture: number;
+  undistributedMargin: number;
+  totalOutflows: number;
+  netMonthResult: number;
+  futureQuotaPercent: number;
+  emergencyFundRecommended: number;
+  emergencyFundCoverageMonths: number | null;
+  emergencyFundStatus: "missing" | "low" | "in_line" | "above";
+  topCategories: Array<{ category: ExpenseCategory; total: number; macroType: ExpenseMacroType }>;
+  monthlyRows: Array<{ month: string; income: number; realExpenses: number; investment: number; emergencyFund: number; margin: number }>;
+  mainAdvice: string;
+  secondaryAdvice: string;
+};
+
+const EXPENSE_INCOME_CATEGORIES: ExpenseCategory[] = [
+  "Stipendio / entrate",
+  "Entrate extra",
+  "Rimborso",
+  "Interessi",
+  "Altro",
+];
+
+const EXPENSE_SPENDING_CATEGORIES: ExpenseCategory[] = [
+  "Casa e bollette",
+  "Mutuo / affitto / rate",
+  "Spesa alimentare",
+  "Ristoranti e bar",
+  "Auto e carburante",
+  "Salute",
+  "Shopping",
+  "Abbonamenti",
+  "Svago",
+  "Famiglia",
+  "Tasse e burocrazia",
+  "Altro",
+];
+
+const EXPENSE_INVESTMENT_CATEGORIES: ExpenseCategory[] = [
+  "PAC",
+  "Investimenti",
+  "Broker / conto investimento",
+  "Pensione integrativa",
+  "Altro investimento",
+];
+
+const EXPENSE_EMERGENCY_CATEGORIES: ExpenseCategory[] = [
+  "Fondo emergenza",
+  "Liquidità remunerata",
+  "Conto deposito",
+  "Altro accantonamento",
+];
+
+const EXPENSE_TRANSFER_CATEGORIES: ExpenseCategory[] = [
+  "Trasferimenti interni",
+  "Giroconto",
+  "Ricarica carta",
+  "Spostamento tra conti",
+  "Altro trasferimento",
+];
+
+const EXPENSE_BANK_FEE_CATEGORIES: ExpenseCategory[] = ["Commissioni bancarie", "Altro"];
+const EXPENSE_REVIEW_CATEGORIES: ExpenseCategory[] = ["Da verificare", "Altro"];
+
+const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  ...EXPENSE_INCOME_CATEGORIES,
+  ...EXPENSE_SPENDING_CATEGORIES.filter((item) => !EXPENSE_INCOME_CATEGORIES.includes(item)),
+  ...EXPENSE_INVESTMENT_CATEGORIES,
+  ...EXPENSE_EMERGENCY_CATEGORIES,
+  ...EXPENSE_TRANSFER_CATEGORIES,
+  ...EXPENSE_BANK_FEE_CATEGORIES.filter((item) => !EXPENSE_INCOME_CATEGORIES.includes(item) && !EXPENSE_SPENDING_CATEGORIES.includes(item)),
+  "Da verificare",
+];
+
+const EXPENSE_MACRO_LABELS: Record<ExpenseMacroType, string> = {
+  fixed_required: "Spesa fissa / obbligatoria",
+  variable_required: "Spesa variabile necessaria",
+  discretionary: "Spesa discrezionale",
+  investment: "Risparmio / investimento",
+  emergency_fund: "Fondo emergenza / liquidità",
+  internal_transfer: "Trasferimento interno",
+  bank_fee: "Commissione / costo bancario",
+  income: "Entrata",
+  excluded: "Escluso dall'analisi",
+  to_review: "Da verificare",
+};
+
+const EXPENSE_MOVEMENT_KIND_LABELS: Record<ExpenseMovementKind, string> = {
+  income: "Entrata",
+  expense: "Spesa",
+  investment: "Risparmio / investimento",
+  emergency_fund: "Fondo emergenza / liquidità",
+  internal_transfer: "Trasferimento interno",
+  bank_fee: "Commissione bancaria",
+  excluded: "Escluso dall'analisi",
+  to_review: "Da verificare",
+};
+
+const EXPENSE_MOVEMENT_KIND_OPTIONS: Array<{ value: ExpenseMovementKind; label: string; helper: string }> = [
+  { value: "income", label: EXPENSE_MOVEMENT_KIND_LABELS.income, helper: "Stipendio, pensione, rimborsi, interessi o altre entrate." },
+  { value: "expense", label: EXPENSE_MOVEMENT_KIND_LABELS.expense, helper: "Spese reali: casa, supermercato, auto, ristoranti, salute, shopping e simili." },
+  { value: "investment", label: EXPENSE_MOVEMENT_KIND_LABELS.investment, helper: "PAC, acquisti strumenti finanziari o denaro destinato agli investimenti." },
+  { value: "emergency_fund", label: EXPENSE_MOVEMENT_KIND_LABELS.emergency_fund, helper: "Liquidità accantonata per sicurezza, anche su conto remunerato o deposito." },
+  { value: "internal_transfer", label: EXPENSE_MOVEMENT_KIND_LABELS.internal_transfer, helper: "Giroconti, ricariche carta o spostamenti tra conti propri." },
+  { value: "bank_fee", label: EXPENSE_MOVEMENT_KIND_LABELS.bank_fee, helper: "Commissioni, bolli, canoni bancari o costi di servizio." },
+  { value: "to_review", label: EXPENSE_MOVEMENT_KIND_LABELS.to_review, helper: "Movimento ambiguo da confermare manualmente." },
+  { value: "excluded", label: EXPENSE_MOVEMENT_KIND_LABELS.excluded, helper: "Movimento da ignorare nel report." },
+];
+
+const EXPENSE_CATEGORY_MACRO: Record<ExpenseCategory, ExpenseMacroType> = {
+  "Stipendio / entrate": "income",
+  "Entrate extra": "income",
+  "Rimborso": "income",
+  "Interessi": "income",
+  "Casa e bollette": "fixed_required",
+  "Mutuo / affitto / rate": "fixed_required",
+  "Spesa alimentare": "variable_required",
+  "Ristoranti e bar": "discretionary",
+  "Auto e carburante": "variable_required",
+  "Salute": "variable_required",
+  "Shopping": "discretionary",
+  "Abbonamenti": "discretionary",
+  "Svago": "discretionary",
+  "Famiglia": "variable_required",
+  "Tasse e burocrazia": "fixed_required",
+  "PAC": "investment",
+  "Investimenti": "investment",
+  "Broker / conto investimento": "investment",
+  "Pensione integrativa": "investment",
+  "Altro investimento": "investment",
+  "Fondo emergenza": "emergency_fund",
+  "Liquidità remunerata": "emergency_fund",
+  "Conto deposito": "emergency_fund",
+  "Altro accantonamento": "emergency_fund",
+  "Trasferimenti interni": "internal_transfer",
+  "Giroconto": "internal_transfer",
+  "Ricarica carta": "internal_transfer",
+  "Spostamento tra conti": "internal_transfer",
+  "Altro trasferimento": "internal_transfer",
+  "Commissioni bancarie": "bank_fee",
+  "Altro": "to_review",
+  "Da verificare": "to_review",
+};
+
+function getExpenseMacroForCategory(category: ExpenseCategory): ExpenseMacroType {
+  return EXPENSE_CATEGORY_MACRO[category] || "to_review";
+}
+
+function getExpenseMovementKindForMacro(macroType: ExpenseMacroType): ExpenseMovementKind {
+  if (macroType === "fixed_required" || macroType === "variable_required" || macroType === "discretionary") return "expense";
+  if (macroType === "income") return "income";
+  if (macroType === "investment") return "investment";
+  if (macroType === "emergency_fund") return "emergency_fund";
+  if (macroType === "internal_transfer") return "internal_transfer";
+  if (macroType === "bank_fee") return "bank_fee";
+  if (macroType === "excluded") return "excluded";
+  return "to_review";
+}
+
+function getExpenseCategoryOptionsForKind(kind: ExpenseMovementKind): ExpenseCategory[] {
+  switch (kind) {
+    case "income":
+      return EXPENSE_INCOME_CATEGORIES;
+    case "expense":
+      return EXPENSE_SPENDING_CATEGORIES;
+    case "investment":
+      return EXPENSE_INVESTMENT_CATEGORIES;
+    case "emergency_fund":
+      return EXPENSE_EMERGENCY_CATEGORIES;
+    case "internal_transfer":
+      return EXPENSE_TRANSFER_CATEGORIES;
+    case "bank_fee":
+      return EXPENSE_BANK_FEE_CATEGORIES;
+    case "excluded":
+    case "to_review":
+    default:
+      return EXPENSE_REVIEW_CATEGORIES;
+  }
+}
+
+function getDefaultExpenseCategoryForKind(kind: ExpenseMovementKind, currentCategory?: ExpenseCategory): ExpenseCategory {
+  const options = getExpenseCategoryOptionsForKind(kind);
+  if (currentCategory && options.includes(currentCategory)) return currentCategory;
+  return options[0] || "Da verificare";
+}
+
+function getDefaultExpenseMacroForKind(kind: ExpenseMovementKind, category?: ExpenseCategory): ExpenseMacroType {
+  if (kind === "expense") {
+    const candidate = category ? getExpenseMacroForCategory(category) : "variable_required";
+    return candidate === "fixed_required" || candidate === "variable_required" || candidate === "discretionary" ? candidate : "variable_required";
+  }
+  if (kind === "income") return "income";
+  if (kind === "investment") return "investment";
+  if (kind === "emergency_fund") return "emergency_fund";
+  if (kind === "internal_transfer") return "internal_transfer";
+  if (kind === "bank_fee") return "bank_fee";
+  if (kind === "excluded") return "excluded";
+  return "to_review";
+}
+
+function getDefaultExpenseCategoryForMacro(macroType: ExpenseMacroType, currentCategory?: ExpenseCategory): ExpenseCategory {
+  return getDefaultExpenseCategoryForKind(getExpenseMovementKindForMacro(macroType), currentCategory);
+}
+
+function normalizeExpenseCategoryValue(value: unknown, macroType: ExpenseMacroType = "to_review"): ExpenseCategory {
+  const raw = String(value || "").trim();
+  if (raw === "Investimenti / PAC") return "PAC";
+  if (raw === "Fondo emergenza / liquidità") return "Liquidità remunerata";
+  if (raw === "Ricarica Carta Prepagata") return "Ricarica carta";
+  if (EXPENSE_CATEGORIES.includes(raw as ExpenseCategory)) return raw as ExpenseCategory;
+  return getDefaultExpenseCategoryForMacro(macroType);
+}
+
+function getExpenseNatureLabel(row: Pick<ExpenseTransaction, "macroType">) {
+  const kind = getExpenseMovementKindForMacro(row.macroType);
+  return kind === "expense" ? EXPENSE_MACRO_LABELS[row.macroType] : "";
+}
+
+function normalizeExpenseClassificationPatch(current: Pick<ExpenseTransaction, "category" | "macroType" | "isExcluded">, patch: Partial<ExpenseTransaction>): Partial<ExpenseTransaction> {
+  const normalized: Partial<ExpenseTransaction> = { ...patch };
+
+  if (patch.category && !patch.macroType) {
+    normalized.macroType = getExpenseMacroForCategory(patch.category);
+  }
+
+  if (patch.macroType && !patch.category) {
+    normalized.category = getDefaultExpenseCategoryForMacro(patch.macroType, current.category);
+  }
+
+  if (normalized.macroType) {
+    normalized.isExcluded = normalized.macroType === "excluded";
+  } else if (typeof patch.isExcluded !== "boolean") {
+    normalized.isExcluded = current.isExcluded;
+  }
+
+  return normalized;
+}
+
+function normalizeExpenseMovementKindPatch(current: Pick<ExpenseTransaction, "category" | "macroType" | "isExcluded">, kind: ExpenseMovementKind): Partial<ExpenseTransaction> {
+  const category = getDefaultExpenseCategoryForKind(kind, current.category);
+  const macroType = getDefaultExpenseMacroForKind(kind, category);
+  return {
+    category,
+    macroType,
+    isExcluded: macroType === "excluded",
+  };
+}
+
+function normalizeExpenseCategoryPatch(current: Pick<ExpenseTransaction, "category" | "macroType" | "isExcluded">, category: ExpenseCategory): Partial<ExpenseTransaction> {
+  const currentKind = getExpenseMovementKindForMacro(current.macroType);
+  const allowed = getExpenseCategoryOptionsForKind(currentKind);
+  const safeCategory = allowed.includes(category) ? category : getDefaultExpenseCategoryForKind(currentKind, category);
+  return {
+    category: safeCategory,
+    macroType: getDefaultExpenseMacroForKind(currentKind, safeCategory),
+    isExcluded: currentKind === "excluded",
+  };
+}
+
+function getCurrentExpenseMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function normalizeExpenseMonth(value: string | undefined) {
+  const raw = String(value || "").trim();
+  return /^\d{4}-\d{2}$/.test(raw) ? raw : getCurrentExpenseMonthKey();
+}
+
+function shiftExpenseMonthKey(month: string, offset: number) {
+  const normalized = normalizeExpenseMonth(month);
+  const [year, monthNumber] = normalized.split("-").map(Number);
+  const date = new Date(year, monthNumber - 1 + offset, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getRollingExpenseMonths(referenceMonth = getCurrentExpenseMonthKey(), count = 12) {
+  const current = normalizeExpenseMonth(referenceMonth);
+  return Array.from({ length: Math.max(1, count) }, (_, index) => shiftExpenseMonthKey(current, -index));
+}
+
+function isExpenseMonthInRollingWindow(month: string, referenceMonth = getCurrentExpenseMonthKey(), count = 12) {
+  const normalized = normalizeExpenseMonth(month);
+  return getRollingExpenseMonths(referenceMonth, count).includes(normalized);
+}
+
+function formatExpenseMonthLabel(month: string) {
+  const normalized = normalizeExpenseMonth(month);
+  const [year, monthNumber] = normalized.split("-").map(Number);
+  const date = new Date(year, monthNumber - 1, 1);
+  return date.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+}
+
+function getMonthKeyFromDate(value: string) {
+  const raw = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw.slice(0, 7);
+  const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (match) return `${match[3]}-${match[2]}`;
+  return getCurrentExpenseMonthKey();
+}
+
+function parseExpenseDate(value: string, fallbackMonth = getCurrentExpenseMonthKey()) {
+  const raw = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const match = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (match) {
+    const day = match[1].padStart(2, "0");
+    const month = match[2].padStart(2, "0");
+    const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+    return `${year}-${month}-${day}`;
+  }
+  return `${fallbackMonth}-01`;
+}
+
+function parseItalianExpenseAmount(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return 0;
+  const cleaned = raw
+    .replace(/EUR|€|\s/g, "")
+    .replace(/\.(?=\d{3}(\D|$))/g, "")
+    .replace(",", ".");
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeExpenseDescription(value: string) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function inferExpenseClassification(description: string, amount: number): { category: ExpenseCategory; macroType: ExpenseMacroType; confidence: number } {
+  const text = normalizeExpenseDescription(description).toLowerCase();
+  const isIncome = amount > 0;
+
+  if (isIncome) {
+    if (/stipend|retribuz|pension|accredito/.test(text)) return { category: "Stipendio / entrate", macroType: "income", confidence: 0.92 };
+    return { category: "Stipendio / entrate", macroType: "income", confidence: 0.65 };
+  }
+
+  if (/commissione|canone|bollo|imposta/.test(text)) return { category: "Commissioni bancarie", macroType: "bank_fee", confidence: 0.9 };
+  if (/ricarica carta|giroconto|trasferimento tra|a favore di tiziano|beneficiario.*tiziano/.test(text)) return { category: "Trasferimenti interni", macroType: "internal_transfer", confidence: 0.75 };
+  if (/trade republic|investiment|pac|broker|directa|scalable|degiro|fineco.*trading/.test(text)) return { category: "PAC", macroType: "investment", confidence: 0.72 };
+  if (/fondo emergenza|conto deposito|liquidit|bbva|ca auto bank|illimity|conto arancio/.test(text)) return { category: "Liquidità remunerata", macroType: "emergency_fund", confidence: 0.72 };
+  if (/mutuo|affitto|rata|finanziamento|condominio|sdd core|bollett|luce|gas|enel|acea|tim |vodafone|wind|iliad|fibra|internet|assicur/.test(text)) return { category: "Casa e bollette", macroType: "fixed_required", confidence: 0.72 };
+  if (/esselunga|conad|coop|unicoop|carrefour|lidl|eurospin|supermerc|alimentari|panificio|macelleria|farmacia|farmaci/.test(text)) return { category: /farmac/.test(text) ? "Salute" : "Spesa alimentare", macroType: "variable_required", confidence: 0.82 };
+  if (/eni|q8|ip |tamoil|distributore|carburante|benzina|diesel|autoripar|autorica|busacca|meccanico|autostrade|telepass/.test(text)) return { category: "Auto e carburante", macroType: "variable_required", confidence: 0.78 };
+  if (/mc ?donald|ristor|bar |caffe|pizzeria|trattoria|burger|pub|marinella|antenucci/.test(text)) return { category: "Ristoranti e bar", macroType: "discretionary", confidence: 0.78 };
+  if (/netflix|spotify|prime|disney|paypal|apple.com|google|abbonamento|air2bite/.test(text)) return { category: "Abbonamenti", macroType: "discretionary", confidence: 0.58 };
+  if (/amazon|zalando|decathlon|shopping|negozio|abbigliamento/.test(text)) return { category: "Shopping", macroType: "discretionary", confidence: 0.7 };
+
+  return { category: "Da verificare", macroType: "to_review", confidence: 0.35 };
+}
+
+function buildExpenseTransactionFromRaw(params: { date: string; description: string; amount: number; month: string; sourceType: "file" | "manual"; idPrefix?: string }): ExpenseTransaction {
+  const amount = roundToDecimals(params.amount, 2);
+  const inferred = inferExpenseClassification(params.description, amount);
+  const idSuffix = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return {
+    // Deve essere un UUID puro: la tabella Supabase expense_transactions usa id uuid.
+    // Il prefisso resta solo per eventuale debug locale, ma non deve entrare nell'id salvato.
+    id: idSuffix,
+    month: normalizeExpenseMonth(params.month || getMonthKeyFromDate(params.date)),
+    date: parseExpenseDate(params.date, params.month),
+    description: normalizeExpenseDescription(params.description),
+    amount,
+    direction: amount >= 0 ? "income" : "expense",
+    category: inferred.category,
+    macroType: inferred.macroType,
+    sourceType: params.sourceType,
+    isExcluded: inferred.macroType === "excluded",
+    confidence: inferred.confidence,
+  };
+}
+
+function splitDelimitedLine(line: string, delimiter: string) {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && next === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseDelimitedExpenseText(text: string, month: string, fileType: ExpenseFileType): ExpenseTransaction[] {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return [];
+  const sample = lines.slice(0, 10).join("\n");
+  const delimiter = sample.includes(";") ? ";" : sample.includes("\t") ? "\t" : ",";
+  const rows = lines.map((line) => splitDelimitedLine(line, delimiter));
+  const headerIndex = rows.findIndex((row) => row.some((cell) => /data/i.test(cell)) && row.some((cell) => /importo|amount/i.test(cell)));
+  const header = (headerIndex >= 0 ? rows[headerIndex] : rows[0]).map((cell) => cell.toLowerCase());
+  const dataRows = rows.slice(headerIndex >= 0 ? headerIndex + 1 : 1);
+
+  const findIndex = (patterns: RegExp[]) => header.findIndex((cell) => patterns.some((pattern) => pattern.test(cell)));
+  const dateIndex = findIndex([/data\s*contabile/, /^data$/, /data\s*operazione/, /date/]);
+  const descriptionIndex = findIndex([/descrizione/, /operazione/, /causale/, /description/]);
+  const amountIndex = findIndex([/importo/, /amount/]);
+  const fallbackDateIndex = dateIndex >= 0 ? dateIndex : 0;
+  const fallbackDescriptionIndex = descriptionIndex >= 0 ? descriptionIndex : Math.max(1, rows[0].length - 2);
+  const fallbackAmountIndex = amountIndex >= 0 ? amountIndex : rows[0].length - 1;
+
+  return dataRows
+    .map((row, index) => {
+      const date = row[fallbackDateIndex] || `${month}-01`;
+      const description = row[fallbackDescriptionIndex] || row.filter((_, cellIndex) => cellIndex !== fallbackAmountIndex && cellIndex !== fallbackDateIndex).join(" ");
+      const amount = parseItalianExpenseAmount(row[fallbackAmountIndex]);
+      if (!description || !Number.isFinite(amount) || amount === 0) return null;
+      return buildExpenseTransactionFromRaw({ date, description, amount, month, sourceType: "file", idPrefix: `${fileType}-${index}` });
+    })
+    .filter((item): item is ExpenseTransaction => !!item);
+}
+
+function parsePdfLikeExpenseText(text: string, month: string): ExpenseTransaction[] {
+  const normalized = text.replace(/\r/g, "\n").replace(/\u0000/g, " ");
+  const compact = normalized.replace(/\s+/g, " ");
+  const rows: ExpenseTransaction[] = [];
+  const pattern = /(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+([\s\S]*?)\s+([+-]\d{1,3}(?:\.\d{3})*,\d{2})(?=\s+\d{2}\/\d{2}\/\d{4}\s+\d{2}\/\d{2}\/\d{4}|\s+Pag\.|$)/g;
+  let match: RegExpExecArray | null;
+  let index = 0;
+  while ((match = pattern.exec(compact)) !== null) {
+    const [, date, , descriptionRaw, amountRaw] = match;
+    const description = normalizeExpenseDescription(descriptionRaw)
+      .replace(/^Pagamento Carta\s*/i, "Pagamento carta ")
+      .replace(/^Bonifico In Uscita\s*/i, "Bonifico in uscita ");
+    const amount = parseItalianExpenseAmount(amountRaw);
+    if (description && amount !== 0) {
+      rows.push(buildExpenseTransactionFromRaw({ date, description, amount, month, sourceType: "file", idPrefix: `pdf-${index}` }));
+      index += 1;
+    }
+  }
+
+  if (rows.length) return rows;
+  return parseDelimitedExpenseText(normalized, month, "pdf");
+}
+
+function loadExternalScriptOnce(src: string, globalName: string): Promise<void> {
+  if (typeof window === "undefined") return Promise.reject(new Error("Browser non disponibile"));
+  if ((window as any)[globalName]) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`Impossibile caricare ${src}`)), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Impossibile caricare ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function parseExpenseFile(file: File, month: string): Promise<{ transactions: ExpenseTransaction[]; fileType: ExpenseFileType; warning?: string }> {
+  const extension = file.name.split(".").pop()?.toLowerCase() || "";
+  if (["csv", "txt"].includes(extension)) {
+    const text = await file.text();
+    return { transactions: parseDelimitedExpenseText(text, month, "csv"), fileType: "csv" };
+  }
+
+  if (["xls", "xlsx"].includes(extension)) {
+    await loadExternalScriptOnce("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js", "XLSX");
+    const XLSX = (window as any).XLSX;
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const firstSheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[firstSheetName];
+    const rows = XLSX.utils.sheet_to_csv(sheet, { FS: ";" });
+    return { transactions: parseDelimitedExpenseText(rows, month, "excel"), fileType: "excel" };
+  }
+
+  if (extension === "pdf") {
+    await loadExternalScriptOnce("https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js", "pdfjsLib");
+    const pdfjsLib = (window as any).pdfjsLib;
+    if (pdfjsLib?.GlobalWorkerOptions) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsLib.GlobalWorkerOptions.workerSrc || "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+    }
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pageTexts: string[] = [];
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      pageTexts.push(content.items.map((item: any) => item.str || "").join(" "));
+    }
+    return { transactions: parsePdfLikeExpenseText(pageTexts.join("\n"), month), fileType: "pdf" };
+  }
+
+  return { transactions: [], fileType: "manual", warning: "Formato non riconosciuto. Usa PDF testuale, Excel o CSV." };
+}
+
+function expenseImportFromDb(row: any): MonthlyExpenseImport {
+  return {
+    id: String(row.id || ""),
+    userId: String(row.user_id || ""),
+    month: normalizeExpenseMonth(row.month),
+    sourceFileType: (row.source_file_type || "manual") as ExpenseFileType,
+    sourceFileName: row.source_file_name || "",
+    sourceBankName: row.source_bank_name || "",
+    status: (row.status || "confirmed") as ExpenseImportStatus,
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || "",
+  };
+}
+
+function expenseTransactionFromDb(row: any): ExpenseTransaction {
+  const macroType = (row.macro_type || "to_review") as ExpenseMacroType;
+  const category = normalizeExpenseCategoryValue(row.category, macroType);
+  return {
+    id: String(row.id || ""),
+    userId: row.user_id || "",
+    importId: row.import_id || "",
+    month: normalizeExpenseMonth(row.month),
+    date: parseExpenseDate(row.transaction_date || row.date, row.month),
+    description: normalizeExpenseDescription(row.description),
+    amount: roundToDecimals(Number(row.amount || 0), 2),
+    direction: (row.direction || (Number(row.amount || 0) >= 0 ? "income" : "expense")) as ExpenseDirection,
+    category,
+    macroType,
+    sourceType: (row.source_type || "file") as "file" | "manual",
+    isExcluded: !!row.is_excluded || macroType === "excluded",
+    confidence: Number(row.confidence || 0),
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || "",
+  };
+}
+
+function isValidUuid(value: string | undefined) {
+  return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function expenseTransactionToDb(transaction: ExpenseTransaction, userId: string, importId: string) {
+  const payload: Record<string, unknown> = {
+    user_id: userId,
+    import_id: importId,
+    month: transaction.month,
+    transaction_date: transaction.date,
+    description: transaction.description,
+    amount: transaction.amount,
+    direction: transaction.direction,
+    category: transaction.category,
+    macro_type: transaction.macroType,
+    source_type: transaction.sourceType,
+    is_excluded: transaction.isExcluded,
+    confidence: transaction.confidence,
+  };
+
+  // Se arriva un vecchio id locale non UUID, lasciamo generare l'id a Supabase.
+  // Evita l'errore "invalid input syntax for type uuid" e impedisce salvataggi parziali.
+  if (isValidUuid(transaction.id)) payload.id = transaction.id;
+  return payload;
+}
+
+function getRecentExpenseMonths(imports: MonthlyExpenseImport[], limit = 12) {
+  return [...new Set(imports.map((item) => item.month))].sort().reverse().slice(0, limit);
+}
+
+function buildExpenseAnalysis(params: { transactions: ExpenseTransaction[]; months: string[]; emergencyFundCurrent: number; emergencyFundMonths: number }): ExpenseAnalysis {
+  const normalizedMonths = params.months.map(normalizeExpenseMonth).filter(Boolean);
+  const monthSet = new Set(normalizedMonths);
+  const transactions = params.transactions.filter((item) => monthSet.has(item.month));
+  const included = transactions.filter((item) => !item.isExcluded && item.macroType !== "excluded");
+  const allIncluded = params.transactions.filter((item) => !item.isExcluded && item.macroType !== "excluded");
+  const allAvailableMonths = Array.from(new Set(allIncluded.map((item) => item.month).filter(Boolean))).sort();
+  const hasUsefulHistory = allAvailableMonths.length >= 3;
+  const hasStrongHistory = allAvailableMonths.length >= 6;
+
+  const absSum = (macroTypes: ExpenseMacroType[], source = included) => source
+    .filter((item) => macroTypes.includes(item.macroType) && item.amount < 0)
+    .reduce((sum, item) => sum + Math.abs(item.amount), 0);
+
+  const incomeTotal = included.filter((item) => item.macroType === "income" || item.amount > 0).reduce((sum, item) => sum + Math.max(0, item.amount), 0);
+  const fixedRequiredTotal = absSum(["fixed_required"]);
+  const variableRequiredTotal = absSum(["variable_required"]);
+  const discretionaryTotal = absSum(["discretionary"]);
+  const investmentTotal = absSum(["investment"]);
+  const emergencyFundTotal = absSum(["emergency_fund"]);
+  const internalTransferTotal = absSum(["internal_transfer"]);
+  const bankFeeTotal = absSum(["bank_fee"]);
+  const excludedTotal = transactions.filter((item) => item.isExcluded || item.macroType === "excluded").reduce((sum, item) => sum + Math.abs(item.amount), 0);
+  const realExpensesTotal = fixedRequiredTotal + variableRequiredTotal + discretionaryTotal + bankFeeTotal;
+  const marginBeforeFuture = incomeTotal - realExpensesTotal;
+  const undistributedMargin = marginBeforeFuture - investmentTotal - emergencyFundTotal;
+  const totalOutflows = realExpensesTotal + investmentTotal + emergencyFundTotal;
+  const netMonthResult = incomeTotal - totalOutflows;
+  const futureTotal = investmentTotal + emergencyFundTotal;
+  const futureQuotaPercent = incomeTotal > 0 ? (futureTotal / incomeTotal) * 100 : 0;
+  const monthlyBase = normalizedMonths.length > 0 ? (fixedRequiredTotal + variableRequiredTotal) / normalizedMonths.length : 0;
+  const emergencyFundRecommended = monthlyBase * Math.max(1, params.emergencyFundMonths || 6);
+  const effectiveEmergencyFundCurrent = params.emergencyFundCurrent > 0 ? params.emergencyFundCurrent : emergencyFundTotal;
+  const emergencyFundCoverageMonths = monthlyBase > 0 ? effectiveEmergencyFundCurrent / monthlyBase : null;
+  const emergencyRatio = emergencyFundRecommended > 0 ? effectiveEmergencyFundCurrent / emergencyFundRecommended : 0;
+  const emergencyFundStatus: ExpenseAnalysis["emergencyFundStatus"] = emergencyRatio >= 1.25 ? "above" : emergencyRatio >= 0.9 ? "in_line" : emergencyRatio > 0 ? "low" : "missing";
+  const emergencyIncomplete = emergencyFundStatus === "missing" || emergencyFundStatus === "low";
+  const emergencyInLine = emergencyFundStatus === "in_line" || emergencyFundStatus === "above";
+
+  const categories = new Map<ExpenseCategory, { total: number; macroType: ExpenseMacroType }>();
+  included.filter((item) => item.amount < 0 && !["internal_transfer", "excluded"].includes(item.macroType)).forEach((item) => {
+    const previous = categories.get(item.category) || { total: 0, macroType: item.macroType };
+    categories.set(item.category, { total: previous.total + Math.abs(item.amount), macroType: previous.macroType });
+  });
+  const topCategories = Array.from(categories.entries()).map(([category, value]) => ({ category, total: value.total, macroType: value.macroType })).sort((a, b) => b.total - a.total).slice(0, 6);
+
+  const getMonthTransactions = (month: string, source = allIncluded) => source.filter((item) => item.month === month);
+  const sumByCategory = (source: ExpenseTransaction[], category: ExpenseCategory) => source
+    .filter((item) => item.category === category && item.amount < 0 && !["internal_transfer", "excluded"].includes(item.macroType))
+    .reduce((sum, item) => sum + Math.abs(item.amount), 0);
+  const sumRealExpenses = (source: ExpenseTransaction[]) => source
+    .filter((item) => ["fixed_required", "variable_required", "discretionary", "bank_fee"].includes(item.macroType) && item.amount < 0)
+    .reduce((sum, item) => sum + Math.abs(item.amount), 0);
+
+  const monthlyRows = normalizedMonths.map((month) => {
+    const monthTransactions = included.filter((item) => item.month === month);
+    const income = monthTransactions.filter((item) => item.macroType === "income" || item.amount > 0).reduce((sum, item) => sum + Math.max(0, item.amount), 0);
+    const byMacro = (types: ExpenseMacroType[]) => monthTransactions.filter((item) => types.includes(item.macroType) && item.amount < 0).reduce((sum, item) => sum + Math.abs(item.amount), 0);
+    const realExpenses = byMacro(["fixed_required", "variable_required", "discretionary", "bank_fee"]);
+    const investment = byMacro(["investment"]);
+    const emergencyFund = byMacro(["emergency_fund"]);
+    return { month, income, realExpenses, investment, emergencyFund, margin: income - realExpenses - investment - emergencyFund };
+  });
+
+  const categoryRules: Array<{
+    category: ExpenseCategory;
+    label: string;
+    observeRatio: number;
+    highRatio: number;
+    veryHighRatio: number;
+    absoluteHigh?: number;
+    message: (context: { percent: number; level: "observe" | "high" | "very_high"; trend: "single" | "above_average" | "repeated" | "stable"; futureStrong: boolean }) => string;
+  }> = [
+    {
+      category: "Ristoranti e bar",
+      label: "ristoranti e bar",
+      observeRatio: 0.08,
+      highRatio: 0.15,
+      veryHighRatio: 0.25,
+      message: ({ percent, level, trend, futureStrong }) => {
+        if (trend === "repeated") return `Ristoranti e bar pesano circa il ${Math.round(percent)}% delle spese reali e il dato si ripete su più mesi: può essere una leva semplice da controllare senza eliminare del tutto il piacere di uscire.`;
+        if (trend === "above_average") return `Ristoranti e bar sono sopra la tua media recente. Se è stato un mese particolare non è un problema; se si ripete, può diventare una voce utile da contenere.`;
+        if (futureStrong) return `Ristoranti e bar sono una voce visibile del periodo, ma la quota futuro resta buona: più che un allarme, è un dato da tenere d'occhio.`;
+        return level === "very_high"
+          ? `Ristoranti e bar incidono molto questo mese. Con poco storico lo consideriamo un segnale da osservare, non ancora un'abitudine.`
+          : `Ristoranti e bar sono presenti nel mese: può essere utile monitorarli nei prossimi caricamenti.`;
+      },
+    },
+    {
+      category: "Shopping",
+      label: "shopping",
+      observeRatio: 0.10,
+      highRatio: 0.20,
+      veryHighRatio: 0.30,
+      message: ({ percent, trend, futureStrong }) => {
+        if (trend === "repeated") return `Lo shopping pesa circa il ${Math.round(percent)}% delle spese reali e ricorre da più mesi: distinguere acquisti necessari e rimandabili può liberare margine.`;
+        if (trend === "above_average") return `Lo shopping è sopra la tua media recente. Prima di tagliare in modo drastico, verifica se è stato un acquisto eccezionale o una tendenza.`;
+        if (futureStrong) return `Lo shopping è visibile, ma non sembra compromettere la quota futuro del periodo. Tienilo monitorato senza allarmismi.`;
+        return `Lo shopping è una delle voci flessibili del mese: se vuoi aumentare il margine, può essere una delle prime aree da osservare.`;
+      },
+    },
+    {
+      category: "Casa e bollette",
+      label: "casa e bollette",
+      observeRatio: 0.25,
+      highRatio: 0.35,
+      veryHighRatio: 0.45,
+      message: ({ percent, trend }) => {
+        if (trend === "above_average") return `Casa e bollette sono sopra la tua media recente. Verifica se è un picco stagionale o se qualche costo ricorrente merita attenzione.`;
+        if (trend === "repeated") return `Casa e bollette pesano stabilmente circa il ${Math.round(percent)}% delle spese reali: non sono spese facili da eliminare, ma incidono molto sul margine mensile.`;
+        return `Casa e bollette hanno un peso elevato nel periodo. Sono spese poco flessibili: più che tagliarle, conviene controllare contratti, consumi e ricorrenze.`;
+      },
+    },
+    {
+      category: "Auto e carburante",
+      label: "auto e carburante",
+      observeRatio: 0.20,
+      highRatio: 0.30,
+      veryHighRatio: 0.40,
+      message: ({ percent, trend }) => {
+        if (trend === "above_average") return `Auto e carburante sono sopra la tua media recente. Verifica se è un mese particolare o se il costo sta diventando più stabile.`;
+        if (trend === "repeated") return `Auto e carburante incidono stabilmente sulle spese variabili necessarie, circa il ${Math.round(percent)}% delle spese reali: è corretto considerarli nel fondo emergenza.`;
+        return `Auto e carburante sono una voce importante del periodo. Essendo classificati come spesa variabile necessaria, il punto non è eliminarli ma capire quanto pesano sul margine.`;
+      },
+    },
+    {
+      category: "Abbonamenti",
+      label: "abbonamenti",
+      observeRatio: 0.06,
+      highRatio: 0.10,
+      veryHighRatio: 0.16,
+      absoluteHigh: 70,
+      message: ({ trend }) => {
+        if (trend === "repeated") return "Gli abbonamenti pesano in modo ricorrente. Anche piccoli importi mensili, sommati, possono diventare margine per fondo emergenza o PAC.";
+        if (trend === "above_average") return "Gli abbonamenti sono sopra la tua media recente: controlla se sono aumentati o se ce ne sono alcuni che non usi davvero.";
+        return "Gli abbonamenti iniziano a farsi notare. Non serve eliminarli tutti: il primo passo è capire quali usi davvero.";
+      },
+    },
+  ];
+
+  const selectedMonthCount = normalizedMonths.length || 1;
+  const futureStrong = futureQuotaPercent >= 15;
+  const categorySignals = categoryRules.map((rule) => {
+    const total = categories.get(rule.category)?.total || 0;
+    const percent = realExpensesTotal > 0 ? (total / realExpensesTotal) * 100 : 0;
+    const ratio = percent / 100;
+    const absoluteAverage = total / selectedMonthCount;
+    const selectedAverage = total / selectedMonthCount;
+    const historicalMonths = allAvailableMonths.filter((month) => !monthSet.has(month));
+    const historicalCategoryValues = historicalMonths.map((month) => sumByCategory(getMonthTransactions(month), rule.category));
+    const historicalAverage = historicalCategoryValues.length > 0 ? historicalCategoryValues.reduce((sum, value) => sum + value, 0) / historicalCategoryValues.length : 0;
+    const selectedHighMonths = normalizedMonths.filter((month) => {
+      const monthItems = getMonthTransactions(month, included);
+      const monthReal = sumRealExpenses(monthItems);
+      const monthCategory = sumByCategory(monthItems, rule.category);
+      const monthRatio = monthReal > 0 ? monthCategory / monthReal : 0;
+      return monthCategory > 0 && (monthRatio >= rule.highRatio || (rule.absoluteHigh ? monthCategory >= rule.absoluteHigh : false));
+    }).length;
+    const highByRatio = ratio >= rule.highRatio;
+    const highByAbsolute = typeof rule.absoluteHigh === "number" && absoluteAverage >= rule.absoluteHigh;
+    const observeByRatio = ratio >= rule.observeRatio;
+    if (!total || (!observeByRatio && !highByAbsolute)) return null;
+    const level: "observe" | "high" | "very_high" = ratio >= rule.veryHighRatio ? "very_high" : (highByRatio || highByAbsolute) ? "high" : "observe";
+    const trend: "single" | "above_average" | "repeated" | "stable" = selectedHighMonths >= Math.min(3, selectedMonthCount) && selectedMonthCount >= 3
+      ? "repeated"
+      : hasUsefulHistory && historicalAverage > 0 && selectedAverage >= historicalAverage * 1.25
+        ? "above_average"
+        : hasStrongHistory
+          ? "stable"
+          : "single";
+    const severity = (level === "very_high" ? 4 : level === "high" ? 3 : 1)
+      + (trend === "repeated" ? 3 : trend === "above_average" ? 2 : 0)
+      - (futureStrong ? 1 : 0);
+    return {
+      category: rule.category,
+      total,
+      percent,
+      level,
+      trend,
+      severity,
+      message: rule.message({ percent, level, trend, futureStrong }),
+    };
+  }).filter(Boolean).sort((a, b) => (b?.severity || 0) - (a?.severity || 0));
+
+  let mainAdvice = transactions.length > 0
+    ? "Il periodo è stato analizzato distinguendo spese reali, investimenti, fondo emergenza e trasferimenti."
+    : "Carica e conferma i movimenti del mese per ricevere una lettura utile e concreta.";
+  let secondaryAdvice = hasUsefulHistory
+    ? "La lettura considera anche lo storico disponibile: un mese isolato viene trattato come segnale, non come abitudine."
+    : "Con pochi mesi caricati, l'app evita giudizi troppo netti: alcuni dati vengono letti come segnali da osservare.";
+
+  if (transactions.length === 0) {
+    mainAdvice = "Non ci sono ancora movimenti confermati per il periodo selezionato.";
+  } else if (incomeTotal > 0 && marginBeforeFuture < 0) {
+    mainAdvice = "Nel periodo selezionato le spese reali superano le entrate. La priorità è riportare il mese in equilibrio prima di aumentare PAC o altri obiettivi.";
+  } else if (futureQuotaPercent >= 20) {
+    if (emergencyFundStatus === "above") {
+      mainAdvice = `Ottimo risultato: hai destinato circa il ${Math.round(futureQuotaPercent)}% delle entrate al futuro. Il fondo emergenza risulta superiore al target scelto: se questa liquidità ti dà serenità va bene, altrimenti puoi valutare se una parte extra può lavorare su obiettivi di medio-lungo periodo.`;
+    } else if (emergencyFundStatus === "in_line") {
+      mainAdvice = `Ottimo risultato: hai destinato circa il ${Math.round(futureQuotaPercent)}% delle entrate al futuro. Il fondo emergenza risulta in linea: il margine futuro può essere orientato con più serenità verso PAC o altri obiettivi.`;
+    } else if (emergencyFundTotal >= investmentTotal && emergencyFundTotal > 0) {
+      mainAdvice = `Ottimo risultato: hai destinato circa il ${Math.round(futureQuotaPercent)}% delle entrate al futuro e hai dato più peso alla liquidità di sicurezza. È una lettura molto positiva del mese.`;
+    } else if (emergencyFundTotal > 0 && investmentTotal > 0) {
+      mainAdvice = `Ottimo risultato: hai destinato circa il ${Math.round(futureQuotaPercent)}% delle entrate al futuro, dividendo il margine tra sicurezza e investimento.`;
+    } else if (investmentTotal > 0) {
+      mainAdvice = `Ottimo risultato: hai destinato circa il ${Math.round(futureQuotaPercent)}% delle entrate agli investimenti. Prima di aumentare ancora il rischio, resta utile controllare che la liquidità di sicurezza sia adeguata.`;
+    } else {
+      mainAdvice = `Ottimo risultato: hai destinato circa il ${Math.round(futureQuotaPercent)}% delle entrate alla liquidità di sicurezza. È una quota molto alta.`;
+    }
+  } else if (futureQuotaPercent >= 15) {
+    mainAdvice = `Buona gestione: hai destinato circa il ${Math.round(futureQuotaPercent)}% delle entrate a sicurezza o investimenti. È una quota positiva, soprattutto se riesci a mantenerla con costanza.`;
+  } else if (futureQuotaPercent >= 10) {
+    mainAdvice = `Sei sulla strada giusta: hai destinato circa il ${Math.round(futureQuotaPercent)}% delle entrate al futuro. Puoi provare ad aumentare questa quota gradualmente, senza forzare troppo il mese.`;
+  } else if (futureQuotaPercent > 0) {
+    mainAdvice = `Questo mese la quota futuro è presente ma bassa, circa il ${Math.round(futureQuotaPercent)}% delle entrate. Anche piccoli aumenti costanti possono fare una differenza importante nel tempo.`;
+  } else if (emergencyIncomplete) {
+    mainAdvice = "Questo mese non risultano somme destinate a fondo emergenza o investimenti. La priorità prudente è costruire liquidità di sicurezza, anche partendo da importi piccoli.";
+  } else if (emergencyInLine && marginBeforeFuture > 0) {
+    mainAdvice = "Il fondo emergenza risulta in linea e il periodo lascia margine: se il tuo piano lo prevede, puoi valutare di destinare una parte al PAC o ad altri obiettivi di lungo periodo.";
+  }
+
+  const mainSignal = categorySignals[0];
+  if (transactions.length === 0) {
+    secondaryAdvice = "";
+  } else if (mainSignal && (mainSignal as any).severity >= 2) {
+    secondaryAdvice = (mainSignal as any).message;
+  } else if (futureQuotaPercent >= 20) {
+    secondaryAdvice = hasUsefulHistory
+      ? "Le eventuali voci alte vengono valutate rispetto allo storico: l'app evita di trasformare un singolo mese particolare in un giudizio definitivo."
+      : "Quando avrai più mesi caricati, l'app distinguerà meglio tra eventi isolati e comportamenti ricorrenti.";
+  } else if (undistributedMargin > 0 && emergencyInLine && investmentTotal === 0) {
+    secondaryAdvice = `Resta un margine non destinato di circa ${formatEuroCents(undistributedMargin)}. Con il fondo emergenza in linea, puoi valutare se assegnarne una parte al PAC o a un obiettivo preciso.`;
+  } else if (undistributedMargin > 0 && emergencyIncomplete) {
+    secondaryAdvice = `Resta un margine non destinato di circa ${formatEuroCents(undistributedMargin)}. Finché il fondo emergenza è sotto l'obiettivo, la destinazione più prudente resta la liquidità di sicurezza.`;
+  } else if (futureQuotaPercent > 0) {
+    secondaryAdvice = `Hai destinato circa il ${Math.round(futureQuotaPercent)}% delle entrate a investimenti o liquidità di sicurezza nel periodo selezionato.`;
+  }
+
+  return {
+    months: normalizedMonths,
+    transactionCount: transactions.length,
+    incomeTotal,
+    realExpensesTotal,
+    fixedRequiredTotal,
+    variableRequiredTotal,
+    discretionaryTotal,
+    investmentTotal,
+    emergencyFundTotal,
+    internalTransferTotal,
+    bankFeeTotal,
+    excludedTotal,
+    marginBeforeFuture,
+    undistributedMargin,
+    totalOutflows,
+    netMonthResult,
+    futureQuotaPercent,
+    emergencyFundRecommended,
+    emergencyFundCoverageMonths,
+    emergencyFundStatus,
+    topCategories,
+    monthlyRows,
+    mainAdvice,
+    secondaryAdvice,
+  };
+}
+
 function formatPercent(value: number, decimals = 2): string {
   const normalized = roundToDecimals(value, decimals);
   return `${normalized.toFixed(decimals).replace(".", ",")}%`;
@@ -4183,7 +5125,7 @@ function buildBadges(params: {
       progress: clamp(awarenessActionsCompleted, 1),
       target: 1,
       progressLabel: `${clamp(awarenessActionsCompleted, 1)}/1`,
-      lockedHint: "Completa una azione nella sezione Consapevolezza > Risparmio.",
+      lockedHint: "Completa una azione nella sezione Consapevolezza > Gestione mensile.",
     },
     {
       id: "awareness_50_month",
@@ -4761,6 +5703,7 @@ const [authReady, setAuthReady] = useState(false);
   const [pacHistory, setPacHistory] = useState<PacMonth[]>([]);
   const [awarenessTab, setAwarenessTab] = useState<AwarenessTab>("risparmio");
   const [completedAwarenessActions, setCompletedAwarenessActions] = useState<Record<string, boolean>>({});
+  const [awarenessAdviceOpen, setAwarenessAdviceOpen] = useState<Record<string, boolean>>({});
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   const [shoppingDraft, setShoppingDraft] = useState({
     name: "",
@@ -4773,6 +5716,24 @@ const [authReady, setAuthReady] = useState(false);
   const [showShoppingResetConfirm, setShowShoppingResetConfirm] = useState(false);
   const [isSmartShoppingOpen, setIsSmartShoppingOpen] = useState(false);
   const [mobileAwarenessMode, setMobileAwarenessMode] = useState<"standard" | "shopping">("standard");
+  const [expenseImports, setExpenseImports] = useState<MonthlyExpenseImport[]>([]);
+  const [expenseTransactions, setExpenseTransactions] = useState<ExpenseTransaction[]>([]);
+  const [expenseLoading, setExpenseLoading] = useState(false);
+  const [expenseMessage, setExpenseMessage] = useState("");
+  const [expenseSelectedMonth, setExpenseSelectedMonth] = useState(getCurrentExpenseMonthKey());
+  const [expenseAnalysisMode, setExpenseAnalysisMode] = useState<ExpenseAnalysisMode>("month");
+  const [expenseAnalysisMonth, setExpenseAnalysisMonth] = useState(getCurrentExpenseMonthKey());
+  const [expensePreviewRows, setExpensePreviewRows] = useState<ExpenseTransaction[]>([]);
+  const [expensePreviewFile, setExpensePreviewFile] = useState<{ name: string; type: ExpenseFileType } | null>(null);
+  const [expenseEmergencyFundCurrent, setExpenseEmergencyFundCurrent] = useState("0");
+  const [expenseEmergencyFundMonths, setExpenseEmergencyFundMonths] = useState("6");
+  const [expenseManualDraft, setExpenseManualDraft] = useState({
+    date: `${getCurrentExpenseMonthKey()}-01`,
+    description: "",
+    amount: "",
+    category: "Da verificare" as ExpenseCategory,
+    macroType: "to_review" as ExpenseMacroType,
+  });
   const [vehiclePrice, setVehiclePrice] = useState("25000");
   const [vehicleDownPayment, setVehicleDownPayment] = useState("3000");
   const [vehicleMonthlyPayment, setVehicleMonthlyPayment] = useState("299");
@@ -8171,6 +9132,341 @@ const [authReady, setAuthReady] = useState(false);
 
   const monitorIncome90DaysCount = monitorIncomeRows.length;
 
+
+  const expenseAvailableMonths = useMemo(() => getRollingExpenseMonths(getCurrentExpenseMonthKey(), 12), []);
+  const expenseAvailableMonthSet = useMemo(() => new Set(expenseAvailableMonths), [expenseAvailableMonths]);
+
+  // La funzione lavora sempre su una finestra mobile di 12 mesi.
+  // Eventuali mesi futuri o fuori finestra rimasti da test/import precedenti vengono ignorati
+  // nei riepiloghi e nelle analisi, così l'utente vede sempre dati coerenti con i mesi realmente gestibili.
+  const expenseWindowImports = useMemo(
+    () => expenseImports.filter((item) => expenseAvailableMonthSet.has(normalizeExpenseMonth(item.month))),
+    [expenseAvailableMonthSet, expenseImports]
+  );
+
+  const expenseWindowTransactions = useMemo(
+    () => expenseTransactions.filter((item) => expenseAvailableMonthSet.has(normalizeExpenseMonth(item.month))),
+    [expenseAvailableMonthSet, expenseTransactions]
+  );
+
+  const expenseSelectedImport = useMemo(
+    () => expenseWindowImports.find((item) => item.month === expenseSelectedMonth),
+    [expenseWindowImports, expenseSelectedMonth]
+  );
+
+  const expenseAnalysisMonths = useMemo(() => {
+    if (expenseAnalysisMode === "month") return [normalizeExpenseMonth(expenseAnalysisMonth)];
+    const count = expenseAnalysisMode === "3m" ? 3 : expenseAnalysisMode === "6m" ? 6 : 12;
+    const sorted = [...expenseAvailableMonths].sort().reverse();
+    return sorted.slice(0, count).reverse();
+  }, [expenseAnalysisMode, expenseAnalysisMonth, expenseAvailableMonths]);
+
+  const expenseAnalysis = useMemo(() => buildExpenseAnalysis({
+    transactions: expenseWindowTransactions,
+    months: expenseAnalysisMonths,
+    emergencyFundCurrent: parseCurrencyInput(expenseEmergencyFundCurrent),
+    emergencyFundMonths: Math.max(1, Number(expenseEmergencyFundMonths || 6)),
+  }), [expenseAnalysisMonths, expenseEmergencyFundCurrent, expenseEmergencyFundMonths, expenseWindowTransactions]);
+
+  const expenseMonitorTitle = expenseAnalysisMode === "month"
+    ? `Controllo spese di ${formatExpenseMonthLabel(expenseAnalysisMonth)}`
+    : `Controllo spese ultimi ${expenseAnalysisMode === "3m" ? "3" : expenseAnalysisMode === "6m" ? "6" : "12"} mesi`;
+
+  const loadExpenseData = async () => {
+    if (!user) return;
+    setExpenseLoading(true);
+    setExpenseMessage("");
+    try {
+      const [{ data: importsData, error: importsError }, { data: transactionsData, error: transactionsError }] = await Promise.all([
+        supabase
+          .from("monthly_expense_imports")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("month", { ascending: false })
+          .limit(24),
+        supabase
+          .from("expense_transactions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("transaction_date", { ascending: false })
+          .limit(5000),
+      ]);
+
+      if (importsError) throw importsError;
+      if (transactionsError) throw transactionsError;
+
+      const imports = (importsData || []).map(expenseImportFromDb);
+      const transactions = (transactionsData || []).map(expenseTransactionFromDb);
+      setExpenseImports(imports);
+      setExpenseTransactions(transactions);
+      const recentMonth = getRecentExpenseMonths(imports, 1)[0] || getCurrentExpenseMonthKey();
+      setExpenseAnalysisMonth((current) => current || recentMonth);
+    } catch (error: any) {
+      console.warn("Analisi spese non caricata", error);
+      setExpenseMessage(`Analisi spese non disponibile: ${error?.message || "controlla migration e policy Supabase"}.`);
+    } finally {
+      setExpenseLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) {
+      setExpenseImports([]);
+      setExpenseTransactions([]);
+      setExpensePreviewRows([]);
+      setExpensePreviewFile(null);
+      return;
+    }
+    loadExpenseData();
+    try {
+      const stored = window.localStorage.getItem(`soldi-semplici-expense-emergency-${user.id}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.current) setExpenseEmergencyFundCurrent(String(parsed.current));
+        if (parsed?.months) setExpenseEmergencyFundMonths(String(parsed.months));
+      }
+    } catch {
+      // preferenze locali non critiche
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    try {
+      window.localStorage.setItem(`soldi-semplici-expense-emergency-${user.id}`, JSON.stringify({
+        current: expenseEmergencyFundCurrent,
+        months: expenseEmergencyFundMonths,
+      }));
+    } catch {
+      // preferenze locali non critiche
+    }
+  }, [expenseEmergencyFundCurrent, expenseEmergencyFundMonths, user]);
+
+  const handleExpenseFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!user) {
+      setExpenseMessage("Accedi per caricare e salvare l'analisi spese.");
+      return;
+    }
+
+    const month = normalizeExpenseMonth(expenseSelectedMonth);
+    if (!isExpenseMonthInRollingWindow(month)) {
+      setExpenseMessage("Puoi caricare solo i mesi della finestra mobile degli ultimi 12 mesi.");
+      return;
+    }
+    const existing = expenseImports.find((item) => item.month === month && item.sourceFileType !== "manual");
+    const existingHasTransactions = expenseTransactions.some((item) => item.month === month);
+    if (existing && existingHasTransactions) {
+      setExpenseMessage(`Hai già caricato un file per ${formatExpenseMonthLabel(month)}. Puoi modificare i movimenti, aggiungerne uno manuale oppure cancellare il mese e importare un nuovo file.`);
+      return;
+    }
+
+    setExpenseLoading(true);
+    setExpenseMessage("Lettura del file in corso...");
+    try {
+      const parsed = await parseExpenseFile(file, month);
+      const normalizedRows = parsed.transactions
+        .filter((item) => item.month === month || !item.month)
+        .slice(0, 250)
+        .map((item) => ({ ...item, month }));
+      if (!normalizedRows.length) {
+        setExpensePreviewRows([]);
+        setExpensePreviewFile(null);
+        setExpenseMessage(parsed.warning || "Non sono riuscito a leggere movimenti validi. Prova con CSV/Excel o con un PDF testuale della banca.");
+        return;
+      }
+      setExpensePreviewRows(normalizedRows);
+      setExpensePreviewFile({ name: file.name, type: parsed.fileType });
+      setExpenseMessage(`Ho trovato ${normalizedRows.length} movimenti per ${formatExpenseMonthLabel(month)}. Controllali prima di salvarli.`);
+    } catch (error: any) {
+      console.warn("Import spese non riuscito", error);
+      setExpenseMessage(`Non sono riuscito a leggere il file: ${error?.message || "formato non supportato"}.`);
+    } finally {
+      setExpenseLoading(false);
+    }
+  };
+
+  const updateExpensePreviewRow = (id: string, patch: Partial<ExpenseTransaction>) => {
+    setExpensePreviewRows((rows) => rows.map((row) => {
+      if (row.id !== id) return row;
+      const normalizedPatch = normalizeExpenseClassificationPatch(row, patch);
+      return { ...row, ...normalizedPatch };
+    }));
+  };
+
+  const saveExpensePreview = async () => {
+    if (!user) return;
+    const month = normalizeExpenseMonth(expenseSelectedMonth);
+    if (!isExpenseMonthInRollingWindow(month)) {
+      setExpenseMessage("Puoi salvare solo mesi compresi negli ultimi 12 mesi.");
+      return;
+    }
+    if (!expensePreviewRows.length || !expensePreviewFile) {
+      setExpenseMessage("Nessun movimento da salvare.");
+      return;
+    }
+    const existingImportForMonth = expenseImports.find((item) => item.month === month);
+    const existingHasTransactions = expenseTransactions.some((item) => item.month === month);
+    if (existingImportForMonth && existingImportForMonth.sourceFileType !== "manual" && existingHasTransactions) {
+      setExpenseMessage(`Esiste già un caricamento file per ${formatExpenseMonthLabel(month)}. Cancella il mese prima di importare un nuovo file.`);
+      return;
+    }
+
+    setExpenseLoading(true);
+    setExpenseMessage("Salvataggio analisi spese...");
+    try {
+      const importId = existingImportForMonth?.id || (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+      const importPayload = {
+        id: importId,
+        user_id: user.id,
+        month,
+        source_file_type: expensePreviewFile.type,
+        source_file_name: expensePreviewFile.name,
+        source_bank_name: expensePreviewRows.some((row) => /ing/i.test(row.description)) ? "ING" : null,
+        status: "confirmed",
+      };
+      const { error: importError } = existingImportForMonth
+        ? await supabase.from("monthly_expense_imports").update(importPayload).eq("id", importId).eq("user_id", user.id)
+        : await supabase.from("monthly_expense_imports").insert(importPayload);
+      if (importError) throw importError;
+
+      const rows = expensePreviewRows.slice(0, 250).map((row) => expenseTransactionToDb({ ...row, month, sourceType: "file" }, user.id, importId));
+      const { error: transactionsError } = await supabase.from("expense_transactions").insert(rows);
+      if (transactionsError) {
+        // Evita importazioni fantasma: se l'import era appena stato creato e i movimenti falliscono,
+        // rimuoviamo la riga del mese così l'utente può riprovare senza dover entrare in Supabase.
+        if (!existingImportForMonth) {
+          await supabase.from("monthly_expense_imports").delete().eq("id", importId).eq("user_id", user.id);
+        }
+        throw transactionsError;
+      }
+
+      setExpensePreviewRows([]);
+      setExpensePreviewFile(null);
+      setExpenseAnalysisMonth(month);
+      setExpenseAnalysisMode("month");
+      setExpenseMessage(`Analisi di ${formatExpenseMonthLabel(month)} salvata. Ora il Monitor può leggerla.`);
+      await loadExpenseData();
+    } catch (error: any) {
+      console.warn("Analisi spese non salvata", error);
+      setExpenseMessage(`Salvataggio non riuscito: ${error?.message || "controlla migration Supabase"}.`);
+    } finally {
+      setExpenseLoading(false);
+    }
+  };
+
+  const ensureExpenseImportForManualMovement = async (month: string) => {
+    if (!user) throw new Error("Utente non disponibile");
+    if (!isExpenseMonthInRollingWindow(month)) throw new Error("Puoi aggiungere movimenti solo nei mesi degli ultimi 12 mesi.");
+    const existing = expenseImports.find((item) => item.month === month);
+    if (existing) return existing.id;
+    const importId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const { error } = await supabase.from("monthly_expense_imports").insert({
+      id: importId,
+      user_id: user.id,
+      month,
+      source_file_type: "manual",
+      source_file_name: "Inserimento manuale",
+      status: "confirmed",
+    });
+    if (error) throw error;
+    return importId;
+  };
+
+  const saveManualExpenseTransaction = async () => {
+    if (!user) return;
+    const month = getMonthKeyFromDate(expenseManualDraft.date || `${expenseSelectedMonth}-01`);
+    if (!isExpenseMonthInRollingWindow(month)) {
+      setExpenseMessage("Puoi aggiungere movimenti manuali solo nella finestra mobile degli ultimi 12 mesi.");
+      return;
+    }
+    const amount = parseCurrencyInput(expenseManualDraft.amount);
+    if (!expenseManualDraft.description.trim() || amount === 0) {
+      setExpenseMessage("Inserisci descrizione e importo del movimento manuale.");
+      return;
+    }
+
+    setExpenseLoading(true);
+    try {
+      const importId = await ensureExpenseImportForManualMovement(month);
+      const row = buildExpenseTransactionFromRaw({
+        date: expenseManualDraft.date,
+        description: expenseManualDraft.description,
+        amount,
+        month,
+        sourceType: "manual",
+        idPrefix: "manual",
+      });
+      const finalRow = {
+        ...row,
+        ...normalizeExpenseClassificationPatch(row, { category: expenseManualDraft.category, macroType: expenseManualDraft.macroType }),
+      };
+      const { error } = await supabase.from("expense_transactions").insert(expenseTransactionToDb(finalRow, user.id, importId));
+      if (error) throw error;
+      setExpenseManualDraft({ date: `${month}-01`, description: "", amount: "", category: "Da verificare", macroType: "to_review" });
+      setExpenseAnalysisMonth(month);
+      setExpenseMessage("Movimento manuale aggiunto.");
+      await loadExpenseData();
+    } catch (error: any) {
+      setExpenseMessage(`Movimento manuale non salvato: ${error?.message || "errore Supabase"}.`);
+    } finally {
+      setExpenseLoading(false);
+    }
+  };
+
+  const updateSavedExpenseTransaction = async (transactionId: string, patch: Partial<ExpenseTransaction>) => {
+    if (!user) return;
+    const currentRow = expenseTransactions.find((row) => row.id === transactionId);
+    const normalizedPatch = currentRow ? normalizeExpenseClassificationPatch(currentRow, patch) : patch;
+    const dbPatch: Record<string, unknown> = {};
+    if (normalizedPatch.category) dbPatch.category = normalizedPatch.category;
+    if (normalizedPatch.macroType) dbPatch.macro_type = normalizedPatch.macroType;
+    if (typeof normalizedPatch.isExcluded === "boolean") dbPatch.is_excluded = normalizedPatch.isExcluded;
+    if (normalizedPatch.description !== undefined) dbPatch.description = normalizedPatch.description;
+    if (normalizedPatch.amount !== undefined) dbPatch.amount = normalizedPatch.amount;
+    if (normalizedPatch.date !== undefined) dbPatch.transaction_date = normalizedPatch.date;
+    const { error } = await supabase.from("expense_transactions").update(dbPatch).eq("id", transactionId).eq("user_id", user.id);
+    if (error) {
+      setExpenseMessage(`Modifica non salvata: ${error.message}`);
+      return;
+    }
+    setExpenseTransactions((rows) => rows.map((row) => row.id === transactionId ? { ...row, ...normalizedPatch } : row));
+  };
+
+  const deleteExpenseTransaction = async (transactionId: string) => {
+    if (!user) return;
+    const { error } = await supabase.from("expense_transactions").delete().eq("id", transactionId).eq("user_id", user.id);
+    if (error) {
+      setExpenseMessage(`Movimento non eliminato: ${error.message}`);
+      return;
+    }
+    setExpenseTransactions((rows) => rows.filter((row) => row.id !== transactionId));
+  };
+
+  const deleteExpenseMonth = async (monthInput = expenseSelectedMonth) => {
+    if (!user) return;
+    const month = normalizeExpenseMonth(monthInput);
+    const confirmed = window.confirm(`Vuoi cancellare tutta l'analisi di ${formatExpenseMonthLabel(month)}? Verranno eliminati anche i movimenti manuali collegati al mese.`);
+    if (!confirmed) return;
+    setExpenseLoading(true);
+    try {
+      const { error: transactionsError } = await supabase.from("expense_transactions").delete().eq("user_id", user.id).eq("month", month);
+      if (transactionsError) throw transactionsError;
+      const { error: importsError } = await supabase.from("monthly_expense_imports").delete().eq("user_id", user.id).eq("month", month);
+      if (importsError) throw importsError;
+      setExpensePreviewRows([]);
+      setExpensePreviewFile(null);
+      setExpenseMessage(`Analisi di ${formatExpenseMonthLabel(month)} cancellata. Puoi caricare un nuovo file.`);
+      await loadExpenseData();
+    } catch (error: any) {
+      setExpenseMessage(`Cancellazione non riuscita: ${error?.message || "errore Supabase"}.`);
+    } finally {
+      setExpenseLoading(false);
+    }
+  };
+
   const monitorHasEnoughHistory = monitorChartPoints.length > 1;
   const monitorRealSnapshotCount = (Object.values(marketSnapshotCache) as MarketPriceSnapshotEntry[][]).reduce((sum, snapshots) => sum + snapshots.length, 0);
   const monitorHistoryStatusText = monitorHasEnoughHistory
@@ -8939,21 +10235,49 @@ const [authReady, setAuthReady] = useState(false);
     const deltaPercent = invested > 0 ? (deltaValue / invested) * 100 : 0;
     const absDeltaPercent = Math.abs(deltaPercent);
     const meaningfulRows = monitorPremiumAssetRows.filter((asset) => Number(asset.investedCapital || 0) > 0 || Number(asset.value || 0) > 0);
-    const strongestModelDeviation = meaningfulRows.reduce(
-      (current, asset) => {
-        const deviation = Number(asset.percentage || 0) - Number(asset.modelPercentage || 0);
-        return Math.abs(deviation) > Math.abs(current.deviation)
-          ? {
-              category: asset.category,
-              deviation,
-              percentage: Number(asset.percentage || 0),
-              modelPercentage: Number(asset.modelPercentage || 0),
-            }
-          : current;
-      },
-      { category: "" as StrumentiCategory | "", deviation: 0, percentage: 0, modelPercentage: 0 }
+    const targetWeightTotal = activeModelComposition.reduce((sum, item) => sum + Math.max(0, Number(item.percentage || 0)), 0) || 100;
+    const categoryModelRows = activeModelComposition.map((item) => {
+      const categoryValue = meaningfulRows
+        .filter((asset) => categoriesAreMonitorCompatible(asset.category, item.category))
+        .reduce((sum, asset) => sum + Math.max(0, Number(asset.value || 0)), 0);
+      const modelPercentage = (Math.max(0, Number(item.percentage || 0)) / targetWeightTotal) * 100;
+      const percentage = value > 0 ? (categoryValue / value) * 100 : 0;
+      const targetValue = value * (modelPercentage / 100);
+      const deviation = percentage - modelPercentage;
+      const deviationEuro = categoryValue - targetValue;
+      return {
+        category: item.category,
+        deviation,
+        deviationEuro,
+        percentage,
+        modelPercentage,
+        value: categoryValue,
+        targetValue,
+      };
+    });
+    meaningfulRows.forEach((asset) => {
+      const alreadyPresent = categoryModelRows.some((row) => categoriesAreMonitorCompatible(row.category, asset.category));
+      if (alreadyPresent) return;
+      const categoryValue = meaningfulRows
+        .filter((candidate) => categoriesAreMonitorCompatible(candidate.category, asset.category))
+        .reduce((sum, candidate) => sum + Math.max(0, Number(candidate.value || 0)), 0);
+      const percentage = value > 0 ? (categoryValue / value) * 100 : 0;
+      categoryModelRows.push({
+        category: asset.category,
+        deviation: percentage,
+        deviationEuro: categoryValue,
+        percentage,
+        modelPercentage: 0,
+        value: categoryValue,
+        targetValue: 0,
+      });
+    });
+    const strongestModelDeviation = categoryModelRows.reduce(
+      (current, row) => Math.abs(row.deviationEuro) > Math.abs(current.deviationEuro) ? row : current,
+      { category: "" as StrumentiCategory | "", deviation: 0, deviationEuro: 0, percentage: 0, modelPercentage: 0, value: 0, targetValue: 0 }
     );
     const absModelDeviation = Math.abs(strongestModelDeviation.deviation);
+    const absModelDeviationEuro = Math.abs(strongestModelDeviation.deviationEuro);
     const movementTimes = monitorMovementRows
       .map((movement) => getValidDateTime(movement.movementDate || movement.insertedAt))
       .filter((time) => Number.isFinite(time));
@@ -8974,9 +10298,47 @@ const [authReady, setAuthReady] = useState(false);
       return isRecent && movement.type !== "withdrawal" ? sum + Math.max(0, Number(movement.amount || 0)) : sum;
     }, 0);
     const hasMeaningfulRecentMovement = hasRecentMovement && invested > 0 && recentMovementAmount / invested >= 0.12;
+    const depositMovements = monitorMovementRows.filter((movement) => movement.type !== "withdrawal" && Number(movement.amount || 0) > 0);
+    const totalDepositAmount = depositMovements.reduce((sum, movement) => sum + Math.max(0, Number(movement.amount || 0)), 0);
+    const pacReferenceAmount = monthlyPacAmount > 0
+      ? monthlyPacAmount
+      : totalDepositAmount > 0 && monthsFromFirstMovement !== null
+        ? totalDepositAmount / Math.max(1, monthsFromFirstMovement + 1)
+        : 0;
+    const minimumOperationalDeviationEuro = pacReferenceAmount > 0
+      ? pacReferenceAmount
+      : Math.max(50, invested * 0.05);
+    const isOperationalDeviationTiny = absModelDeviation < 3 || absModelDeviationEuro < Math.max(10, minimumOperationalDeviationEuro * 0.5);
+    const isOperationalDeviationBelowPac = absModelDeviationEuro < minimumOperationalDeviationEuro;
+    const shouldSuggestPacDirection = absModelDeviation >= 3 && absModelDeviationEuro >= minimumOperationalDeviationEuro;
+    const shouldStronglyGuidePacDirection = absModelDeviation >= 7 && absModelDeviationEuro >= minimumOperationalDeviationEuro;
+    const strongestCategoryDepositAmount = strongestModelDeviation.category
+      ? depositMovements
+          .filter((movement) => String(movement.category || "") === String(strongestModelDeviation.category))
+          .reduce((sum, movement) => sum + Math.max(0, Number(movement.amount || 0)), 0)
+      : 0;
+    const strongestCategoryDepositShare = totalDepositAmount > 0 ? (strongestCategoryDepositAmount / totalDepositAmount) * 100 : 0;
+    const strongestCategoryTargetShare = Math.max(0, Number(strongestModelDeviation.modelPercentage || 0));
+    const movementDataCanExplainDeviation = totalDepositAmount > 0 && !!strongestModelDeviation.category;
+    const isDeviationDrivenByConcentratedDeposits = movementDataCanExplainDeviation
+      && strongestModelDeviation.deviation > 0
+      && strongestCategoryDepositShare >= strongestCategoryTargetShare + 10
+      && strongestCategoryDepositAmount >= Math.max(25, totalDepositAmount * 0.35);
+    const isDeviationDrivenByUnderfundedCategory = movementDataCanExplainDeviation
+      && strongestModelDeviation.deviation < 0
+      && strongestCategoryDepositShare <= Math.max(0, strongestCategoryTargetShare - 10);
+    const deviationCauseMessage = !shouldSuggestPacDirection || !strongestModelDeviation.category
+      ? ""
+      : isDeviationDrivenByConcentratedDeposits
+        ? `Dai movimenti registrati, ${strongestModelDeviation.category} ha ricevuto una quota di versamenti superiore al peso previsto (${Math.round(strongestCategoryDepositShare)}% dei versamenti contro un target del ${Math.round(strongestCategoryTargetShare)}%).`
+        : isDeviationDrivenByUnderfundedCategory
+          ? `Dai movimenti registrati, ${strongestModelDeviation.category} ha ricevuto meno versamenti rispetto al peso previsto dal modello.`
+          : Math.abs(deltaPercent) >= 0.25
+            ? `Lo scostamento su ${strongestModelDeviation.category} è abbastanza ampio da valere circa ${formatEuro(absModelDeviationEuro)} rispetto al modello e sembra legato soprattutto alle variazioni di valore.`
+            : `Lo scostamento su ${strongestModelDeviation.category} è abbastanza ampio da valere circa ${formatEuro(absModelDeviationEuro)} rispetto al modello.`;
     const isVeryYoungPac = activeHoldings.length > 0 && (monthsFromFirstMovement === null || monthsFromFirstMovement < 6 || monitorMovementRows.length <= 3);
-    const isYoungPac = activeHoldings.length > 0 && (monthsFromFirstMovement === null || monthsFromFirstMovement < 24 || invested < 5000);
-    const isMatureEnoughForRebalance = monthsFromFirstMovement !== null && monthsFromFirstMovement >= 24 && invested >= 5000;
+    const isYoungPac = activeHoldings.length > 0 && (monthsFromFirstMovement === null || monthsFromFirstMovement < 12);
+    const isMatureEnoughForRebalance = monthsFromFirstMovement !== null && monthsFromFirstMovement >= 12;
     const worstNegativeAsset = meaningfulRows.reduce(
       (current, asset) => Number(asset.deltaValue || 0) < Number(current.deltaValue || 0) ? asset : current,
       { category: "" as StrumentiCategory | "", deltaValue: 0, deltaPercent: 0, investedCapital: 0 }
@@ -9087,24 +10449,24 @@ const [authReady, setAuthReady] = useState(false);
         "Se una parte del portafoglio resta indietro, non significa per forza che vada eliminata. A volte la parte che oggi pesa meno è quella che protegge o recupera in uno scenario diverso.",
       ],
       rebalanceNone: [
-        "La ripartizione è vicina al modello. Non serve ribilanciare: continua con il PAC e lascia che i prossimi versamenti mantengano l'equilibrio.",
-        "Non serve fare manutenzione straordinaria. In una situazione ordinata, il miglior intervento è spesso non intervenire.",
+        "La ripartizione è vicina al modello. Continua con il PAC e lascia che i prossimi versamenti mantengano l'equilibrio.",
+        "Non serve fare manutenzione straordinaria. In una situazione ordinata, il miglior intervento è spesso mantenere il piano.",
         "Il portafoglio non deve essere perfettamente identico al modello ogni giorno. Conta restare vicino alla direzione prevista.",
       ],
       rebalanceWithPac: [
-        "La ripartizione si è leggermente spostata. Non serve vendere o correggere subito: usa i prossimi versamenti per rafforzare le categorie più sotto peso.",
-        "Con un PAC attivo, piccoli squilibri possono spesso essere corretti acquistando di più le parti sotto peso, senza trasformare il ribilanciamento in un'abitudine mensile.",
-        "Non rincorrere il modello ogni settimana. Se lo scostamento è contenuto, lascia che siano i prossimi PAC a riportare equilibrio.",
+        "La ripartizione si è spostata, ma il PAC resta lo strumento principale: intervieni sui prossimi versamenti solo quando lo scostamento è abbastanza grande da meritare una quota PAC dedicata.",
+        "Con un PAC attivo non serve correggere ogni differenza. Quando lo scostamento diventa operativo, puoi orientare i prossimi versamenti verso le componenti sotto peso.",
+        "Non rincorrere il modello ogni settimana. Se lo scostamento è contenuto, continua il PAC ordinario e rivaluta al prossimo controllo.",
       ],
       rebalanceYoung: [
-        "Lo scostamento è da osservare, ma il portafoglio è ancora giovane. In questa fase il ribilanciamento rischia di essere prematuro: meglio correggere gradualmente con i prossimi PAC.",
-        "Nei primi anni il PAC è già uno strumento di ribilanciamento naturale. Prima di vendere, prova a riequilibrare con i nuovi acquisti.",
-        "Ribilanciare troppo spesso può creare più rumore che beneficio, soprattutto quando capitale e storico sono ancora limitati.",
+        "Sei ancora nei primi mesi del piano. La priorità è mantenere costanza, registrare bene i movimenti e lasciare che il modello inizi a prendere forma.",
+        "Prima dei 12 mesi non serve cercare una precisione perfetta. Piccole differenze vanno osservate, non corrette a ogni controllo.",
+        "In questa fase conta più costruire metodo che ottimizzare ogni differenza. Il PAC ha bisogno di tempo per diventare leggibile.",
       ],
       rebalanceMature: [
-        "La ripartizione si è allontanata in modo più evidente dal modello. Non è un'emergenza, ma se il portafoglio è attivo da tempo può essere utile valutare un ribilanciamento ragionato.",
-        "Lo scostamento non va ignorato, ma nemmeno corretto di fretta. Il ribilanciamento ha senso quando serve a riportare il portafoglio al piano, non quando nasce da una reazione emotiva.",
-        "Per molti PAC una verifica ogni due o tre anni è più sensata di correzioni continue. Valuta il ribilanciamento solo se lo scostamento resta significativo e non è correggibile con i prossimi versamenti.",
+        "Dopo 12 mesi ha senso fare un controllo più ordinato della ripartizione. Se lo scostamento resta rilevante, prova prima a correggere con i prossimi versamenti.",
+        "Il controllo annuale serve a verificare se il portafoglio resta vicino al modello. La correzione più naturale, per un PAC, passa dai nuovi versamenti verso le componenti sotto peso.",
+        "Se lo scostamento resta significativo anche dopo diversi PAC, puoi pianificare un riallineamento ragionato, partendo dai prossimi acquisti.",
       ],
       pacMissing: [
         "Prima di valutare troppo il grafico, assicurati che il gesto operativo del mese sia stato fatto: il PAC funziona se diventa abitudine.",
@@ -9112,7 +10474,7 @@ const [authReady, setAuthReady] = useState(false);
         "Il percorso resta semplice: un mese alla volta. Se il PAC non è ancora completato, questa è la priorità.",
       ],
       antiPanic: [
-        "Una flessione del portafoglio è una variazione del valore di mercato. Diventa una perdita realizzata solo se vendi a un prezzo inferiore rispetto a quello di acquisto.",
+        "Una flessione del portafoglio è una variazione del valore di mercato. Diventa davvero pericolosa soprattutto quando porta a decisioni impulsive fuori dal piano.",
         "Il rischio ora è prendere una decisione per paura. Torna al piano: chiediti se sono cambiati obiettivo, orizzonte e capacità di sostenere le oscillazioni, oppure se è cambiato solo il prezzo di mercato.",
         "Avere un piano serve proprio quando il grafico non è piacevole da guardare.",
       ],
@@ -9185,6 +10547,7 @@ const [authReady, setAuthReady] = useState(false);
       ? `Hai già chiuso ${currentMonthLabel}: continua a monitorare con calma e torna al prossimo controllo mensile.`
       : pick(pools.pacMissing, 3);
     let note = pick(pools.finalNotes, 4);
+    let alignmentTitle = "Prossimo passo";
     let rebalanceGuidance = pick(pools.rebalanceNone, 5);
 
     if (status === "Da configurare") {
@@ -9193,7 +10556,8 @@ const [authReady, setAuthReady] = useState(false);
       explanation = "Il Monitor deve partire da dati affidabili: capitale, strumenti e date dei movimenti. Senza questa base, anche il grafico più bello rischia di raccontare poco.";
       action = pick(pools.setupAction, 7);
       note = "Meglio pochi dati corretti che tanti riquadri pieni di messaggi: il Monitor deve aiutarti a decidere cosa fare adesso.";
-      rebalanceGuidance = "Il ribilanciamento non è una priorità finché il portafoglio non è stato configurato e non esiste uno storico minimo da leggere.";
+      alignmentTitle = "Dati da completare";
+      rebalanceGuidance = "Prima di parlare di riallineamento serve una base dati minima: modello, capitale e movimenti registrati con ordine.";
     } else if (hasMeaningfulRecentMovement) {
       title = "Nuovo capitale appena entrato";
       reading = pick(pools.recentMovement, 8);
@@ -9202,6 +10566,7 @@ const [authReady, setAuthReady] = useState(false);
         ? "Non giudicare il nuovo versamento dai primi giorni. Lascialo entrare nel percorso del PAC e rivaluta al prossimo controllo."
         : pick(pools.pacMissing, 10);
       note = pick(pools.finalNotes, 11);
+      alignmentTitle = isYoungPac ? "Fase iniziale" : "Riallineamento graduale";
       rebalanceGuidance = isYoungPac ? pick(pools.rebalanceYoung, 12) : pick(pools.rebalanceWithPac, 12);
     } else if (deltaPercent <= -8) {
       title = "Fase negativa da leggere con lucidità";
@@ -9211,6 +10576,7 @@ const [authReady, setAuthReady] = useState(false);
         ? "Non decidere a caldo. Torna al piano, verifica obiettivo e orizzonte temporale e aspetta il prossimo controllo prima di trarre conclusioni."
         : pick(pools.pacMissing, 15);
       note = pick([...pools.antiPanic, ...pools.marketHistory, ...pools.prudentNotes], 16);
+      alignmentTitle = absModelDeviation >= 12 && isMatureEnoughForRebalance ? "Controllo annuale" : "Torna verso il modello";
       rebalanceGuidance = absModelDeviation >= 12 && isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 17) : pick(pools.rebalanceYoung, 17);
     } else if (deltaPercent < -1) {
       title = "Flessione da osservare, non da inseguire";
@@ -9220,6 +10586,7 @@ const [authReady, setAuthReady] = useState(false);
         ? "Continua con il PAC programmato e usa il prossimo controllo per verificare se lo scostamento resta o rientra naturalmente."
         : pick(pools.pacMissing, 20);
       note = pick([...pools.pacDuringDrops, ...pools.antiPanic, ...pools.finalNotes], 21);
+      alignmentTitle = absModelDeviation >= 8 ? (isMatureEnoughForRebalance ? "Controllo annuale" : "Riallineamento graduale") : "Prossimi PAC";
       rebalanceGuidance = absModelDeviation >= 8 ? (isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 22) : pick(pools.rebalanceYoung, 22)) : pick(pools.rebalanceWithPac, 22);
     } else if (deltaPercent < -0.25) {
       title = "Normale oscillazione negativa";
@@ -9229,6 +10596,7 @@ const [authReady, setAuthReady] = useState(false);
         ? "Continua con il PAC programmato. Una piccola flessione non richiede modifiche alla strategia."
         : pick(pools.pacMissing, 25);
       note = isYoungPac ? pick(pools.youngPac, 26) : pick(pools.finalNotes, 26);
+      alignmentTitle = absModelDeviation >= 5 ? "Prossimi PAC" : "Prossimo passo";
       rebalanceGuidance = absModelDeviation >= 5 ? pick(pools.rebalanceWithPac, 27) : pick(pools.rebalanceNone, 27);
     } else if (deltaPercent >= 8) {
       title = "Fase positiva da gestire con disciplina";
@@ -9238,6 +10606,7 @@ const [authReady, setAuthReady] = useState(false);
         ? "Continua con il PAC senza aumentare il rischio solo perché il portafoglio è salito. Mantieni la ripartizione prevista."
         : pick(pools.pacMissing, 30);
       note = pick([...pools.antiEuphoria, ...pools.prudentNotes], 31);
+      alignmentTitle = absModelDeviation >= 8 ? (isMatureEnoughForRebalance ? "Controllo annuale" : "Prossimi PAC") : "Prossimo passo";
       rebalanceGuidance = absModelDeviation >= 8 ? (isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 32) : pick(pools.rebalanceWithPac, 32)) : pick(pools.rebalanceNone, 32);
     } else if (deltaPercent > 0.25) {
       title = "In linea, con lieve vantaggio";
@@ -9247,6 +10616,7 @@ const [authReady, setAuthReady] = useState(false);
         ? "Continua con il PAC senza inseguire il rendimento. Il piano serve a evitare decisioni prese sull'entusiasmo del momento."
         : pick(pools.pacMissing, 35);
       note = pick(pools.antiEuphoria, 36);
+      alignmentTitle = absModelDeviation >= 5 ? "Prossimi PAC" : "Prossimo passo";
       rebalanceGuidance = absModelDeviation >= 5 ? pick(pools.rebalanceWithPac, 37) : pick(pools.rebalanceNone, 37);
     } else if (isVeryYoungPac) {
       title = "Percorso appena iniziato";
@@ -9256,22 +10626,39 @@ const [authReady, setAuthReady] = useState(false);
         ? "Concentrati sul prossimo PAC. Non serve ottimizzare tutto: serve ripetere bene il gesto."
         : pick(pools.pacMissing, 40);
       note = "Il primo risultato importante non è il rendimento: è aver iniziato.";
+      alignmentTitle = "Fase iniziale";
       rebalanceGuidance = pick(pools.rebalanceYoung, 41);
     } else if (absModelDeviation >= 8) {
       title = isMatureEnoughForRebalance ? "Ripartizione da valutare" : "Ripartizione da guidare coi prossimi PAC";
       reading = `La ripartizione si è allontanata dal modello, soprattutto su ${strongestModelDeviation.category}. Non è automaticamente un problema, ma merita una lettura ordinata.`;
       explanation = pick(pools.diversification, 42);
       action = isMatureEnoughForRebalance
-        ? "Prima di vendere strumenti, verifica se i prossimi PAC possono riequilibrare gradualmente. Se lo scostamento resta significativo, valuta un ribilanciamento ragionato."
-        : "Usa i prossimi versamenti per rafforzare le categorie più sotto peso. In questa fase evita correzioni frequenti.";
+        ? "Verifica se lo scostamento è abbastanza grande da richiedere un intervento sui prossimi PAC. Se sì, orienta gradualmente i nuovi versamenti verso le componenti sotto peso."
+        : "Se lo scostamento supera almeno una quota PAC, usa i prossimi versamenti per rafforzare le categorie sotto peso. Altrimenti continua il PAC ordinario.";
       note = pick(pools.finalNotes, 43);
+      alignmentTitle = isMatureEnoughForRebalance ? "Controllo annuale" : "Riallineamento graduale";
       rebalanceGuidance = isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 44) : pick(pools.rebalanceYoung, 44);
     }
 
-    if (status !== "Da configurare" && absModelDeviation >= 3 && !reading.toLowerCase().includes("ripartizione")) {
-      rebalanceGuidance = absModelDeviation >= 8
-        ? (isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 45) : pick(pools.rebalanceYoung, 45))
+    if (status !== "Da configurare" && shouldSuggestPacDirection && !reading.toLowerCase().includes("ripartizione")) {
+      alignmentTitle = shouldStronglyGuidePacDirection
+        ? (isMatureEnoughForRebalance ? "Controllo annuale" : "Riallineamento graduale")
+        : "Prossimi PAC";
+      rebalanceGuidance = shouldStronglyGuidePacDirection
+        ? (isMatureEnoughForRebalance ? pick(pools.rebalanceMature, 45) : pick(pools.rebalanceWithPac, 45))
         : pick(pools.rebalanceWithPac, 45);
+    }
+
+    if (status !== "Da configurare" && shouldStronglyGuidePacDirection && deviationCauseMessage) {
+      alignmentTitle = isMatureEnoughForRebalance ? "Controllo annuale" : "Riallineamento graduale";
+      rebalanceGuidance = `${deviationCauseMessage} Nei prossimi PAC puoi dare più spazio alle componenti sotto peso, senza trasformare ogni piccola oscillazione in una correzione.`;
+    }
+
+    if (status !== "Da configurare" && !shouldSuggestPacDirection) {
+      alignmentTitle = isYoungPac ? "Fase iniziale" : "Prossimo passo";
+      rebalanceGuidance = isOperationalDeviationTiny
+        ? "Il portafoglio è sostanzialmente in linea. Lo scostamento è troppo piccolo per richiedere aggiustamenti: continua con il PAC previsto e lascia che il modello lavori nel tempo."
+        : `Lo scostamento principale su ${strongestModelDeviation.category || "una componente"} vale circa ${formatEuro(absModelDeviationEuro)}, meno di una quota PAC significativa. Non serve orientare i prossimi versamenti per una differenza così contenuta: continua il PAC ordinario e rivaluta al prossimo controllo.`;
     }
 
     const ageLabel = monthsFromFirstMovement === null
@@ -9279,13 +10666,13 @@ const [authReady, setAuthReady] = useState(false);
       : monthsFromFirstMovement < 1
         ? "Primo mese"
         : `${monthsFromFirstMovement} ${monthsFromFirstMovement === 1 ? "mese" : "mesi"}`;
-    const ripartizioneLabel = absModelDeviation < 3
+    const ripartizioneLabel = !shouldSuggestPacDirection
       ? "Coerente"
-      : absModelDeviation < 8
-        ? "Da guidare coi PAC"
+      : !shouldStronglyGuidePacDirection
+        ? "Da osservare"
         : isMatureEnoughForRebalance
           ? "Da valutare"
-          : "PAC giovane";
+          : "Da guidare coi PAC";
 
     return {
       status,
@@ -9295,6 +10682,7 @@ const [authReady, setAuthReady] = useState(false);
       explanation,
       action,
       note,
+      alignmentTitle,
       rebalanceGuidance,
       metrics: [
         { label: "Scostamento totale", value: `${formatSignedEuroCents(deltaValue)} · ${formatSignedPercent(deltaPercent, 2)}` },
@@ -9311,6 +10699,8 @@ const [authReady, setAuthReady] = useState(false);
     monitorDisplayedTotalValue,
     monitorMovementRows,
     monitorPremiumAssetRows,
+    monthlyPacAmount,
+    activeModelComposition,
     setupCompleted,
   ]);
   const awarenessActionsCompleted = completedAwarenessList.length;
@@ -9701,9 +11091,12 @@ const [authReady, setAuthReady] = useState(false);
     }
 
     if (biggestGap && Math.abs(biggestGap.delta) >= 10) {
+      const isEarlyPac = completedMonths < 12;
       reminders.push({
-        title: "Valuta un ribilanciamento",
-        text: `${biggestGap.label} è la parte più distante dal target in questo momento. Potrebbe essere utile riallineare il modello.`,
+        title: isEarlyPac ? "Guida i prossimi PAC" : "Controlla la ripartizione",
+        text: isEarlyPac
+          ? `${biggestGap.label} è la parte più distante dal target. Nei primi 12 mesi conviene usare i prossimi versamenti per tornare gradualmente verso il modello.`
+          : `${biggestGap.label} è la parte più distante dal target. Verifica se i prossimi PAC possono riportare il portafoglio verso la ripartizione scelta.`,
         tone: "neutral",
       });
     }
@@ -13805,7 +15198,7 @@ const [authReady, setAuthReady] = useState(false);
                     <li>• Piano e PAC personalizzato</li>
                     <li>• Dashboard operativa e guida mese per mese</li>
                     <li>• Strumenti personalizzati e gestione investimenti</li>
-                    <li>• Risparmio, spesa intelligente, auto e mutuo</li>
+                    <li>• Gestione mensile, spesa intelligente, auto e mutuo</li>
                     <li>• Anti-truffe con mini gioco da 200 scenari</li>
                     <li>• Badge, titoli e progressi per restare motivato</li>
                   </ul>
@@ -14925,37 +16318,20 @@ const [authReady, setAuthReady] = useState(false);
 
         {step === "awareness" && (
           <section className="space-y-6">
-            <div className="hidden rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-sm lg:block">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-700">Pacchetto Core</p>
-              <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <h2 className="text-3xl font-bold tracking-tight text-slate-950 md:text-5xl">Consapevolezza finanziaria</h2>
-                  <p className="mt-4 max-w-4xl text-base leading-7 text-slate-700">
-                    Una sezione pratica per liberare denaro, evitare errori costosi e proteggerti dalle truffe. Non giudica le scelte: mostra costo reale, rischi e alternative.
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-emerald-200 bg-white p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Risultati tracciati</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-950">{formatEuro(monthlyFreedByAwareness)}/mese</p>
-                  <p className="mt-1 text-sm text-slate-600">{formatEuro(yearlyFreedByAwareness)} potenziale annuo liberato</p>
-                </div>
-              </div>
-            </div>
-
             <div className="hidden rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm lg:block">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-700">Scegli una scheda</p>
-                  <h3 className="mt-2 text-xl font-bold tracking-tight text-slate-950">Da dove vuoi partire?</h3>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-700">Consapevolezza</p>
+                  <h3 className="mt-2 text-xl font-bold tracking-tight text-slate-950">Scegli cosa vuoi controllare oggi</h3>
                 </div>
                 <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                  Queste sono le 4 aree della Consapevolezza. Seleziona una card per aprire lo strumento dedicato.
+                  Apri lo strumento che ti serve: gestione mensile, auto, mutuo o anti-truffe.
                 </p>
               </div>
 
               <div className="mt-5 grid gap-3 lg:grid-cols-4">
                 {[
-                  { key: "risparmio" as AwarenessTab, icon: "💡", title: "Risparmio", subtitle: "Libera soldi ogni mese", detail: "Sprechi, spesa intelligente e azioni pratiche." },
+                  { key: "risparmio" as AwarenessTab, icon: "💡", title: "Gestione mensile", subtitle: "Spese, margine e futuro", detail: "Analisi spese, fondo emergenza, quota futuro e strumenti pratici." },
                   { key: "auto" as AwarenessTab, icon: "🚗", title: "Auto", subtitle: "Scopri il costo reale", detail: "Rata, TAEG, maxi rata e rifinanziamento." },
                   { key: "mutuo" as AwarenessTab, icon: "🏠", title: "Mutuo", subtitle: "Valuta la sostenibilità", detail: "Rata, costi reali, stress test e semaforo." },
                   { key: "truffe" as AwarenessTab, icon: "🛡️", title: "Anti-truffe", subtitle: "Allenati sui rischi", detail: "Mini gioco con 200 scenari realistici." },
@@ -14994,42 +16370,272 @@ const [authReady, setAuthReady] = useState(false);
 
             {awarenessTab === "risparmio" && (
               <div className="space-y-6">
-                <div className={`${mobileAwarenessMode === "shopping" ? "hidden lg:block" : ""} rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-sm`}>
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Scheda risparmio</p>
-                      <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Libera soldi ogni mese, senza stravolgere la vita</h3>
-                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
-                        Qui trovi azioni semplici e concrete: meno sprechi, meno costi invisibili, più denaro disponibile per PAC, obiettivi e serenità. Scegli 2 o 3 azioni sostenibili: la costanza conta più dei tagli estremi.
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-emerald-200 bg-white p-4 text-sm shadow-sm">
-                      <p className="font-semibold text-slate-950">Risparmio potenziale liberato</p>
-                      <p className="mt-1 text-2xl font-bold text-emerald-700">{formatEuro(monthlyFreedByAwareness)}/mese</p>
-                      <p className="mt-1 text-slate-600">{formatEuro(yearlyFreedByAwareness)} all'anno se mantieni le azioni completate.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`${mobileAwarenessMode === "shopping" ? "hidden lg:block" : ""} rounded-3xl border border-slate-200 bg-white p-5 shadow-sm`}>
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">Da dove iniziare</p>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">
-                        Le card sono ordinate per probabilita di risultato: prima le azioni facili, ricorrenti e con buon impatto. Non devi farle tutte: scegli quelle più adatte alla tua situazione.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                      <span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700 ring-1 ring-emerald-200">Primary = azione da fare</span>
-                      <span className="rounded-full bg-slate-50 px-3 py-2 text-slate-600 ring-1 ring-slate-200">Secondary = azione già completata</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div id="spesa-intelligente" className={`${mobileAwarenessMode === "shopping" ? "block" : "hidden"} rounded-[2rem] border border-emerald-200 bg-gradient-to-br from-white via-emerald-50/40 to-white p-5 shadow-sm lg:block`}> 
+                <div id="expense-monthly-import-section" className={`${mobileAwarenessMode === "shopping" ? "hidden lg:block" : ""} scroll-mt-28 rounded-[2rem] border border-emerald-200 bg-white p-5 shadow-sm`}>
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Spesa intelligente</p>
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Analisi spese mensile</p>
+                      <h4 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Carica le spese del mese e trasforma i numeri in decisioni</h4>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                        Puoi caricare un solo file principale per mese: PDF testuale, Excel o CSV. Dopo la lettura controlli i movimenti, correggi categorie e salvi. Se hai contanti o un secondo conto, aggiungi movimenti manuali.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
+                      Puoi analizzare gli ultimi 12 mesi, un mese alla volta. I file caricati non vengono conservati: salviamo solo i movimenti che confermi.
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                      <p className="text-sm font-black text-slate-950">1. Mese e file</p>
+                      <label className="mt-4 block text-sm font-bold text-slate-700">
+                        Mese da caricare
+                        <select
+                          value={expenseSelectedMonth}
+                          onChange={(event) => {
+                            const month = normalizeExpenseMonth(event.target.value);
+                            setExpenseSelectedMonth(month);
+                            setExpenseAnalysisMonth(month);
+                            setExpenseManualDraft((prev) => ({ ...prev, date: `${month}-01` }));
+                          }}
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-800 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                        >
+                          {expenseAvailableMonths.map((month) => (
+                            <option key={month} value={month}>{formatExpenseMonthLabel(month)}</option>
+                          ))}
+                        </select>
+                      </label>
+
+                      {expenseSelectedImport && expenseSelectedImport.sourceFileType !== "manual" ? (
+                        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                          Hai già caricato un file per <strong>{formatExpenseMonthLabel(expenseSelectedMonth)}</strong>. Puoi modificare i movimenti, aggiungere spese manuali oppure cancellare il mese e importare un nuovo file.
+                          <button
+                            type="button"
+                            onClick={() => deleteExpenseMonth(expenseSelectedMonth)}
+                            disabled={expenseLoading}
+                            className="mt-3 rounded-xl bg-amber-600 px-4 py-2 text-xs font-black text-white transition hover:bg-amber-700 disabled:opacity-50"
+                          >
+                            Cancella analisi del mese
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-200 bg-white px-4 py-6 text-center transition hover:bg-emerald-50">
+                          <span className="text-sm font-black text-slate-950">Carica PDF, Excel o CSV</span>
+                          <span className="mt-1 text-xs leading-5 text-slate-500">Prima del salvataggio vedrai un'anteprima correggibile.</span>
+                          <input
+                            type="file"
+                            accept=".csv,.txt,.xls,.xlsx,.pdf,text/csv,application/pdf"
+                            onChange={handleExpenseFileSelected}
+                            disabled={expenseLoading}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <label className="text-sm font-bold text-slate-700">
+                          Fondo emergenza attuale
+                          <input
+                            value={expenseEmergencyFundCurrent}
+                            onChange={(event) => setExpenseEmergencyFundCurrent(event.target.value)}
+                            inputMode="decimal"
+                            placeholder="Es. 3000"
+                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-emerald-400"
+                          />
+                        </label>
+                        <label className="text-sm font-bold text-slate-700">
+                          Mesi di copertura
+                          <select
+                            value={expenseEmergencyFundMonths}
+                            onChange={(event) => setExpenseEmergencyFundMonths(event.target.value)}
+                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-emerald-400"
+                          >
+                            <option value="3">3 mesi</option>
+                            <option value="6">6 mesi</option>
+                            <option value="9">9 mesi</option>
+                            <option value="12">12 mesi</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      {expenseMessage ? (
+                        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">
+                          {expenseMessage}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-black text-slate-950">2. Riepilogo veloce</p>
+                          <p className="mt-1 text-sm leading-6 text-slate-600">Dopo il salvataggio il report comparirà anche nella card Monitor, con vista mese, 3 mesi, 6 mesi e 12 mesi.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={loadExpenseData}
+                          disabled={expenseLoading}
+                          className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-white disabled:opacity-50"
+                        >
+                          Aggiorna
+                        </button>
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-100">
+                          <p className="text-xs font-bold text-emerald-700">Mesi caricati</p>
+                          <p className="mt-1 text-2xl font-black text-slate-950">{expenseWindowImports.length}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                          <p className="text-xs font-bold text-slate-500">Movimenti</p>
+                          <p className="mt-1 text-2xl font-black text-slate-950">{expenseWindowTransactions.length}</p>
+                        </div>
+                        <div className="rounded-2xl bg-indigo-50 p-4 ring-1 ring-indigo-100">
+                          <p className="text-xs font-bold text-indigo-700">Periodo</p>
+                          <p className="mt-1 text-sm font-black text-slate-950">12 mesi max</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600 ring-1 ring-slate-200">
+                        La gerarchia dei consigli è prudente: prima fondo emergenza se non è in linea, poi PAC/investimenti. Se l'utente divide tra entrambi, l'app lo legge senza giudicarlo.
+                      </div>
+                    </div>
+                  </div>
+
+                  {expensePreviewRows.length > 0 && (
+                    <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50/50 p-5">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <p className="text-sm font-black text-slate-950">Anteprima movimenti</p>
+                          <p className="mt-1 text-sm leading-6 text-slate-600">File: {expensePreviewFile?.name}. Controlla il tipo movimento e la categoria. Il tipo decide se il movimento è spesa, entrata, investimento o fondo emergenza; la categoria serve per il dettaglio.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => { setExpensePreviewRows([]); setExpensePreviewFile(null); }} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700">Annulla</button>
+                          <button type="button" onClick={saveExpensePreview} disabled={expenseLoading} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-700 disabled:opacity-50">Salva analisi mese</button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 max-h-[28rem] overflow-auto rounded-2xl bg-white ring-1 ring-emerald-100">
+                        <table className="min-w-[980px] w-full border-collapse text-sm">
+                          <thead>
+                            <tr className="border-b border-emerald-100 bg-emerald-50">
+                              <th className="px-3 py-3 text-left font-black text-emerald-950">Data</th>
+                              <th className="px-3 py-3 text-left font-black text-emerald-950">Descrizione</th>
+                              <th className="px-3 py-3 text-right font-black text-emerald-950">Importo</th>
+                              <th className="px-3 py-3 text-left font-black text-emerald-950">Tipo movimento</th>
+                              <th className="px-3 py-3 text-left font-black text-emerald-950">Categoria</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {expensePreviewRows.map((row) => (
+                              <tr key={row.id} className="border-b border-slate-100 last:border-b-0">
+                                <td className="px-3 py-3 font-semibold text-slate-800">{formatItalianDate(row.date)}</td>
+                                <td className="px-3 py-3 text-slate-700">{row.description}</td>
+                                <td className={`px-3 py-3 text-right font-black ${row.amount >= 0 ? "text-emerald-700" : "text-slate-950"}`}>{formatSignedEuroCents(row.amount)}</td>
+                                <td className="px-3 py-3">
+                                  <select value={getExpenseMovementKindForMacro(row.macroType)} onChange={(event) => updateExpensePreviewRow(row.id, normalizeExpenseMovementKindPatch(row, event.target.value as ExpenseMovementKind))} className="w-full min-w-[13rem] rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800">
+                                    {EXPENSE_MOVEMENT_KIND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                  </select>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <select value={row.category} onChange={(event) => updateExpensePreviewRow(row.id, normalizeExpenseCategoryPatch(row, event.target.value as ExpenseCategory))} className="w-full min-w-[13rem] rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800">
+                                    {getExpenseCategoryOptionsForKind(getExpenseMovementKindForMacro(row.macroType)).map((category) => <option key={category} value={category}>{category}</option>)}
+                                  </select>
+                                  {getExpenseNatureLabel(row) && <p className="mt-1 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-slate-400">Conteggio: {getExpenseNatureLabel(row)}</p>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-5 grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                      <p className="text-sm font-black text-slate-950">Aggiungi movimento manuale</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">Usalo per contanti, secondo conto o movimenti che non sono nel file principale.</p>
+                      <div className="mt-4 grid gap-3">
+                        <input type="date" value={expenseManualDraft.date} onChange={(event) => setExpenseManualDraft((prev) => ({ ...prev, date: event.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-emerald-400" />
+                        <input value={expenseManualDraft.description} onChange={(event) => setExpenseManualDraft((prev) => ({ ...prev, description: event.target.value }))} placeholder="Descrizione" className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-emerald-400" />
+                        <input value={expenseManualDraft.amount} onChange={(event) => setExpenseManualDraft((prev) => ({ ...prev, amount: event.target.value }))} placeholder="Importo: es. -25 oppure 100" inputMode="decimal" className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-emerald-400" />
+                        <label className="grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                          Tipo movimento
+                          <select value={getExpenseMovementKindForMacro(expenseManualDraft.macroType)} onChange={(event) => setExpenseManualDraft((prev) => {
+                            const patch = normalizeExpenseMovementKindPatch({ category: prev.category, macroType: prev.macroType, isExcluded: false }, event.target.value as ExpenseMovementKind);
+                            return {
+                              ...prev,
+                              category: patch.category ?? prev.category,
+                              macroType: patch.macroType ?? prev.macroType,
+                            };
+                          })} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-black normal-case tracking-normal text-slate-800 outline-none focus:border-emerald-400">
+                            {EXPENSE_MOVEMENT_KIND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                          </select>
+                        </label>
+                        <label className="grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                          Categoria
+                          <select value={expenseManualDraft.category} onChange={(event) => setExpenseManualDraft((prev) => {
+                            const patch = normalizeExpenseCategoryPatch({ category: prev.category, macroType: prev.macroType, isExcluded: false }, event.target.value as ExpenseCategory);
+                            return {
+                              ...prev,
+                              category: patch.category ?? prev.category,
+                              macroType: patch.macroType ?? prev.macroType,
+                            };
+                          })} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-black normal-case tracking-normal text-slate-800 outline-none focus:border-emerald-400">
+                            {getExpenseCategoryOptionsForKind(getExpenseMovementKindForMacro(expenseManualDraft.macroType)).map((category) => <option key={category} value={category}>{category}</option>)}
+                          </select>
+                          {getExpenseNatureLabel({ ...expenseManualDraft, isExcluded: false, amount: parseItalianExpenseAmount(expenseManualDraft.amount), direction: parseItalianExpenseAmount(expenseManualDraft.amount) >= 0 ? "income" : "expense", id: "manual-draft", month: expenseSelectedMonth, sourceType: "manual", confidence: 1 } as ExpenseTransaction) && <span className="text-[0.68rem] font-bold normal-case tracking-normal text-slate-500">Conteggio: {getExpenseNatureLabel({ ...expenseManualDraft, isExcluded: false, amount: parseItalianExpenseAmount(expenseManualDraft.amount), direction: parseItalianExpenseAmount(expenseManualDraft.amount) >= 0 ? "income" : "expense", id: "manual-draft", month: expenseSelectedMonth, sourceType: "manual", confidence: 1 } as ExpenseTransaction)}</span>}
+                        </label>
+                        <button type="button" onClick={saveManualExpenseTransaction} disabled={expenseLoading} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700 disabled:opacity-50">Aggiungi movimento</button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-black text-slate-950">Movimenti salvati del mese</p>
+                          <p className="mt-1 text-sm leading-6 text-slate-600">Modifica tipo movimento e categoria se l'app ha interpretato male una voce.</p>
+                        </div>
+                        <select value={expenseAnalysisMonth} onChange={(event) => { setExpenseAnalysisMonth(event.target.value); setExpenseSelectedMonth(event.target.value); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700">
+                          {expenseAvailableMonths.map((month) => <option key={month} value={month}>{formatExpenseMonthLabel(month)}</option>)}
+                        </select>
+                      </div>
+                      <div className="mt-4 max-h-[24rem] overflow-auto space-y-2 pr-1">
+                        {expenseTransactions.filter((row) => row.month === expenseAnalysisMonth).length === 0 ? (
+                          <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600 ring-1 ring-slate-200">Nessun movimento salvato per questo mese.</div>
+                        ) : expenseTransactions.filter((row) => row.month === expenseAnalysisMonth).slice(0, 120).map((row) => (
+                          <div key={row.id} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                              <div className="min-w-0">
+                                <p className="text-sm font-black leading-5 text-slate-950" style={{ overflowWrap: "anywhere" }}>{row.description}</p>
+                                <p className="mt-1 text-xs text-slate-500">{formatItalianDate(row.date)} · {row.sourceType === "manual" ? "Manuale" : "File"}</p>
+                              </div>
+                              <p className={`text-sm font-black ${row.amount >= 0 ? "text-emerald-700" : "text-slate-950"}`}>{formatSignedEuroCents(row.amount)}</p>
+                            </div>
+                            <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                              <label className="grid gap-1 text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-400">
+                                Tipo movimento
+                                <select value={getExpenseMovementKindForMacro(row.macroType)} onChange={(event) => updateSavedExpenseTransaction(row.id, normalizeExpenseMovementKindPatch(row, event.target.value as ExpenseMovementKind))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black normal-case tracking-normal text-slate-800">
+                                  {EXPENSE_MOVEMENT_KIND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                </select>
+                              </label>
+                              <label className="grid gap-1 text-[0.65rem] font-black uppercase tracking-[0.12em] text-slate-400">
+                                Categoria
+                                <select value={row.category} onChange={(event) => updateSavedExpenseTransaction(row.id, normalizeExpenseCategoryPatch(row, event.target.value as ExpenseCategory))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black normal-case tracking-normal text-slate-800">
+                                  {getExpenseCategoryOptionsForKind(getExpenseMovementKindForMacro(row.macroType)).map((category) => <option key={category} value={category}>{category}</option>)}
+                                </select>
+                                {getExpenseNatureLabel(row) && <span className="text-[0.65rem] font-bold normal-case tracking-normal text-slate-500">Conteggio: {getExpenseNatureLabel(row)}</span>}
+                              </label>
+                              <button type="button" onClick={() => deleteExpenseTransaction(row.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Elimina</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="spesa-intelligente" className={`${mobileAwarenessMode === "shopping" ? "block" : "hidden"} rounded-[2rem] border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-lime-50 p-5 shadow-[0_18px_45px_rgba(16,185,129,0.10)] lg:block`}> 
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Lista della spesa intelligente</p>
                       <h4 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Prepara la lista prima di entrare al supermercato</h4>
                       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
                         Parti da prodotti comuni, aggiungi quello che ti serve davvero e spunta le voci mentre fai la spesa. Una lista chiara riduce acquisti impulsivi, doppioni e sprechi.
@@ -15040,13 +16646,34 @@ const [authReady, setAuthReady] = useState(false);
                       onClick={() => setIsSmartShoppingOpen((prev) => !prev)}
                       className={`shrink-0 rounded-xl px-5 py-3 text-sm font-bold transition ${isSmartShoppingOpen ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}
                     >
-                      {isSmartShoppingOpen ? "Richiudi lista" : "Apri Spesa intelligente"}
+                      {isSmartShoppingOpen ? "Richiudi lista" : "Apri lista della spesa"}
                     </button>
                   </div>
 
                   {!isSmartShoppingOpen && (
-                    <div className="mt-5 rounded-2xl border border-emerald-100 bg-white/80 p-4 text-sm leading-6 text-slate-600">
-                      Apri il menu quando vuoi preparare o aggiornare la lista. Quando non ti serve, resta chiusa e non occupa spazio nella scheda Risparmio.
+                    <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+                      <div className="rounded-2xl border border-emerald-100 bg-white/90 p-4 text-sm leading-6 text-slate-700 shadow-sm">
+                        <p className="font-black text-slate-950">Strumento pratico anti-spreco</p>
+                        <p className="mt-1">Apri la lista quando vuoi preparare la spesa. Ti aiuta a separare necessari ed extra prima di entrare al supermercato.</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                          <p className="text-[0.65rem] font-black uppercase tracking-wide text-slate-500">Prodotti</p>
+                          <p className="mt-1 text-xl font-black text-slate-950">{shoppingItems.length}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                          <p className="text-[0.65rem] font-black uppercase tracking-wide text-slate-500">Da comprare</p>
+                          <p className="mt-1 text-xl font-black text-slate-950">{shoppingRemainingCount}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                          <p className="text-[0.65rem] font-black uppercase tracking-wide text-slate-500">Totale stimato</p>
+                          <p className="mt-1 text-xl font-black text-emerald-700">{formatEuro(shoppingTotalEstimated)}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                          <p className="text-[0.65rem] font-black uppercase tracking-wide text-slate-500">Extra</p>
+                          <p className="mt-1 text-xl font-black text-indigo-700">{formatEuro(shoppingExtraEstimated)}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -15249,66 +16876,106 @@ const [authReady, setAuthReady] = useState(false);
                   </div>
                 )}
 
-                <div className={`${mobileAwarenessMode === "shopping" ? "hidden lg:grid" : "grid"} gap-4 xl:grid-cols-2`}>
-                  {sortedAwarenessActions.map((action, index) => {
-                    const done = !!completedAwarenessActions[action.id];
-                    return (
-                      <div key={action.id} className={`rounded-3xl border p-5 shadow-sm transition ${done ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white hover:border-emerald-200 hover:shadow-md"}`}>
-                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">#{index + 1}</span>
-                              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">{action.area}</span>
-                              {done && <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">Completata</span>}
+                <div className={`${mobileAwarenessMode === "shopping" ? "hidden lg:block" : "block"} rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm`}>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Consigli pratici</p>
+                      <h4 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Azioni per spendere meglio</h4>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                        Sono idee operative da aprire solo quando vuoi intervenire su una voce specifica. La parte centrale resta l’analisi spese mensile.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAwarenessAdviceOpen(Object.fromEntries(sortedAwarenessActions.map((action) => [action.id, true])))}
+                        className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
+                      >
+                        Apri tutti
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAwarenessAdviceOpen({})}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Chiudi tutti
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 xl:grid-cols-2">
+                    {sortedAwarenessActions.map((action, index) => {
+                      const done = !!completedAwarenessActions[action.id];
+                      const open = !!awarenessAdviceOpen[action.id];
+                      return (
+                        <div key={action.id} className={`rounded-3xl border shadow-sm transition ${done ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white hover:border-emerald-200 hover:shadow-md"}`}>
+                          <button
+                            type="button"
+                            onClick={() => setAwarenessAdviceOpen((prev) => ({ ...prev, [action.id]: !prev[action.id] }))}
+                            className="w-full p-5 text-left"
+                          >
+                            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">#{index + 1}</span>
+                                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">{action.area}</span>
+                                  {done && <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">Completata</span>}
+                                  <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-500 ring-1 ring-slate-200">{open ? "Chiudi" : "Apri"}</span>
+                                </div>
+                                <h4 className="mt-3 text-lg font-bold text-slate-950">{action.title}</h4>
+                                <p className="mt-2 text-sm leading-6 text-slate-600">{action.why}</p>
+                              </div>
+                              <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-4 text-sm">
+                                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Impatto stimato</p>
+                                <p className="mt-1 text-lg font-bold text-slate-950">{formatEuro(action.estimatedSavingMonthly)}/mese</p>
+                                <p className="mt-1 text-slate-600">{formatEuro(action.estimatedSavingYearly)}/anno</p>
+                              </div>
                             </div>
-                            <h4 className="mt-3 text-lg font-bold text-slate-950">{action.title}</h4>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">{action.why}</p>
-                          </div>
-                          <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-4 text-sm">
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Impatto stimato</p>
-                            <p className="mt-1 text-lg font-bold text-slate-950">{formatEuro(action.estimatedSavingMonthly)}/mese</p>
-                            <p className="mt-1 text-slate-600">{formatEuro(action.estimatedSavingYearly)}/anno</p>
-                          </div>
-                        </div>
+                          </button>
 
-                        <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
-                          <div className="rounded-2xl border border-slate-200 bg-white p-3">Tempo: <strong>{action.minutes} min</strong></div>
-                          <div className="rounded-2xl border border-slate-200 bg-white p-3">Difficolta: <strong>{action.difficulty}/5</strong></div>
-                          <div className="rounded-2xl border border-slate-200 bg-white p-3">Sacrificio: <strong>{action.sacrifice}/5</strong></div>
-                        </div>
+                          {open && (
+                            <div className="border-t border-slate-100 px-5 pb-5">
+                              <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+                                <div className="rounded-2xl border border-slate-200 bg-white p-3">Tempo: <strong>{action.minutes} min</strong></div>
+                                <div className="rounded-2xl border border-slate-200 bg-white p-3">Difficoltà: <strong>{action.difficulty}/5</strong></div>
+                                <div className="rounded-2xl border border-slate-200 bg-white p-3">Sacrificio: <strong>{action.sacrifice}/5</strong></div>
+                              </div>
 
-                        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <p className="text-sm font-semibold text-slate-950">Come metterla in pratica</p>
-                          <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
-                            {action.steps.map((stepText, stepIndex) => (
-                              <li key={stepText} className="flex gap-2">
-                                <span className="font-semibold text-emerald-700">{stepIndex + 1}.</span>
-                                <span>{stepText}</span>
-                              </li>
-                            ))}
-                          </ol>
-                        </div>
+                              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-sm font-semibold text-slate-950">Come metterla in pratica</p>
+                                <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+                                  {action.steps.map((stepText, stepIndex) => (
+                                    <li key={stepText} className="flex gap-2">
+                                      <span className="font-semibold text-emerald-700">{stepIndex + 1}.</span>
+                                      <span>{stepText}</span>
+                                    </li>
+                                  ))}
+                                </ol>
+                              </div>
 
-                        <div className="mt-5 flex flex-wrap gap-3">
-                          {!done ? (
-                            <button
-                              onClick={() => toggleAwarenessAction(action.id, true)}
-                              className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                            >
-                              Segna come fatto
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => toggleAwarenessAction(action.id, false)}
-                              className="rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
-                            >
-                              Azione completata
-                            </button>
+                              <div className="mt-5 flex flex-wrap gap-3">
+                                {!done ? (
+                                  <button
+                                    onClick={() => toggleAwarenessAction(action.id, true)}
+                                    className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                                  >
+                                    Segna come fatto
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => toggleAwarenessAction(action.id, false)}
+                                    className="rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                                  >
+                                    Azione completata
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           )}
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -16970,7 +18637,7 @@ const [authReady, setAuthReady] = useState(false);
                       <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${monitorSituation.tone.background}`} />
                       <div className="flex items-center gap-3">
                         <span className={`flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br ${monitorSituation.tone.background} text-base shadow-sm ring-1 ring-white`} aria-hidden="true">⟳</span>
-                        <p className={`text-xs font-black uppercase tracking-[0.18em] ${monitorSituation.tone.accent}`}>Ribilanciamento</p>
+                        <p className={`text-xs font-black uppercase tracking-[0.18em] ${monitorSituation.tone.accent}`}>{monitorSituation.alignmentTitle}</p>
                       </div>
                       <p className="mt-4 text-sm leading-6 text-slate-700">{monitorSituation.rebalanceGuidance}</p>
                     </div>
@@ -17030,6 +18697,174 @@ const [authReady, setAuthReady] = useState(false);
                     );
                   })}
                 </div>
+              </div>
+
+
+              <div className="relative z-10 mt-5 rounded-[1.6rem] border border-emerald-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-sm font-black text-slate-950">Controllo spese</p>
+                    <h4 className="mt-1 text-lg font-black tracking-tight text-slate-950">{expenseMonitorTitle}</h4>
+                    <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
+                      Analizza spese, investimenti, fondo emergenza e margine disponibile. Il caricamento completo vive in Consapevolezza → Gestione mensile.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(["month", "3m", "6m", "12m"] as ExpenseAnalysisMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setExpenseAnalysisMode(mode)}
+                        className={`rounded-full px-3 py-2 text-xs font-black transition ${expenseAnalysisMode === mode ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100 hover:bg-emerald-100"}`}
+                      >
+                        {mode === "month" ? "Mese" : mode === "3m" ? "3 mesi" : mode === "6m" ? "6 mesi" : "12 mesi"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  {expenseAnalysisMode === "month" ? (
+                    <label className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                      Mese da analizzare
+                      <select
+                        value={expenseAnalysisMonth}
+                        onChange={(event) => setExpenseAnalysisMonth(event.target.value)}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold normal-case tracking-normal text-slate-800 outline-none focus:border-emerald-400"
+                      >
+                        {expenseAvailableMonths.map((month) => (
+                          <option key={month} value={month}>{formatExpenseMonthLabel(month)}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+                      Periodo: {expenseAnalysis.months.length ? `${formatExpenseMonthLabel(expenseAnalysis.months[0])} - ${formatExpenseMonthLabel(expenseAnalysis.months[expenseAnalysis.months.length - 1])}` : "nessun mese caricato"}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep("awareness");
+                      setAwarenessTab("risparmio");
+                      setMobileAwarenessMode("standard");
+                      window.setTimeout(() => {
+                        document.getElementById("expense-monthly-import-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 80);
+                    }}
+                    className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
+                  >
+                    Carica o modifica spese
+                  </button>
+                </div>
+
+                {expenseAnalysis.transactionCount === 0 ? (
+                  <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                    Nessuna analisi disponibile per questo periodo. Carica un PDF, Excel o CSV nella scheda Gestione mensile per vedere il report nel Monitor.
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 grid gap-3 md:grid-cols-6">
+                      <div className="rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-100">
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-emerald-700">Entrate</p>
+                        <p className="mt-1 text-xl font-black text-slate-950">{formatEuroCents(expenseAnalysis.incomeTotal)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-slate-500">Spese reali</p>
+                        <p className="mt-1 text-xl font-black text-slate-950">{formatEuroCents(expenseAnalysis.realExpensesTotal)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-100">
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-amber-700">Totale uscite</p>
+                        <p className="mt-1 text-xl font-black text-slate-950">{formatEuroCents(expenseAnalysis.totalOutflows)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-emerald-700">Avanzo residuo</p>
+                        <p className={`mt-1 text-xl font-black ${expenseAnalysis.netMonthResult >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{formatSignedEuroCents(expenseAnalysis.netMonthResult)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-indigo-50 p-4 ring-1 ring-indigo-100">
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-indigo-700">Investimenti/PAC</p>
+                        <p className="mt-1 text-xl font-black text-slate-950">{formatEuroCents(expenseAnalysis.investmentTotal)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-cyan-50 p-4 ring-1 ring-cyan-100">
+                        <p className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-cyan-700">Fondo emergenza</p>
+                        <p className="mt-1 text-xl font-black text-slate-950">{formatEuroCents(expenseAnalysis.emergencyFundTotal)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid gap-3 md:grid-cols-4">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-xs font-bold text-slate-500">Fisse / obbligatorie</p>
+                        <p className="mt-1 font-black text-slate-950">{formatEuroCents(expenseAnalysis.fixedRequiredTotal)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-xs font-bold text-slate-500">Variabili necessarie</p>
+                        <p className="mt-1 font-black text-slate-950">{formatEuroCents(expenseAnalysis.variableRequiredTotal)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-xs font-bold text-slate-500">Discrezionali</p>
+                        <p className="mt-1 font-black text-slate-950">{formatEuroCents(expenseAnalysis.discretionaryTotal)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-xs font-bold text-slate-500">Quota futuro</p>
+                        <p className="mt-1 font-black text-emerald-700">{formatPercent(expenseAnalysis.futureQuotaPercent, 1)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+                      <div className="rounded-2xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-950 ring-1 ring-emerald-100">
+                        <p className="font-black">Lettura del periodo</p>
+                        <p className="mt-2">{expenseAnalysis.mainAdvice}</p>
+                        <p className="mt-2 text-emerald-900/90">{expenseAnalysis.secondaryAdvice}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                        <p className="text-sm font-black text-slate-950">Fondo emergenza consigliato</p>
+                        <p className="mt-2 text-2xl font-black text-slate-950">{formatEuroCents(expenseAnalysis.emergencyFundRecommended)}</p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <label className="text-xs font-bold text-slate-600">
+                            Fondo già accantonato
+                            <input
+                              value={expenseEmergencyFundCurrent}
+                              onChange={(event) => setExpenseEmergencyFundCurrent(event.target.value)}
+                              inputMode="decimal"
+                              placeholder="Es. 3000"
+                              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 outline-none focus:border-emerald-400"
+                            />
+                          </label>
+                          <label className="text-xs font-bold text-slate-600">
+                            Copertura desiderata
+                            <select
+                              value={expenseEmergencyFundMonths}
+                              onChange={(event) => setExpenseEmergencyFundMonths(event.target.value)}
+                              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 outline-none focus:border-emerald-400"
+                            >
+                              <option value="3">3 mesi</option>
+                              <option value="6">6 mesi</option>
+                              <option value="9">9 mesi</option>
+                              <option value="12">12 mesi</option>
+                            </select>
+                          </label>
+                        </div>
+                        <p className="mt-2 text-xs leading-5 text-slate-600">
+                          Stima basata su spese fisse + variabili necessarie × {Math.max(1, Number(expenseEmergencyFundMonths || 6))} mesi. Copertura attuale: {expenseAnalysis.emergencyFundCoverageMonths === null ? "n/d" : `${expenseAnalysis.emergencyFundCoverageMonths.toFixed(1).replace(".", ",")} mesi`}.
+                        </p>
+                      </div>
+                    </div>
+
+                    {expenseAnalysis.topCategories.length > 0 ? (
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-sm font-black text-slate-950">Categorie principali</p>
+                        <div className="mt-3 grid gap-2 md:grid-cols-2">
+                          {expenseAnalysis.topCategories.slice(0, 4).map((item) => (
+                            <div key={item.category} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-100">
+                              <span className="font-semibold text-slate-700">{item.category}</span>
+                              <span className="font-black text-slate-950">{formatEuroCents(item.total)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                )}
               </div>
 
               {isProPlanActive && monitorIncomeRows.length > 0 ? (
@@ -19627,7 +21462,7 @@ function TopBar({
   ];
 
   const awarenessMobileItems: Array<{ id: AwarenessTab; label: string; icon: string; description: string }> = [
-    { id: "risparmio", label: "Risparmio", icon: "💶", description: "Azioni pratiche e spesa intelligente." },
+    { id: "risparmio", label: "Gestione mensile", icon: "💶", description: "Analisi spese, fondo emergenza e lista della spesa." },
     { id: "auto", label: "Auto", icon: "🚗", description: "Costo reale e finanziamento." },
     { id: "mutuo", label: "Mutuo", icon: "🏠", description: "Sostenibilità e Verifica PIES." },
     { id: "truffe", label: "Anti-truffe", icon: "🛡️", description: "Motore e mini gioco." },
